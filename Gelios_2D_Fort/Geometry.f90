@@ -1,5 +1,3 @@
-
-
 module GEOMETRY
     use STORAGE 
     implicit none 
@@ -38,6 +36,7 @@ module GEOMETRY
         allocate(SS%gl_Cell_number(2, N1))
 
         allocate(SS%gl_Cell_gran(4, N1))
+        allocate(SS%gl_Cell_belong(3, 4, N1))
 
         ! Посчитаем число узлов в сетке
         SS%par_n_points = SS%par_n_END * (SS%par_m_A + SS%par_m_BC) + SS%par_m_K * (SS%par_n_TS + SS%par_m_O) + (SS%par_n_END - SS%par_n_TS + 1) * SS%par_m_O - &
@@ -64,12 +63,23 @@ module GEOMETRY
 
         allocate(SS%gl_all_Gran(2, n))
         allocate(SS%gl_Gran_neighbour(2, n))
+        allocate(SS%gl_Gran_type(n))
+        allocate(SS%gl_Gran_normal(2, n, 2))
 
-        print*, "Grans = ", n
+        allocate(SS%gl_Contact( (SS%par_m_O + SS%par_m_A + SS%par_m_BC - 1)  ))   ! Выделяем память под контакт
+        allocate(SS%gl_TS( (SS%par_m_A + SS%par_m_BC + SS%par_m_K - 1) ))   ! Выделяем память под TS
+        allocate(SS%gl_BS( (SS%par_m_A - 1) ))   ! Выделяем память под BS
+
+        SS%gl_Contact = 0
+        SS%gl_TS = 0
+        SS%gl_BS = 0
+        SS%gl_Gran_type = 0
 
         SS%gl_all_Gran = 0
         SS%gl_Gran_neighbour = 0
         SS%gl_Cell_gran = 0
+        SS%gl_Cell_belong = 0.0
+        SS%gl_Gran_normal = 0.0
 
         SS%gl_Cell_type = "-"
         SS%gl_Cell_number = 0
@@ -99,7 +109,7 @@ module GEOMETRY
     subroutine Build_Setka_start(SS)        ! Начальное построение сетки
         TYPE (Setka), intent(in out) :: SS
 
-        integer(4) :: i, j, N1, N2, i1, node, kk2, ni, num1
+        integer(4) :: i, j, N1, N2, i1, node, kk2, ni, num1, yz1, yz2, gran
         real(8) :: r, phi, the, xx, x, y, z, rr, x2, y2, z2, R_HP, the2
 
         node = 1
@@ -746,8 +756,6 @@ module GEOMETRY
             end do
         end do
 
-        print*, "2 - Grans = ", node - 1
-
         ! Теперь для каждой ячейки добавим ей информацию какого она типа и какой у неё номер (тройка) в этом типе
         ! Начнём с группы А
         N2 = size(SS%gl_Cell_A(1, :))
@@ -785,8 +793,56 @@ module GEOMETRY
             end do
         end do
 
+        call Geo_Find_Surface(SS)  ! Находим поверхности, которые выделяем
+        call Geo_Culc_normal(SS, 1)
+        call Geo_Culc_normal(SS, 2)
+        call Culc_Cell_Centr(SS, 1)
+        call Culc_Cell_Centr(SS, 2)
+
+        call Belong_Init(SS)
+
         
     end subroutine Build_Setka_start
+
+    subroutine Belong_Init(SS)
+        ! Для каждой ячейки найдём коэффиценты каждой грани для определения принадлежности точки к ячейке
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: N1, i, j, gran, yz1, yz2
+        real(8) :: c, p(2), n(2), centr(2)
+
+        N1 = size(SS%gl_Cell_gran(1, :))
+
+        do i = 1, N1  ! По всем ячейкам
+            do j = 1, 4  ! По всем граням
+                gran = SS%gl_Cell_gran(j, i)
+
+                if (gran == 0) then
+                    SS%gl_Cell_belong(:, j, i) = 0.0
+                    CYCLE
+                end if
+
+                yz1 = SS%gl_all_Gran(1, gran)
+                yz2 = SS%gl_all_Gran(2, gran)
+                if(yz1 == yz2) then
+                    SS%gl_Cell_belong(:, j, i) = 0.0
+                    CYCLE
+                end if
+                p = SS%gl_yzel(:, yz1, 1)
+                n = SS%gl_Gran_normal(:, gran, 1)
+                c = -DOT_PRODUCT(p, n)
+
+                SS%gl_Cell_belong(1, j, i) = n(1)
+                SS%gl_Cell_belong(2, j, i) = n(2)
+                SS%gl_Cell_belong(3, j, i) = c
+                centr = SS%gl_Cell_Centr(:, i, 1)
+
+                if(centr(1) * n(1) + centr(2) * n(2) + c > 0) then
+                    SS%gl_Cell_belong(:, j, i) = -SS%gl_Cell_belong(:, j, i)
+                end if
+            end do
+        end do
+
+    end subroutine Belong_Init
 
     subroutine Set_Ray_A(SS, i, j, R_TS, R_HP, R_BS, step)
         ! step - 1 или 2  показывает какой массив координат мы меняем
@@ -1018,6 +1074,48 @@ module GEOMETRY
         return
     end subroutine Set_Ray_E
 
+    subroutine Geo_Find_Cell(SS, x, y, num)
+        ! Поиск номера ячейки по её координатам
+        ! num = предположительный изначальный номер (если не знаем пусть будет равен 1)
+        TYPE (Setka), intent(in) :: SS
+        real(8), intent(in) :: x, y
+        integer(4), intent(in out) :: num
+        integer(4) :: j, gran, sosed, max_num
+
+        max_num = 0
+
+        loop1:do while(.TRUE.)
+            max_num = max_num + 1
+
+            if(max_num > 1000000) then
+                STOP "ERROR Geo_Find_Cell 1091 784yrhfji348hr2ygytgfbibsvghvdcvgdscd"
+            end if
+            !print*, num
+            !pause
+            loop2:do j = 1, 4
+                gran = SS%gl_Cell_gran(j, num)
+                if(gran == 0) CYCLE loop2
+
+                !print*, "Gran = ", j, " ", SS%gl_Cell_belong(:, j, num)
+                !print*, "normal = ", SS%gl_Gran_normal(:, gran, 1)
+
+                if(SS%gl_Cell_belong(1, j, num) * x + SS%gl_Cell_belong(2, j, num) * y + SS%gl_Cell_belong(3, j, num) > 0) then
+                    sosed = SS%gl_Gran_neighbour(1, gran)
+                    if(sosed == num) sosed = SS%gl_Gran_neighbour(2, gran)
+
+                    if(sosed > 0) then
+                        num = sosed
+                        cycle loop1
+                    end if
+                end if
+            end do loop2
+
+            EXIT loop1
+        end do loop1
+
+
+    end subroutine Geo_Find_Cell
+
     subroutine Culc_Cell_Centr(SS, step)
         ! Считаем центры всех ячеек в массив
         ! step - 1 или 2  показывает какой массив координат мы меняем
@@ -1042,6 +1140,90 @@ module GEOMETRY
             SS%gl_Cell_Centr(:, i, step) = (p1 + p2 + p3 + p4)/4.0
         end do
     end subroutine Culc_Cell_Centr
+
+    subroutine Geo_Culc_normal(SS, step)
+        ! Считаем нормали всех ячеек
+        TYPE (Setka), intent(in out) :: SS
+        integer(4), INTENT(IN) :: step
+        integer(4) :: N, i, a1, a2
+        real(8) :: r1(2), r2(2), normal(2), c, norm, centr(2), vec(2)
+
+        N = size(SS%gl_all_Gran(1, :))
+
+        do i = 1, N
+            a1 = SS%gl_all_Gran(1, i)
+            a2 = SS%gl_all_Gran(2, i)
+            r1 = SS%gl_yzel(:, a1, step)
+            r2 = SS%gl_yzel(:, a2, step)
+
+            normal = r2 - r1
+            c = normal(2)
+            normal(2) = -normal(1)
+            normal(1) = c
+            norm = norm2(normal)
+            normal = normal/norm
+
+            centr = (r1 + r2)/2.0
+            vec = centr - r1
+
+            if(DOT_PRODUCT(vec, normal) < 0.0) then
+                normal = -normal
+            end if
+
+            SS%gl_Gran_normal(:, i, step) = normal
+
+        end do
+
+    end subroutine Geo_Culc_normal
+
+    subroutine Geo_Find_Surface(SS)   ! Заполняет массивы поверхностей, которые выделяются
+		use STORAGE
+		implicit none
+        TYPE (Setka), intent(in out) :: SS
+		integer :: j, k, node, num, i
+
+		! HP
+		node = 1
+
+		do j = 1, size( SS%gl_Cell_A(SS%par_n_HP - 1, :) )
+			SS%gl_Contact(node) = SS%gl_Cell_gran(1, SS%gl_Cell_A(SS%par_n_HP - 1, j))
+			SS%gl_Gran_type(SS%gl_Contact(node)) = 2
+			node = node + 1
+				
+				
+		end do
+
+		do j = 1, size( SS%gl_Cell_C(SS%par_n_HP - SS%par_n_TS, :) )
+			SS%gl_Contact(node) = SS%gl_Cell_gran(1, SS%gl_Cell_C(SS%par_n_HP - SS%par_n_TS, j))
+			SS%gl_Gran_type(SS%gl_Contact(node)) = 2
+			node = node + 1
+				
+		end do
+
+		node = 1
+		! TS
+		do j = 1, size( SS%gl_Cell_A(SS%par_n_TS - 1, :) )
+			SS%gl_TS(node) = SS%gl_Cell_gran(1, SS%gl_Cell_A(SS%par_n_TS - 1, j))
+			SS%gl_Gran_type(SS%gl_TS(node)) = 1
+			node = node + 1
+		end do
+
+		do j = 1, size( SS%gl_Cell_B(SS%par_n_TS - 1, :) )
+			SS%gl_TS(node) = SS%gl_Cell_gran(1, SS%gl_Cell_B(SS%par_n_TS - 1, j))
+			SS%gl_Gran_type(SS%gl_TS(node)) = 1
+			node = node + 1
+		end do
+
+
+		node = 1
+		! BS
+		num = SS%par_m_A - 1
+		do j = 1, num
+			SS%gl_BS(node) = SS%gl_Cell_gran(1, SS%gl_Cell_A(SS%par_n_BS - 1, j))
+			node = node + 1
+		end do
+
+    end subroutine Geo_Find_Surface
 
     subroutine Print_Point_from_Rays(SS)
         ! Печатаем узлы (но пробегаемся по лучам и печатаем узлы на лучах)
@@ -1296,6 +1478,47 @@ module GEOMETRY
 
         close(1)
     end subroutine Print_Grans
+
+    subroutine Geo_Print_Surface(SS)
+        ! Печатаем поверхности, которые выделяем
+        TYPE (Setka), intent(in) :: SS
+        integer(4) :: i, N, a1, a2, gr, j
+
+        N = size(SS%gl_Contact) + size(SS%gl_TS) + size(SS%gl_BS)
+
+        open(1, file = SS%name // '_Print_Surface.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y'  ZONE T= 'HP', N= ", 2 * N, ", E =  ", N , ", F=FEPOINT, ET=LINESEG"
+
+        do i = 1, size(SS%gl_Contact)
+            gr = SS%gl_Contact(i)
+            a1 = SS%gl_all_Gran(1, gr)
+            a2 = SS%gl_all_Gran(2, gr)
+            write(1, *) SS%gl_yzel(:, a1, 1)
+            write(1, *) SS%gl_yzel(:, a2, 1)
+        end do
+
+        do i = 1, size(SS%gl_TS)
+            gr = SS%gl_TS(i)
+            a1 = SS%gl_all_Gran(1, gr)
+            a2 = SS%gl_all_Gran(2, gr)
+            write(1, *) SS%gl_yzel(:, a1, 1)
+            write(1, *) SS%gl_yzel(:, a2, 1)
+        end do
+
+        do i = 1, size(SS%gl_BS)
+            gr = SS%gl_BS(i)
+            a1 = SS%gl_all_Gran(1, gr)
+            a2 = SS%gl_all_Gran(2, gr)
+            write(1, *) SS%gl_yzel(:, a1, 1)
+            write(1, *) SS%gl_yzel(:, a2, 1)
+        end do
+
+        do j = 0, N
+            write(1,*) 2 * j + 1, 2 * j + 2
+        end do
+
+        close(1)
+    end subroutine Geo_Print_Surface
 
     subroutine Proverka_grans_sosed(SS)
         ! Автоматическая проверка граней (их соседей) и соседей (в ячейках)
