@@ -4,7 +4,7 @@ module GEOMETRY
 
     contains
 
-    subroutine Init_Setka(SS)        ! ¬ыделение пам€ти под все массивы в сетки
+    subroutine Init_Setka(SS)        ! ¬ыделение пам€ти под все массивы сетки
         ! ѕредполагаетс€, что все параметры сетки определены
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: N1, n2, n
@@ -37,6 +37,7 @@ module GEOMETRY
 
         allocate(SS%gl_Cell_gran(4, N1))
         allocate(SS%gl_Cell_belong(3, 4, N1))
+        allocate(SS%gl_Cell_square(N1, 2))
 
         ! ѕосчитаем число узлов в сетке
         SS%par_n_points = SS%par_n_END * (SS%par_m_A + SS%par_m_BC) + SS%par_m_K * (SS%par_n_TS + SS%par_m_O) + (SS%par_n_END - SS%par_n_TS + 1) * SS%par_m_O - &
@@ -65,6 +66,7 @@ module GEOMETRY
         allocate(SS%gl_Gran_neighbour(2, n))
         allocate(SS%gl_Gran_type(n))
         allocate(SS%gl_Gran_normal(2, n, 2))
+        allocate(SS%gl_Gran_length(n, 2))
 
         allocate(SS%gl_Contact( (SS%par_m_O + SS%par_m_A + SS%par_m_BC - 1)  ))   ! ¬ыдел€ем пам€ть под контакт
         allocate(SS%gl_TS( (SS%par_m_A + SS%par_m_BC + SS%par_m_K - 1) ))   ! ¬ыдел€ем пам€ть под TS
@@ -80,6 +82,8 @@ module GEOMETRY
         SS%gl_Cell_gran = 0
         SS%gl_Cell_belong = 0.0
         SS%gl_Gran_normal = 0.0
+        SS%gl_Gran_length = 0.0
+        SS%gl_Cell_square = 0.0
 
         SS%gl_Cell_type = "-"
         SS%gl_Cell_number = 0
@@ -247,7 +251,7 @@ module GEOMETRY
             end do
         end do
 
-        gl_S1%gl_yzel(:, :, 2) = gl_S1%gl_yzel(:, :, 1)
+        SS%gl_yzel(:, :, 2) = SS%gl_yzel(:, :, 1)
 
         ! —троим сами €чейки и св€зываем их с точками
 
@@ -801,6 +805,9 @@ module GEOMETRY
 
         call Belong_Init(SS)
 
+        call Geo_Culc_length_area(SS, 1)
+        call Geo_Culc_length_area(SS, 2)
+
         
     end subroutine Build_Setka_start
 
@@ -882,6 +889,8 @@ module GEOMETRY
 
     subroutine Set_Ray_B(SS, i, j, R_TS, R_HP, step)
         ! step - 1 или 2  показывает какой массив координат мы мен€ем
+        ! R_TS - это рассто€ние от TS до центра
+        !! R_HP - это рассто€ние по второму лучу от TS до HP
         TYPE (Setka), intent(in out) :: SS
         integer(4), INTENT(IN) :: i, j, step
         real(8), INTENT(IN) :: R_TS, R_HP
@@ -923,6 +932,7 @@ module GEOMETRY
 
     subroutine Set_Ray_C(SS, i, j, step)
         ! step - 1 или 2  показывает какой массив координат мы мен€ем
+        ! Ётим лучам ничего не надо, они сами подстраиваютс€
         TYPE (Setka), intent(in out) :: SS
         integer(4), INTENT(IN) :: i, j, step
 
@@ -957,6 +967,8 @@ module GEOMETRY
 
     subroutine Set_Ray_O(SS, i, j, R_HP, step)
         ! step - 1 или 2  показывает какой массив координат мы мен€ем
+        ! R_HP - высота
+        ! –аспределение x - координат считаетс€ автоматически от x - координаты крайней точки B на гелиопаузе
         TYPE (Setka), intent(in out) :: SS
         integer(4), INTENT(IN) :: i, j, step
         real(8), INTENT(IN) :: R_HP
@@ -1140,6 +1152,44 @@ module GEOMETRY
             SS%gl_Cell_Centr(:, i, step) = (p1 + p2 + p3 + p4)/4.0
         end do
     end subroutine Culc_Cell_Centr
+
+    subroutine Geo_Culc_length_area(SS, step)
+        ! —читаем длины граней и площади €чеек, использу€ координаты узлов на слое step
+        TYPE (Setka), intent(in out) :: SS
+        integer(4), INTENT(IN) :: step
+        integer(4) :: i, n, y1, y2, y3, y4
+        real(8) :: p1(2), p2(2), S
+
+        ! —читаем длины граней
+        n = size(SS%gl_Gran_length(:, 1))
+
+        do i = 1, n
+            y1 = SS%gl_all_Gran(1, i)
+            y2 = SS%gl_all_Gran(2, i)
+            p1 = SS%gl_yzel(:, y1, step)
+            p2 = SS%gl_yzel(:, y2, step)
+            SS%gl_Gran_length(i, step) = norm2(p2 - p1)
+        end do
+
+        ! —читаем площади €чеек
+        n = size(SS%gl_Cell_square(:, 1))
+
+        do i = 1, n
+            y1 = SS%gl_all_Cell(1, i)
+            y2 = SS%gl_all_Cell(2, i)
+            y3 = SS%gl_all_Cell(3, i)
+            y4 = SS%gl_all_Cell(4, i)
+            p1 = SS%gl_yzel(:, y1, step) - SS%gl_yzel(:, y3, step)
+            p2 = SS%gl_yzel(:, y2, step) - SS%gl_yzel(:, y4, step)
+            S = 0.5 * (p1(1) * p2(2) - p1(2) * p2(1))
+            SS%gl_Cell_square(i, step) = S
+            if(S <= 0.0) then
+                print*, "S = ", S
+                STOP "ERROR Geo_Culc_length_area 1178  ioyefdvenmlgp9yrtgb"
+            end if
+        end do
+
+    end subroutine Geo_Culc_length_area
 
     subroutine Geo_Culc_normal(SS, step)
         ! —читаем нормали всех €чеек

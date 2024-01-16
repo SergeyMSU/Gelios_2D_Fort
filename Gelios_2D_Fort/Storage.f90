@@ -81,6 +81,7 @@ module STORAGE
         integer(4), allocatable :: gl_all_Gran(:,:)       ! Все грани (2,:) имеют по 2 узла
         integer(4), allocatable :: gl_Gran_neighbour(:,:) ! Соседи каждой грани (2,:) имеют по 2 соседа, нормаль ведёт от первого ко второму
         real(8), allocatable :: gl_Gran_normal(:, :, :)       ! (2, :, 2) Нормаль грани                       
+        real(8), allocatable :: gl_Gran_length(:, :)       ! (:, 2) Длина грани                       
         !! Нормаль идёт от первой ячейки ко второй обязательно!
 
         integer(4), allocatable :: gl_Cell_gran(:,:)        ! (4, :) Набор из 4 граней для каждой ячейки (если номер = 0, то грани нет в этом направлении)
@@ -88,6 +89,7 @@ module STORAGE
         ! Остальные отрицательные номера соответствуют номерам для соседей
         real(8), allocatable :: gl_Cell_belong(:,:,:)      ! (3, 4, :)  ! Определяются для координат на первом слое по времени
         ! для каждой грани коэффициенты A, B, C   Ax + By + C = 0  (если больше 0, то точка вне ячейки! Т.е. нормаль внешняя)
+        real(8), allocatable :: gl_Cell_square(:,:)      ! (:, 2)
 
         character, allocatable :: gl_Cell_type(:)           ! Тип каждой ячейки А, Б, С
         integer(4), allocatable :: gl_Cell_number(:, :)     ! (2, :) номер каждой ячейки внутри своего типа
@@ -102,6 +104,26 @@ module STORAGE
         ! (0 - обычная, 1 - TS, 2 - HP, 3 - BS)     
     END TYPE Setka
 
+    TYPE Inter_Setka  ! Сетка для интерполяции
+
+        logical :: init = .False.   ! Инициализирована ли данная сетка (выделена ли память под массивы геометрии)
+        real(8), allocatable :: gl_yzel(:, :)   ! (2, :) набор координат узлов сетки
+
+        ! Ячейки
+        !! Здесь А и B ячейки пересекаются (как раз на стыке A и B)
+        integer(4), allocatable :: gl_Cell_A(:,:)   ! Набор A-ечеек размерности 3 (на этом луче, в этой плоскости)
+        integer(4), allocatable :: gl_Cell_B(:,:)   ! Набор B-ечеек размерности 3 (на этом луче, в этой плоскости)
+        integer(4), allocatable :: gl_Cell_C(:,:)   ! Набор C-ечеек размерности 3 (на этом луче, в этой плоскости)
+
+        integer(4), allocatable :: gl_all_Cell(:,:)   ! Весь набор ячеек (4, :) - первая координата массива - это набор узлов ячейки
+        real(8), allocatable :: gl_Cell_center(:,:)   ! Весь набор ячеек (2, :) - первая координата массива - это набор узлов ячейки
+
+        integer(4), allocatable :: gl_Cell_neighbour(:,:)   ! (4, :) Набор из 4 соседей для каждой ячейки 
+        integer(4), allocatable :: gl_Cell_Gran(:, :, :)       ! Все грани (3, 4, :) имеют по A B C, 4 грани в ячейке, 
+        ! Ax + By + C = 0  (если > 0 то за пределами ячейки)
+
+    END TYPE Inter_Setka
+
     TYPE Phys_par
         ! Физические параметры в сетке, могут храниться в узлах сетки, а могут в центрах ячеек
         character(len=4) :: info = "0000"  ! "cent"  "yzel"
@@ -111,11 +133,27 @@ module STORAGE
         real(8), allocatable :: gd(:, :, :)  ! (4  rho p u v, :, 2 временной слой)
 
     END TYPE Phys_par
+
+    TYPE Surfaces
+        ! Модуль хранения поверхностей для движения сетки к этим поверхностям
+        ! Такое приём нужен, например, для перестройки текущей сетки (так как добавлять ячейки нельзя, но можно построить другую сетку)
+        ! и подвинуть её поверхности
+        logical :: init = .False.
+
+        real(8), allocatable :: TS(:, :)  ! (2, :) угол, радиус
+        real(8), allocatable :: HP(:, :)  ! (4, :) угол, радиус, x, y
+        real(8), allocatable :: BS(:, :)  ! (4, :) угол, радиус, x, y
+
+    END TYPE Surfaces
 	
 	!! Набор глобальных переменных 
     TYPE (Setka):: gl_S1
 
+    TYPE (Inter_Setka):: gl_S2
+
     TYPE (Phys_par):: gl_par1
+
+    TYPE (Surfaces):: gl_surf1
 
 
     contains 
