@@ -36,10 +36,10 @@ module Interpol
         allocate(SS_int%gl_all_Cell(4, N1))
         allocate(SS_int%gl_Cell_center(2, N1))
         allocate(SS_int%gl_Cell_neighbour(4, N1))
-        allocate(SS_int%gl_Cell_Gran(3, 4, N1))
+        allocate(SS_int%gl_Cell_Belong(3, 4, N1))
 		
 		SS_int%gl_all_Cell = 0
-        SS_int%gl_Cell_Gran = 0.0
+        SS_int%gl_Cell_Belong = 0.0
         SS_int%gl_Cell_neighbour = 0
         SS_int%gl_Cell_center = 0.0
 
@@ -358,6 +358,70 @@ module Interpol
                 end if
             end do
 		end do
+
+        ! B - €чейки
+        M1 = size(SS_int%gl_Cell_B(:, 1))
+        M2 = size(SS_int%gl_Cell_B(1, :))
+
+        do j = 1, M2
+			do i = 1, M1 - 1
+                cell = SS_int%gl_Cell_B(i, j)
+                a1 = SS_int%gl_all_Cell(2, cell)
+                a2 = SS_int%gl_all_Cell(3, cell)
+
+                cell2 = SS_int%gl_Cell_B(i + 1, j)
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(2, cell) = cell2
+                end if
+            end do
+        end do
+
+        do j = 2, M2
+			do i = 1, M1
+                cell = SS_int%gl_Cell_B(i, j)
+                a1 = SS_int%gl_all_Cell(1, cell)
+                a2 = SS_int%gl_all_Cell(2, cell)
+
+                cell2 = SS_int%gl_Cell_B(i, j - 1)
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(1, cell) = cell2
+                end if
+            end do
+		end do
+		
+		do j = 1, M2 - 1
+			do i = 1, M1
+                cell = SS_int%gl_Cell_B(i, j)
+                a1 = SS_int%gl_all_Cell(3, cell)
+                a2 = SS_int%gl_all_Cell(4, cell)
+
+                cell2 = SS_int%gl_Cell_B(i, j + 1)
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(3, cell) = cell2
+                end if
+            end do
+		end do
+        
+		do j = 1, M2
+			do i = 2, M1
+                cell = SS_int%gl_Cell_B(i, j)
+                a1 = SS_int%gl_all_Cell(4, cell)
+                a2 = SS_int%gl_all_Cell(1, cell)
+
+                cell2 = SS_int%gl_Cell_B(i - 1, j)
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(4, cell) = cell2
+                end if
+            end do
+		end do
 		
 		! C - €чейки
 		M1 = size(SS_int%gl_Cell_C(:, 1))
@@ -423,10 +487,232 @@ module Interpol
             end do
 		end do
 
-        !TODO ƒќƒ≈Ћј“№ ¬—≈ —¬я«»!
+        ! —в€зи мкжду A-C €чейками
+
+        M1 = size(SS_int%gl_Cell_A(:, 1))
+        M2 = size(SS_int%gl_Cell_A(1, :))
+
+        do j = M2, M2
+			do i = SS%par_n_TS + 1, M1
+                cell = SS_int%gl_Cell_A(i, j)
+                a1 = SS_int%gl_all_Cell(3, cell)
+                a2 = SS_int%gl_all_Cell(4, cell)
+
+                cell2 = SS_int%gl_Cell_C(i - SS%par_n_TS, 1)
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(3, cell) = cell2
+                end if
+            end do
+		end do
+
+        ! —в€зи мкжду A-B €чейками
+
+        do j = M2, M2
+			do i = SS%par_n_TS, SS%par_n_TS
+                cell = SS_int%gl_Cell_A(i, j)
+                a1 = SS_int%gl_all_Cell(3, cell)
+                a2 = SS_int%gl_all_Cell(4, cell)
+
+                cell2 = SS_int%gl_Cell_B(i, size(SS_int%gl_Cell_B(1, :)))
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(3, cell) = cell2
+                end if
+            end do
+		end do
+
+        do j = M2, M2
+			do i = 1, SS%par_n_TS
+                cell = SS_int%gl_Cell_A(i, j)
+                a1 = SS_int%gl_all_Cell(3, cell)
+                a2 = SS_int%gl_all_Cell(4, cell)
+
+                cell2 = SS_int%gl_Cell_B(i, size(SS_int%gl_Cell_B(1, :)) - 1)
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(3, cell) = cell2
+                end if
+            end do
+		end do
+
+        ! —в€зи мкжду C-A €чейками
+
+        M1 = size(SS_int%gl_Cell_C(:, 1))
+        M2 = size(SS_int%gl_Cell_C(1, :))
+		
+		do j = 1, 1
+			do i = 1, M1
+                cell = SS_int%gl_Cell_C(i, j)
+                a1 = SS_int%gl_all_Cell(1, cell)
+                a2 = SS_int%gl_all_Cell(2, cell)
+
+                cell2 = SS_int%gl_Cell_A(i + SS%par_n_TS, size(SS_int%gl_Cell_A(1, :)))
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(1, cell) = cell2
+                end if
+            end do
+		end do
+
+        ! —в€зи мкжду C-B €чейками
+
+        M1 = size(SS_int%gl_Cell_C(:, 1))
+        M2 = size(SS_int%gl_Cell_C(1, :))
+
+        do j = 1, M2
+			do i = 1, 1
+                cell = SS_int%gl_Cell_C(i, j)
+                a1 = SS_int%gl_all_Cell(4, cell)
+                a2 = SS_int%gl_all_Cell(1, cell)
+
+                cell2 = SS_int%gl_Cell_B(j + SS%par_n_TS, size(SS_int%gl_Cell_B(1, :)))
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(4, cell) = cell2
+                end if
+            end do
+		end do
+
+        ! —в€зи мкжду B-C €чейками
+
+        M1 = size(SS_int%gl_Cell_B(:, 1))
+        M2 = size(SS_int%gl_Cell_B(1, :))
+
+        do j = M2, M2
+			do i = SS%par_n_TS + 1, M1
+                cell = SS_int%gl_Cell_B(i, j)
+                a1 = SS_int%gl_all_Cell(3, cell)
+                a2 = SS_int%gl_all_Cell(4, cell)
+
+                cell2 = SS_int%gl_Cell_C(1, i - SS%par_n_TS)
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(3, cell) = cell2
+                end if
+            end do
+		end do
+
+        ! B-A тройна€ точка
+
+        M1 = size(SS_int%gl_Cell_B(:, 1))
+        M2 = size(SS_int%gl_Cell_B(1, :))
+
+        do j = M2, M2
+			do i = SS%par_n_TS, SS%par_n_TS
+                cell = SS_int%gl_Cell_B(i, j)
+                a1 = SS_int%gl_all_Cell(3, cell)
+                a2 = SS_int%gl_all_Cell(4, cell)
+
+                cell2 = SS_int%gl_Cell_A(SS%par_n_TS, size(SS_int%gl_Cell_A(1, :)))
+                if(cell2 < 1) CYCLE
+
+                if ( ANY(SS_int%gl_all_Cell(:, cell2) == a1) .and. ANY(SS_int%gl_all_Cell(:, cell2) == a2) ) then
+                    SS_int%gl_Cell_neighbour(3, cell) = cell2
+                end if
+            end do
+		end do
+
+        ! —читаем Ax + By + C дл€ каждой грани
+        call Int_Belong_init(SS_int)
 
     end subroutine Int_Init
 
+    subroutine Int_Belong_init(SS)
+        TYPE (Inter_Setka), intent(in out) :: SS
+        integer(4) :: N1, i, j, gran, yz1, yz2, jj
+        real(8) :: c, p1(2), p2(2), n(2), centr(2)
+
+        N1 = size(SS%gl_Cell_Belong(1, 1, :))
+
+        do i = 1, N1  ! ѕо всем €чейкам
+            do j = 1, 4  ! ѕо всем гран€м
+                yz1 = SS%gl_all_Cell(j, i)
+                jj = j + 1
+                if(jj > 4) jj = 1
+                yz2 = SS%gl_all_Cell(jj, i)
+
+                if(yz1 == yz2) then
+                    SS%gl_Cell_Belong(:, j, i) = 0.0
+                    CYCLE
+                end if
+
+                p1 = SS%gl_yzel(:, yz1)
+                p2 = SS%gl_yzel(:, yz2)
+
+
+                n = p2 - p1
+                c = n(1)
+                n(1) = -n(2)
+                n(2) = c
+
+                c = -DOT_PRODUCT(p1, n)
+
+                SS%gl_Cell_Belong(1, j, i) = n(1)
+                SS%gl_Cell_Belong(2, j, i) = n(2)
+                SS%gl_Cell_Belong(3, j, i) = c
+                centr = SS%gl_Cell_center(:, i)
+
+                if(centr(1) * n(1) + centr(2) * n(2) + c > 0) then
+                    SS%gl_Cell_Belong(:, j, i) = -SS%gl_Cell_Belong(:, j, i)
+                end if
+            end do
+        end do
+    end subroutine Int_Belong_init
+
+    subroutine Int_Find_Cell(SS, x, y, num)
+        ! ѕоиск номера €чейки по еЄ координатам
+        ! num = предположительный изначальный номер (если не знаем пусть будет равен 1)
+        TYPE (Inter_Setka), intent(in) :: SS
+        real(8), intent(in) :: x, y
+        integer(4), intent(in out) :: num
+        integer(4) :: j, gran, sosed, max_num
+        LOGICAL :: outer
+
+        max_num = 0
+        outer = .False.
+
+        loop1:do while(.TRUE.)
+            max_num = max_num + 1
+            outer = .False.
+            if(max_num > 1000000) then
+                STOP "ERROR Int_Find_Cell 683 iuyhgw4it0pflkjhrfe"
+            end if
+
+            !print*, "A", num
+            
+            loop2:do j = 1, 4
+                sosed = SS%gl_Cell_neighbour(j, num)
+
+                !print*, "B", j, sosed
+                !print*, "C", SS%gl_Cell_Belong(:, j, num)
+
+                if(SS%gl_Cell_Belong(1, j, num) * x + SS%gl_Cell_Belong(2, j, num) * y + SS%gl_Cell_Belong(3, j, num) > 0) then
+                    if(sosed == 0) then
+                        outer = .True.
+                        CYCLE loop2
+                    end if
+                    num = sosed
+                    cycle loop1
+                end if
+            end do loop2
+
+            !print*, "Stop", outer
+
+            ! ≈сли outer == .True. то точка находитс€ за пределами расчЄтной области, но найдена максимально близка€ к ней €чейка
+            ! ¬ этом случае просто не надо интерполировать, а надо просто вз€ть значени€ в центре €чейки
+
+            EXIT loop1
+        end do loop1
+
+
+    end subroutine Int_Find_Cell
 
     subroutine Int_Print_all_point(SS)
         TYPE (Inter_Setka), intent(in out) :: SS

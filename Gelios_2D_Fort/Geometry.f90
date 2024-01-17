@@ -35,6 +35,9 @@ module GEOMETRY
         allocate(SS%gl_Cell_type(N1))
         allocate(SS%gl_Cell_number(2, N1))
 
+        ALLOCATE(SS%gd(5, N1 ,2))
+        SS%gd = 0.0
+
         allocate(SS%gl_Cell_gran(4, N1))
         allocate(SS%gl_Cell_belong(3, 4, N1))
         allocate(SS%gl_Cell_square(N1, 2))
@@ -1124,7 +1127,6 @@ module GEOMETRY
 
             EXIT loop1
         end do loop1
-
 
     end subroutine Geo_Find_Cell
 
