@@ -1195,10 +1195,11 @@ module GEOMETRY
 
     subroutine Geo_Culc_normal(SS, step)
         ! —читаем нормали всех €чеек
+        !! »спользует центры €чеек, поэтому они должны быть посчитаны
         TYPE (Setka), intent(in out) :: SS
         integer(4), INTENT(IN) :: step
-        integer(4) :: N, i, a1, a2
-        real(8) :: r1(2), r2(2), normal(2), c, norm, centr(2), vec(2)
+        integer(4) :: N, i, a1, a2, s1, s2
+        real(8) :: r1(2), r2(2), normal(2), c, norm, centr(2), vec(2), centr2(2)
 
         N = size(SS%gl_all_Gran(1, :))
 
@@ -1215,8 +1216,16 @@ module GEOMETRY
             norm = norm2(normal)
             normal = normal/norm
 
-            centr = (r1 + r2)/2.0
-            vec = centr - r1
+            s1 = SS%gl_Gran_neighbour(1, i)
+            s2 = SS%gl_Gran_neighbour(2, i)
+
+            centr2 = SS%gl_Cell_Centr(:, s1, 1)
+			if(s2 > 0) then
+                centr = SS%gl_Cell_Centr(:, s2, 1)
+			else
+				centr = (r1 + r2)/2.0
+			end if
+            vec = centr - centr2
 
             if(DOT_PRODUCT(vec, normal) < 0.0) then
                 normal = -normal
@@ -1402,6 +1411,22 @@ module GEOMETRY
 
     end subroutine Print_Cell_Centr
 
+    subroutine Print_GD(SS)
+        ! ѕечатаем центры всех €чеек
+        TYPE (Setka), intent(in) :: SS
+        integer :: i, j, node
+
+        open(1, file = SS%name // '_Print_GD.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = X, Y, Rho, p, u, v, Q, Volume"
+
+        do j = 1, size(SS%gl_all_Cell(1, :))
+            write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%gd(:, j, 1), SS%gl_Cell_square(j, 1)
+        end do
+
+        close(1)
+
+    end subroutine Print_GD
+
     subroutine Print_Cell(SS)
         ! ѕечатаем все €чейки (есть дублирование), кажда€ €чейка печатаетс€ отдельно
         TYPE (Setka), intent(in) :: SS
@@ -1579,7 +1604,7 @@ module GEOMETRY
 
         print*, "Proverka_grans_sosed start"
 
-        N = size(SS%gl_Cell_A) + size(SS%gl_Cell_B) + size(SS%gl_Cell_C)
+        N = size(SS%gl_Cell_Centr(1, :, 1))
 
         do i = 1, N  ! ѕробегаемс€ по всем €чейкам
             do j = 1, 4

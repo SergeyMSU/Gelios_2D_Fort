@@ -440,6 +440,9 @@
 				   end if
 				else
 					write(*,*) "Error yuiknhgty789okjy89"
+					write(*,*) qqq1
+                    write(*,*) "_________________"
+					write(*,*) qqq2
 					stop
                 endif
 

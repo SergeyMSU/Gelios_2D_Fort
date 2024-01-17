@@ -18,7 +18,8 @@ module Algoritm
         call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
         call Algoritm_Bound_condition(SS)    ! Зададим граничные условия на внутренней сфере
 
-        call Start_GD_algoritm(SS, 1000)
+        call Start_GD_algoritm(SS, 50000)
+        call Print_GD(SS)
     end subroutine Gas_dynamic_algoritm
 
     subroutine Start_GD_algoritm(SS, all_step_)
@@ -27,6 +28,7 @@ module Algoritm
 
         integer(4) :: now, now2, step, cell, Ncell, gr, gran, sosed, all_step
         real(8) :: time, TT, center(2), par1(5), par2(5), ro, p, u, v, Q, normal(2), Sqv, Vol
+        real(8) :: ro2, p2, u2, v2, Q2, pp
         real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(5)
         real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME
         logical :: null_bn
@@ -44,8 +46,9 @@ module Algoritm
 
         do step = 1, all_step
 
-            if (mod(step, 10) == 0) then
-                print*, "Step = ", step, " dt = ", time
+            if (mod(step, 1000) == 0) then
+                print*, "Step = ", step, " dt = ", time, " All_time = ", ALL_TIME
+				!pause
             end if
 
             now2 = now
@@ -61,13 +64,15 @@ module Algoritm
 
                 center = SS%gl_Cell_Centr(:, cell, now)
 
-                if(norm2(center) < 10.0) CYCLE
+                if(norm2(center) < 20.0) CYCLE
 
                 par1 = SS%gd(:, cell, now)    ! Получили газодинамические параметры
                 POTOK = 0.0
+                
 
                 ! Пробегаемся по граням
                 do gr = 1, 4
+					POTOK2 = 0.0
                     gran = SS%gl_Cell_gran(gr, cell)
                     sosed = SS%gl_Cell_neighbour(gr, cell)
                     ! Задаём параметры соседа для распада разрыва
@@ -89,6 +94,8 @@ module Algoritm
                     normal = SS%gl_Gran_normal(:, gran, now)
                     Sqv = SS%gl_Gran_length(gran, now)
 
+                    if(SS%gl_Gran_neighbour(1, gran) /= cell) normal = -normal
+
                     qqq1(1) = par1(1)
                     qqq1(5) = par1(2)
                     qqq1(2) = par1(3)
@@ -105,10 +112,10 @@ module Algoritm
                     qqq2(6:8) = 0.0
                     qqq2(9) = par2(5)
 
-                    call chlld_Q(0, normal(1), normal(2), 0.0_8, &
+                    call chlld_Q(1, normal(1), normal(2), 0.0_8, &
                     0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
 
-                    loc_time = 0.99 * Sqv/( max(dabs(dsl), dabs(dsp)) )
+                    loc_time = 0.1 * Sqv/( max(dabs(dsl), dabs(dsp)) )
 
                     POTOK(5) = POTOK(5) + POTOK2(9) * Sqv
                     POTOK(1) = POTOK(1) + POTOK2(1) * Sqv
@@ -118,23 +125,54 @@ module Algoritm
 
                     time = min(time, loc_time)
 
+                    ! if(cell == 2807) then
+                    !    print*, "Gran = ", gr, sosed
+                    !    print*, "sosed = ", SS%gl_Gran_neighbour(1, gran), SS%gl_Gran_neighbour(2, gran), cell
+                    !    print*, "normal = ", normal
+                    !    print*, "Sqv = ", Sqv
+                    !    print*, "POTOK2 = ", POTOK2
+                    
+                    ! end if
+
                 end do
 
                 Vol = SS%gl_Cell_square(cell, now)
 
-                ! Законы сохранения в ячейке
-                ro = par1(1) - TT * POTOK(1) / Vol
-                Q = par1(5) - TT * POTOK(5) / Vol
-                u = (par1(1) * par1(3) - TT * POTOK(3) / Vol) / ro
-                v = (par1(1) * par1(4) - TT * POTOK(4) / Vol) / ro
-                p = ((  ( par1(2) / (SS%par_ggg - 1.0) + 0.5 * par1(1) * norm2(par1(3:4))**2 )  &
-                        - TT * POTOK(2)/ Vol) - 0.5 * ro * (u**2 + v**2) ) * (SS%par_ggg - 1.0)
+                ro = par1(1)
+                p = par1(2)
+                u = par1(3)
+                v = par1(4)
+                Q = par1(5)
 
-                SS%gd(1, cell, now2) = ro
-                SS%gd(2, cell, now2) = p
-                SS%gd(3, cell, now2) = u
-                SS%gd(4, cell, now2) = v
-                SS%gd(5, cell, now2) = Q
+                ! Законы сохранения в ячейке
+                ro2 = ro - TT * (POTOK(1) / Vol + ro * v/center(2))
+                if(ro2 <= 0.0) then
+                    print*, "Ro < 0", ro2, ro, TT, Vol, cell
+                    print*, "centr = ", center
+                    print*, "_____________"
+                    print*, "POTOK = ", POTOK
+                    print*, "_____________"
+                    print*, par1, "||||||||| ", par2
+                    print*, "_____________"
+                    stop
+                end if
+                Q2 = Q - TT * (POTOK(5) / Vol + Q * v/center(2))
+                u2 = (ro * u - TT * (POTOK(3) / Vol + ro * v * u/center(2))) / ro2
+                v2 = (ro * v - TT * (POTOK(4) / Vol + ro * v * v/center(2))) / ro2
+
+                pp = v * (SS%par_ggg * p / (SS%par_ggg - 1) + ro * (u * u + v * v) * 0.5) / center(2)
+                p2 = ((  ( p / (SS%par_ggg - 1.0) + 0.5 * ro * (u**2 + v**2))   &
+                        - TT * (POTOK(2)/ Vol + pp) ) - 0.5 * ro2 * (u2**2 + v2**2) ) * (SS%par_ggg - 1.0)
+
+                if(p2 <= 0.0) then
+                    p2 = 0.000001
+                end if
+
+                SS%gd(1, cell, now2) = ro2
+                SS%gd(2, cell, now2) = p2
+                SS%gd(3, cell, now2) = u2
+                SS%gd(4, cell, now2) = v2
+                SS%gd(5, cell, now2) = Q2
 
 			end do
 			
@@ -146,7 +184,6 @@ module Algoritm
 		pause
 
     end subroutine Start_GD_algoritm
-
 
     subroutine Algoritm_Bound_condition(SS)
         !! Задаём граничные условия в сетке (на внутренней сфере для газовой динамики)
@@ -334,10 +371,11 @@ module Algoritm
 
         SS%gl_yzel(:, :, 2) = SS%gl_yzel(:, :, 1)
 
-        call Geo_Culc_normal(SS, 1)
-        call Geo_Culc_normal(SS, 2)
         call Culc_Cell_Centr(SS, 1)
-        call Culc_Cell_Centr(SS, 2)
+        call Culc_Cell_Centr(SS, 2)  
+        call Geo_Culc_normal(SS, 1) 
+        call Geo_Culc_normal(SS, 2)
+        
 
         call Belong_Init(SS)
 

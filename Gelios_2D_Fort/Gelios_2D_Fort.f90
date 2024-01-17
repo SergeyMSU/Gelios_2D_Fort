@@ -30,7 +30,7 @@ program Gelios_2D_Fort
     call Init_Setka(gl_S1)
     call Build_Setka_start(gl_S1)
     call Print_Point_from_Rays(gl_S1)
-    call Print_Cell(gl_S1)
+    !call Print_Cell(gl_S1)
     ! call Culc_Cell_Centr(gl_S1, 1)
     ! call Culc_Cell_Centr(gl_S1, 2)
     call Print_Cell_Centr(gl_S1)
@@ -39,7 +39,6 @@ program Gelios_2D_Fort
     call Proverka_grans_sosed(gl_S1)
     call Geo_Print_Surface(gl_S1)
 
-    call Gas_dynamic_algoritm(gl_S1)
 
     call SUR_Download(gl_surf1, "00000")
 	
@@ -54,8 +53,13 @@ program Gelios_2D_Fort
     call Int_Print_center(gl_S2)
     call Int_Print_connect(gl_S2)
 
+    call Proverka_grans_sosed(gl_S1)
+
+    call Gas_dynamic_algoritm(gl_S1)
+    call Print_Cell(gl_S1)
+
     num = 1
-    call Geo_Find_Cell(gl_S1, 8.0_8, 8.0_8, num)
+    call Geo_Find_Cell(gl_S1, -50.0_8, 170.0_8, num)
     print*, "Num 1 = ", num
 
     num = 1
