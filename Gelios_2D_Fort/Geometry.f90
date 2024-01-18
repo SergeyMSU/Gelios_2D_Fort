@@ -35,10 +35,12 @@ module GEOMETRY
         allocate(SS%gl_Cell_type(N1))
         allocate(SS%gl_Cell_number(2, N1))
 
-        ALLOCATE(SS%gd(5, N1 ,2))
+        ALLOCATE(SS%gd(SS%n_par, N1 ,2))
+        ALLOCATE(SS%hydrogen(5, SS%n_Hidrogen, N1 ,2))
         SS%gd = 0.0
 
         allocate(SS%gl_Cell_gran(4, N1))
+        allocate(SS%gl_Cell_gran_dist(4, N1, 2))
         allocate(SS%gl_Cell_belong(3, 4, N1))
         allocate(SS%gl_Cell_square(N1, 2))
 
@@ -70,6 +72,7 @@ module GEOMETRY
         allocate(SS%gl_Gran_type(n))
         allocate(SS%gl_Gran_normal(2, n, 2))
         allocate(SS%gl_Gran_length(n, 2))
+        allocate(SS%gl_Gran_Center(2, n, 2))
 
         allocate(SS%gl_Contact( (SS%par_m_O + SS%par_m_A + SS%par_m_BC - 1)  ))   ! Выделяем память под контакт
         allocate(SS%gl_TS( (SS%par_m_A + SS%par_m_BC + SS%par_m_K - 1) ))   ! Выделяем память под TS
@@ -83,9 +86,11 @@ module GEOMETRY
         SS%gl_all_Gran = 0
         SS%gl_Gran_neighbour = 0
         SS%gl_Cell_gran = 0
+        SS%gl_Cell_gran_dist = 0.0
         SS%gl_Cell_belong = 0.0
         SS%gl_Gran_normal = 0.0
         SS%gl_Gran_length = 0.0
+        SS%gl_Gran_Center = 0.0
         SS%gl_Cell_square = 0.0
 
         SS%gl_Cell_type = "-"
@@ -1159,7 +1164,7 @@ module GEOMETRY
         ! Считаем длины граней и площади ячеек, используя координаты узлов на слое step
         TYPE (Setka), intent(in out) :: SS
         integer(4), INTENT(IN) :: step
-        integer(4) :: i, n, y1, y2, y3, y4
+        integer(4) :: i, n, y1, y2, y3, y4, j, gran
         real(8) :: p1(2), p2(2), S
 
         ! Считаем длины граней
@@ -1171,6 +1176,7 @@ module GEOMETRY
             p1 = SS%gl_yzel(:, y1, step)
             p2 = SS%gl_yzel(:, y2, step)
             SS%gl_Gran_length(i, step) = norm2(p2 - p1)
+            SS%gl_Gran_Center(:, i, step) = (p1 + p2)/2.0
         end do
 
         ! Считаем площади ячеек
@@ -1189,6 +1195,19 @@ module GEOMETRY
                 print*, "S = ", S
                 STOP "ERROR Geo_Culc_length_area 1178  ioyefdvenmlgp9yrtgb"
             end if
+
+            p2 = SS%gl_Cell_Centr(:, i, step)
+            do j = 1, 4
+                gran = SS%gl_Cell_gran(j, i)
+                if(gran == 0) then
+                    SS%gl_Cell_gran_dist(j, i, step) = 0.0
+                    CYCLE
+                end if
+                y1 = SS%gl_all_Gran(1, gran)
+                y2 = SS%gl_all_Gran(2, gran)
+                p1 = (SS%gl_yzel(:, y1, step) + SS%gl_yzel(:, y2, step))/2.0
+                SS%gl_Cell_gran_dist(j, i, step) = norm2(p1 - p2)
+            end do
         end do
 
     end subroutine Geo_Culc_length_area
@@ -1411,6 +1430,108 @@ module GEOMETRY
 
     end subroutine Print_Cell_Centr
 
+    subroutine Geo_request(SS)
+        ! Печатаем центры всех ячеек
+        ! Для того, чтобы считать в другой программе и вернуть значения газодинамических перменных
+        TYPE (Setka), intent(in) :: SS
+        integer :: i, j, node
+
+
+        open(1, file = "request.bin", FORM = 'BINARY')
+
+        write(1) size(SS%gl_all_Cell(1, :))
+
+        do j = 1, size(SS%gl_all_Cell(1, :))
+            write(1) SS%gl_Cell_Centr(:, j, 1)
+        end do
+
+        close(1)
+
+    end subroutine Geo_request
+
+    subroutine Geo_get_request(SS)
+        ! Печатаем центры всех ячеек
+        ! Для того, чтобы считать в другой программе и вернуть значения газодинамических перменных
+        TYPE (Setka), intent(in out) :: SS
+        integer :: i, j, n
+        logical :: exists
+        real(8) :: ro, u, v, p
+
+        inquire(file="answer_request.bin", exist=exists)
+
+        open(1, file = "answer_request.bin", FORM = 'BINARY', ACTION = "READ")
+
+        read(1) n
+
+        do j = 1, size(SS%gl_all_Cell(1, :))
+            read(1) ro, u, v, p
+            if(ro <= 0.0) then
+                ro = 0.000001
+            end if
+            if(p <= 0.0) then
+                p = 0.000001
+            end if
+            SS%gd(1, j, 1) = ro
+            SS%gd(2, j, 1) = p
+            SS%gd(3, j, 1) = u
+            SS%gd(4, j, 1) = v
+
+            read(1) ro, u, v, p
+            if(ro <= 0.0) then
+                ro = 0.000001
+            end if
+            if(p <= 0.0) then
+                p = 0.000001
+            end if
+            SS%hydrogen(1, 1, j, 1) = ro
+            SS%hydrogen(2, 1, j, 1) = p
+            SS%hydrogen(3, 1, j, 1) = u
+            SS%hydrogen(4, 1, j, 1) = v
+
+            read(1) ro, u, v, p
+            if(ro <= 0.0) then
+                ro = 0.000001
+            end if
+            if(p <= 0.0) then
+                p = 0.000001
+            end if
+            SS%hydrogen(1, 2, j, 1) = ro
+            SS%hydrogen(2, 2, j, 1) = p
+            SS%hydrogen(3, 2, j, 1) = u
+            SS%hydrogen(4, 2, j, 1) = v
+
+            read(1) ro, u, v, p
+            if(ro <= 0.0) then
+                ro = 0.000001
+            end if
+            if(p <= 0.0) then
+                p = 0.000001
+            end if
+            SS%hydrogen(1, 3, j, 1) = ro
+            SS%hydrogen(2, 3, j, 1) = p
+            SS%hydrogen(3, 3, j, 1) = u
+            SS%hydrogen(4, 3, j, 1) = v
+
+            read(1) ro, u, v, p
+            if(ro <= 0.0) then
+                ro = 0.000001
+            end if
+            if(p <= 0.0) then
+                p = 0.000001
+            end if
+            SS%hydrogen(1, 4, j, 1) = ro
+            SS%hydrogen(2, 4, j, 1) = p
+            SS%hydrogen(3, 4, j, 1) = u
+            SS%hydrogen(4, 4, j, 1) = v
+
+            SS%hydrogen(:, :, j, 2) = SS%hydrogen(:, :, j, 1)
+            SS%gd(:, j, 2) = SS%gd(:, j, 1)
+        end do
+
+        close(1)
+
+    end subroutine Geo_get_request
+
     subroutine Print_GD(SS)
         ! Печатаем центры всех ячеек
         TYPE (Setka), intent(in) :: SS
@@ -1420,7 +1541,7 @@ module GEOMETRY
         write(1,*) "TITLE = 'HP'  VARIABLES = X, Y, Rho, p, u, v, Q, Volume"
 
         do j = 1, size(SS%gl_all_Cell(1, :))
-            write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%gd(:, j, 1), SS%gl_Cell_square(j, 1)
+            write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), SS%gl_Cell_square(j, 1)
         end do
 
         close(1)
@@ -1658,5 +1779,231 @@ module GEOMETRY
         
         return
     end function sgushenie_4
+
+    subroutine Save_setka_bin(SS, name)  ! Сохранение сетки в бинарном файле
+        TYPE (Setka), intent(in) :: SS
+        CHARACTER(len = 5), intent(in) :: name
+
+        open(1, file = "Save_all_" // name // ".bin", FORM = 'BINARY')
+
+        write(1) SS%name
+
+        write(1) SS%par_m_A
+        write(1) SS%par_m_BC
+        write(1) SS%par_m_O
+        write(1) SS%par_m_K
+        write(1) SS%par_triple_point
+        write(1) SS%par_triple_point_2
+        
+        write(1) SS%par_n_TS 
+        write(1) SS%par_n_HP 
+        write(1) SS%par_n_BS 
+        write(1) SS%par_n_END
+        write(1) SS%par_n_IA 
+        write(1) SS%par_n_IB 
+
+        write(1) SS%par_R_character
+        write(1) SS%par_R0
+        write(1) SS%par_R_END
+        write(1) SS%par_R_LEFT
+        write(1) SS%par_R_inner
+
+        !! Физические параметры ---------------------------------------
+        write(1) SS%par_a_2 
+        write(1) SS%par_ggg 
+        write(1) SS%par_Velosity_inf
+        write(1) SS%par_n_H_LISM 
+        write(1) SS%par_Kn
+        !! -------------------------------------------------------------
+
+        !Набор параметров сгущения
+        write(1) SS%par_kk1
+        write(1) SS%par_kk2
+        write(1) SS%par_kk3
+        write(1) SS%par_kk31 
+        write(1) SS%par_kk13
+        write(1) SS%par_kk131
+        write(1) SS%par_kk132
+        write(1) SS%par_kk14  
+        write(1) SS%par_kk12
+
+        write(1) SS%par_n_points                         ! Всего точек в сетке (считается при инициализации сетки)
+
+        write(1) SS%gl_yzel
+
+        write(1) SS%gl_RAY_A
+        write(1) SS%gl_RAY_B
+        write(1) SS%gl_RAY_C
+        write(1) SS%gl_RAY_O
+        write(1) SS%gl_RAY_K
+        write(1) SS%gl_RAY_D
+        write(1) SS%gl_RAY_E
+
+        ! Ячейки
+        write(1) SS%gl_Cell_A
+        write(1) SS%gl_Cell_B
+        write(1) SS%gl_Cell_C
+
+        write(1) SS%gl_all_Cell
+
+        write(1) SS%gl_Cell_neighbour
+
+        write(1) SS%gl_Cell_gran
+        write(1) SS%gl_Cell_gran_dist
+
+        write(1) SS%gl_Cell_Centr
+        
+
+        write(1) SS%gl_all_Gran
+        write(1) SS%gl_Gran_neighbour
+        write(1) SS%gl_Gran_normal
+        write(1) SS%gl_Gran_length                     
+        write(1) SS%gl_Gran_Center                      
+        
+
+        
+        write(1) SS%gl_Cell_belong
+        write(1) SS%gl_Cell_square
+
+        write(1) SS%gl_Cell_type
+        write(1) SS%gl_Cell_number
+
+        ! Поверхности выделения
+        write(1) SS%gl_Contact
+        write(1) SS%gl_TS
+        write(1) SS%gl_BS
+
+        write(1) SS%gl_Gran_type     
+
+        !! ФИЗИКА
+        write(1) SS%n_Hidrogen
+        write(1) SS%n_par
+
+        write(1) SS%gd
+        write(1) SS%hydrogen
+
+
+        close(1)
+
+    end subroutine Save_setka_bin
+
+    subroutine Read_setka_bin(SS, name)  ! Сохранение сетки в бинарном файле
+        TYPE (Setka), intent(in out) :: SS
+        CHARACTER(len = 5), intent(in) :: name
+        logical :: exists
+
+        inquire(file= "Save_all_" // name // ".bin", exist=exists)
+    
+        if (exists == .False.) then
+            print*, "net faila 1898 tfgdhfwy4rfetrgfw4rwter!!!"
+            STOP "net faila!!!"
+        end if
+
+        open(1, file = "Save_all_" // name // ".bin", FORM = 'BINARY', ACTION = "READ")
+
+        read(1) SS%name
+
+        read(1) SS%par_m_A
+        read(1) SS%par_m_BC
+        read(1) SS%par_m_O
+        read(1) SS%par_m_K
+        read(1) SS%par_triple_point
+        read(1) SS%par_triple_point_2
+        
+        read(1) SS%par_n_TS 
+        read(1) SS%par_n_HP 
+        read(1) SS%par_n_BS 
+        read(1) SS%par_n_END
+        read(1) SS%par_n_IA 
+        read(1) SS%par_n_IB 
+
+        read(1) SS%par_R_character
+        read(1) SS%par_R0
+        read(1) SS%par_R_END
+        read(1) SS%par_R_LEFT
+        read(1) SS%par_R_inner
+
+        !! Физические параметры ---------------------------------------
+        read(1) SS%par_a_2 
+        read(1) SS%par_ggg 
+        read(1) SS%par_Velosity_inf
+        read(1) SS%par_n_H_LISM 
+        read(1) SS%par_Kn
+        !! -------------------------------------------------------------
+
+        !Набор параметров сгущения
+        read(1) SS%par_kk1
+        read(1) SS%par_kk2
+        read(1) SS%par_kk3
+        read(1) SS%par_kk31 
+        read(1) SS%par_kk13
+        read(1) SS%par_kk131
+        read(1) SS%par_kk132
+        read(1) SS%par_kk14  
+        read(1) SS%par_kk12
+
+        call Init_Setka(SS)
+
+        read(1) SS%par_n_points                         ! Всего точек в сетке (считается при инициализации сетки)
+
+        read(1) SS%gl_yzel
+
+        read(1) SS%gl_RAY_A
+        read(1) SS%gl_RAY_B
+        read(1) SS%gl_RAY_C
+        read(1) SS%gl_RAY_O
+        read(1) SS%gl_RAY_K
+        read(1) SS%gl_RAY_D
+        read(1) SS%gl_RAY_E
+
+        ! Ячейки
+        read(1) SS%gl_Cell_A
+        read(1) SS%gl_Cell_B
+        read(1) SS%gl_Cell_C
+
+        read(1) SS%gl_all_Cell
+
+        read(1) SS%gl_Cell_neighbour
+
+        read(1) SS%gl_Cell_gran
+        read(1) SS%gl_Cell_gran_dist
+
+        read(1) SS%gl_Cell_Centr
+        
+
+        read(1) SS%gl_all_Gran
+        read(1) SS%gl_Gran_neighbour
+        read(1) SS%gl_Gran_normal
+        read(1) SS%gl_Gran_length                     
+        read(1) SS%gl_Gran_Center                      
+        
+
+        
+        read(1) SS%gl_Cell_belong
+        read(1) SS%gl_Cell_square
+
+        read(1) SS%gl_Cell_type
+        read(1) SS%gl_Cell_number
+
+        ! Поверхности выделения
+        read(1) SS%gl_Contact
+        read(1) SS%gl_TS
+        read(1) SS%gl_BS
+
+        read(1) SS%gl_Gran_type     
+
+        !! ФИЗИКА
+        read(1) SS%n_Hidrogen
+        read(1) SS%n_par
+
+        read(1) SS%gd
+        read(1) SS%hydrogen
+
+
+        call Proverka_grans_sosed(SS)
+
+        close(1)
+
+    end subroutine Read_setka_bin
 
 end module GEOMETRY

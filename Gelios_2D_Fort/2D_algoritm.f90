@@ -4,34 +4,71 @@ module Algoritm
     USE Phys_parameter
 	USE SURFACE
     USE Solvers
+    USE ieee_arithmetic
+    USE OMP_LIB
+    USE Interpol
     implicit none 
 
     contains
 
     subroutine Gas_dynamic_algoritm(SS)
         TYPE (Setka), intent(in out) :: SS
+        integer(4) :: num, i, i_max
+
+        call Read_setka_bin(SS, "00002")
 
         if(SS%init_geo == .False.) then
             STOP "Gas_dynamic_algoritm  error init_geo erty67543"  
         end if
 
-        call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
+        num = 1
+
+        !call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
+        !call Geo_get_request(SS)
         call Algoritm_Bound_condition(SS)    ! Зададим граничные условия на внутренней сфере
 
-        call Start_GD_algoritm(SS, 50000)
+        ! Проверка переменных
+        print*, "____________________________________________"
+        print*, "Proverka peremennix"
+        call Geo_Find_Cell(SS, 250.0_8, 1.0_8, num)
+        print*, "num = ", num
+        print*, "PAR ", SS%gd(:, num, 1)
+        print*, "____________________________________________"
+        print*, "PAR ", SS%gd(:, num, 2)
+        print*, "____________________________________________"
+        print*, "PAR HYDROGEN 4", SS%hydrogen(:, 4, num, 1)
+        print*, "____________________________________________"
+        print*, "PAR HYDROGEN 4", SS%hydrogen(:, 4, num, 2)
+        print*, "____________________________________________"
+
+        call Int_Init(gl_S2, SS)
+
+
+        i_max = 0!350
+        do i = 1, i_max
+            if (mod(i, 5) == 0) then
+                print*, "Global step = ", i, "from ", i_max
+            end if
+            call Start_GD_algoritm(SS, 15000, 2)
+            call Start_GD_algoritm(SS, 3000, 1)
+        end do
+
         call Print_GD(SS)
+        call Save_setka_bin(SS, "00003")
     end subroutine Gas_dynamic_algoritm
 
-    subroutine Start_GD_algoritm(SS, all_step_)
+    subroutine Start_GD_algoritm(SS, all_step_, area)
         TYPE (Setka), intent(in out) :: SS
         integer(4), intent(in) :: all_step_
+        integer(4), intent(in) :: area ! 1 или 2
+        ! 1 - внутренняя сфера
+        ! 2 - внешняя область
 
         integer(4) :: now, now2, step, cell, Ncell, gr, gran, sosed, all_step
         real(8) :: time, TT, center(2), par1(5), par2(5), ro, p, u, v, Q, normal(2), Sqv, Vol
         real(8) :: ro2, p2, u2, v2, Q2, pp
-        real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(5)
-        real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME
-        logical :: null_bn
+        real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(5), source(4)
+        real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME, lenght
 
 		all_step = all_step_
         if(mod(all_step, 2) == 1) all_step = all_step + 1   ! Делаем общее число шагов чётным
@@ -41,12 +78,11 @@ module Algoritm
         Ncell = size(SS%gl_all_Cell(1, :))
         qqq1 = 0.0
         qqq2 = 0.0
-        null_bn = .False.
         ALL_TIME = 0.0
 
         do step = 1, all_step
 
-            if (mod(step, 1000) == 0) then
+            if (mod(step, 12000) == 0) then
                 print*, "Step = ", step, " dt = ", time, " All_time = ", ALL_TIME
 				!pause
             end if
@@ -60,15 +96,28 @@ module Algoritm
 
             ! Предлагаю пробегаться сразу по ячейкам, а не по граням
 
-            do cell = 1, Ncell
+            !$omp parallel
 
+
+            !$omp do private(loc_time, gr, gran, sosed, center, par1, par2, ro, p, u, v, Q, normal, Sqv, Vol, ro2, p2, u2, v2, Q2, pp, qqq1, qqq2, POTOK2, POTOK, source, dsl, dsc, dsp, lenght)
+            do cell = 1, Ncell
+                source = 0.0
                 center = SS%gl_Cell_Centr(:, cell, now)
 
-                if(norm2(center) < 20.0) CYCLE
+                if(area == 2) then
+                    if(norm2(center) < 20.0) CYCLE
+                else if(area == 1) then
+                    if(norm2(center) >= 20.0 .or. norm2(center) <= 0.42) CYCLE
+                end if
 
-                par1 = SS%gd(:, cell, now)    ! Получили газодинамические параметры
+                par1 = SS%gd(1:5, cell, now)    ! Получили газодинамические параметры
                 POTOK = 0.0
                 
+                if(par1(1) <= 0.000000001) then
+                    print*, "Error rho 89 45465u76jhgrefrwcwdf4c, ", par1(1) 
+                    pause
+                end if
+
 
                 ! Пробегаемся по граням
                 do gr = 1, 4
@@ -82,17 +131,34 @@ module Algoritm
                         call Phys_input_flow(SS, par2)
                     else if(sosed == -2) then
                         par2 = par1
+                        if(par2(3) > SS%par_Velosity_inf/2.0) par2(3) = SS%par_Velosity_inf
                     else if(sosed == -3) then
                         par2 = par1
                     else if(sosed == -4) then
                         par2 = par1
                         par2(4) = -par2(4)
                     else
-                        par2 = SS%gd(:, sosed, now)    ! Получили газодинамические параметры
+                        par2 = SS%gd(1:5, sosed, now)    ! Получили газодинамические параметры
+                    end if
+
+                    if(par2(1) <= 0.000000001) then
+                        print*, "Error rho2 89 45465u76jhgrefrwcwdf4c, ", par2(1) 
+                        print*, "num = ", cell, sosed
+                        print*, "center = ", center
+                        print*, "_______________"
+                        print*, par2
+                        print*, "_______________"
+                        print*, par1
+                        print*, "_______massiv________"
+                        print*, SS%gd(1:5, sosed, 1)
+                        print*, "_______________"
+                        print*, SS%gd(1:5, sosed, 2)
+                        pause
                     end if
 
                     normal = SS%gl_Gran_normal(:, gran, now)
                     Sqv = SS%gl_Gran_length(gran, now)
+                    lenght = SS%gl_Cell_gran_dist(gr, cell, now)
 
                     if(SS%gl_Gran_neighbour(1, gran) /= cell) normal = -normal
 
@@ -115,7 +181,7 @@ module Algoritm
                     call chlld_Q(1, normal(1), normal(2), 0.0_8, &
                     0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
 
-                    loc_time = 0.1 * Sqv/( max(dabs(dsl), dabs(dsp)) )
+                    loc_time = 0.1 * lenght/( max(dabs(dsl), dabs(dsp)) )
 
                     POTOK(5) = POTOK(5) + POTOK2(9) * Sqv
                     POTOK(1) = POTOK(1) + POTOK2(1) * Sqv
@@ -123,7 +189,11 @@ module Algoritm
                     POTOK(4) = POTOK(4) + POTOK2(3) * Sqv
                     POTOK(2) = POTOK(2) + POTOK2(5) * Sqv
 
-                    time = min(time, loc_time)
+                    if(loc_time < time) then
+                        !$omp critical
+                            time = loc_time
+                        !$omp end critical
+                    end if
 
                     ! if(cell == 2807) then
                     !    print*, "Gran = ", gr, sosed
@@ -131,12 +201,29 @@ module Algoritm
                     !    print*, "normal = ", normal
                     !    print*, "Sqv = ", Sqv
                     !    print*, "POTOK2 = ", POTOK2
-                    
                     ! end if
 
                 end do
 
                 Vol = SS%gl_Cell_square(cell, now)
+
+                call Calc_sourse_MF(SS, cell, source, now)
+
+                if(ieee_is_nan(source(2))) then
+                    print*, "error source nan 186 tyujhwgeftywfwf"
+                    print*, par1
+                    print*, "______________ 1"
+                    print*, SS%hydrogen(:, 1, cell, now)
+                    print*, "______________ 2"
+                    print*, SS%hydrogen(:, 2, cell, now)
+                    print*, "______________ 3"
+                    print*, SS%hydrogen(:, 3, cell, now)
+                    print*, "______________ 4"
+                    print*, SS%hydrogen(:, 4, cell, now)
+                    print*, "______________"
+                    print*, source
+                    pause
+                end if
 
                 ro = par1(1)
                 p = par1(2)
@@ -157,12 +244,12 @@ module Algoritm
                     stop
                 end if
                 Q2 = Q - TT * (POTOK(5) / Vol + Q * v/center(2))
-                u2 = (ro * u - TT * (POTOK(3) / Vol + ro * v * u/center(2))) / ro2
-                v2 = (ro * v - TT * (POTOK(4) / Vol + ro * v * v/center(2))) / ro2
+                u2 = (ro * u - TT * ( POTOK(3) / Vol + ro * v * u/center(2) - source(2) )) / ro2
+                v2 = (ro * v - TT * ( POTOK(4) / Vol + ro * v * v/center(2) - source(3) )) / ro2
 
-                pp = v * (SS%par_ggg * p / (SS%par_ggg - 1) + ro * (u * u + v * v) * 0.5) / center(2)
+                pp = v * (SS%par_ggg * p / (SS%par_ggg - 1.0) + ro * (u * u + v * v) * 0.5) / center(2)
                 p2 = ((  ( p / (SS%par_ggg - 1.0) + 0.5 * ro * (u**2 + v**2))   &
-                        - TT * (POTOK(2)/ Vol + pp) ) - 0.5 * ro2 * (u2**2 + v2**2) ) * (SS%par_ggg - 1.0)
+                        - TT * (POTOK(2)/ Vol + pp - source(4)) ) - 0.5 * ro2 * (u2**2 + v2**2) ) * (SS%par_ggg - 1.0)
 
                 if(p2 <= 0.0) then
                     p2 = 0.000001
@@ -175,41 +262,43 @@ module Algoritm
                 SS%gd(5, cell, now2) = Q2
 
 			end do
-			
-		
+			!$omp end do
+            !$omp end parallel
 
         end do
 
         print*, "ALL_TIME = ", ALL_TIME
-		pause
 
     end subroutine Start_GD_algoritm
 
     subroutine Algoritm_Bound_condition(SS)
         !! Задаём граничные условия в сетке (на внутренней сфере для газовой динамики)
         TYPE (Setka), intent(in out) :: SS
-        integer(4) :: n1, i, cell
-        real(8) :: x, y, par(5)
+        integer(4) :: n1, i, cell, j
+        real(8) :: x, y, par(SS%n_par)
 
         n1 = size(SS%gl_Cell_A(1,:))
         do i = 1, n1
-            cell = SS%gl_Cell_A(1,i)
-            x = SS%gl_Cell_Centr(1, cell, 1)
-            y = SS%gl_Cell_Centr(2, cell, 1)
-            call Inner_Conditions(SS, x, y, par)
-            SS%gd(:, cell, 1) = par
-            SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
+            do j = 1, 2
+                cell = SS%gl_Cell_A(j, i)
+                x = SS%gl_Cell_Centr(1, cell, 1)
+                y = SS%gl_Cell_Centr(2, cell, 1)
+                call Inner_Conditions(SS, x, y, par)
+                SS%gd(1:5, cell, 1) = par(1:5)
+                SS%gd(1:5, cell, 2) = SS%gd(1:5, cell, 1)
+            end do
         end do
 
         n1 = size(SS%gl_Cell_B(1,:))
         do i = 1, n1
-            cell = SS%gl_Cell_B(1,i)
-            x = SS%gl_Cell_Centr(1, cell, 1)
-            y = SS%gl_Cell_Centr(2, cell, 1)
-            call Inner_Conditions(SS, x, y, par)
-            SS%gd(:, cell, 1) = par
-
-            SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
+            do j = 1, 2
+                cell = SS%gl_Cell_B(j, i)
+                x = SS%gl_Cell_Centr(1, cell, 1)
+                y = SS%gl_Cell_Centr(2, cell, 1)
+                call Inner_Conditions(SS, x, y, par)
+                SS%gd(1:5, cell, 1) = par(1:5)
+                SS%gd(1:5, cell, 2) = SS%gd(1:5, cell, 1)
+            end do
         end do
 
 	end subroutine Algoritm_Bound_condition
@@ -218,7 +307,7 @@ module Algoritm
         !! Задаём начальные условия в сетке
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: N, i
-        real(8) :: x, y, par(5)
+        real(8) :: x, y, par(SS%n_par)
 
         N = size(SS%gl_Cell_Centr(1, :, 1))
 
@@ -228,9 +317,8 @@ module Algoritm
 
             call Phys_Innitial_Conditions(SS, x, y, par)
 
-            SS%gd(:, i, 1) = par
-
-            SS%gd(:, i, 2) = SS%gd(:, i, 1)
+            SS%gd(1:5, i, 1) = par(1:5)
+            SS%gd(1:5, i, 2) = SS%gd(1:5, i, 1)
         end do
 
     end subroutine Algoritm_Initial_condition

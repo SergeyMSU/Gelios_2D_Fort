@@ -14,6 +14,12 @@ module Phys_parameter
 
         r = sqrt(x**2 + y**2)
 
+        if(size(par) < 5) then
+            print*, "Error 18 Inner_Conditions size(par) nm5453fdbbdfcsd"
+            print*, size(par)
+            STOP
+        end if
+
         ! par(1) = 1.0
         ! par(3) = SS%par_Velosity_inf
         ! par(4) = 0.0
@@ -46,6 +52,12 @@ module Phys_parameter
         ! par(5) = 100.0
         ! return
 
+        if(size(par) < 5) then
+            print*, "Error 50 Phys_Innitial_Conditions size(par) 9876tfghjdkofo43w8udyh4f"
+            print*, size(par)
+            STOP
+        end if
+
         if(r < 80.0) then
             par(1) = 150.0 * (SS%par_R0/r)**2
             par(3) = x/r * 41.0
@@ -74,5 +86,52 @@ module Phys_parameter
         par(5) = 100.0
 
     end subroutine Phys_input_flow
+
+    subroutine Calc_sourse_MF(SS, cell, sourse, step)  ! Считаются мультифлюидные источники
+        TYPE (Setka), intent(in) :: SS
+        real(8), intent(out) :: sourse(:)  ! (масса, два импульса и энергия)
+        integer(4), intent(in) :: cell, step
+        
+        integer(4) :: i
+        real(8) :: U_M_H(SS%n_Hidrogen), UU_H(SS%n_Hidrogen), sigma(SS%n_Hidrogen), nu(SS%n_Hidrogen)
+        real(8) ro, p, u, v, ro_H, p_H, u_H, v_H
+        
+        sourse = 0.0
+
+        ro = SS%gd(1, cell, step)
+        p = SS%gd(2, cell, step)
+        u = SS%gd(3, cell, step)
+        v = SS%gd(4, cell, step)
+        
+        ! Body of Calc_sourse_MF
+        do i = 1, SS%n_Hidrogen
+            ro_H = SS%hydrogen(1, i, cell, step)
+            p_H = SS%hydrogen(2, i, cell, step)
+            u_H = SS%hydrogen(3, i, cell, step)
+            v_H = SS%hydrogen(4, i, cell, step)
+
+            U_M_H(i) = sqrt( (u - u_H)**2 + (v - v_H)**2 + &
+            (64.0 / (9.0 * par_pi)) * (0.5 * p / ro + p_H / ro_H) )
+            UU_H(i) = sqrt( (u - u_H)**2 + (v - v_H)**2 + &
+            (4.0 / par_pi) * (0.5 * p / ro + p_H / ro_H) )
+            sigma(i) = (1.0 - SS%par_a_2 * log(U_M_H(i)))**2
+            nu(i) = ro * ro_H * U_M_H(i) * sigma(i)
+        end do
+        
+        do i = 1, 4
+            ro_H = SS%hydrogen(1, i, cell, step)
+            p_H = SS%hydrogen(2, i, cell, step)
+            u_H = SS%hydrogen(3, i, cell, step)
+            v_H = SS%hydrogen(4, i, cell, step)
+            sourse(1) = 0.0
+            sourse(2) =  sourse(2) + nu(i) * (u_H - u)
+            sourse(3) =  sourse(3) + nu(i) * (v_H - v)
+            sourse(4) = sourse(4) + nu(i) * ( (u_H**2 + v_H**2 - &
+                u**2 - v**2)/2.0 + (UU_H(i)/U_M_H(i)) * (p_H/ro_H - 0.5 * p/ro ) )
+        end do
+        
+        sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)
+        
+	end subroutine Calc_sourse_MF
 
 end module Phys_parameter

@@ -1,5 +1,7 @@
 module Interpol
     use STORAGE 
+    use My_func
+    USE ieee_arithmetic
     implicit none 
 
     contains
@@ -8,13 +10,16 @@ module Interpol
         TYPE (Setka), intent(in) :: SS
         TYPE (Inter_Setka), intent(in out) :: SS_int
 
-        integer(4) :: N1, N2, i, cell, N3, M1, M2, M3, j, it, nn, yzel, a1, a2, cell2
+        integer(4) :: N1, N2, i, cell, N3, M1, M2, M3, j, it, nn, yzel, a1, a2, cell2, n_yzel
         real(8) :: p1(2)
 
         if(SS%init_geo == .False.) STOP "ERROR  Int_Init  11 987r4yg3hjfkgf34f43"
         if(SS_int%init == .True.) STOP "ERROR  Int_Init  12 12edrc4tveyrbunimo98,0p78i6n7ub6y"
 
         SS_int%init = .True.
+
+        SS_int%n_Hidrogen = SS%n_Hidrogen
+        SS_int%n_par = SS%n_par
 
         N1 = size(SS%gl_Cell_A(:, 1))
         N2 = size(SS%gl_Cell_A(1, :))
@@ -34,22 +39,32 @@ module Interpol
 
         N1 = size(SS_int%gl_Cell_A) + size(SS_int%gl_Cell_B) + size(SS_int%gl_Cell_C) - SS%par_n_TS + 1
         allocate(SS_int%gl_all_Cell(4, N1))
+        allocate(SS_int%gl_all_triangle(N1))
         allocate(SS_int%gl_Cell_center(2, N1))
         allocate(SS_int%gl_Cell_neighbour(4, N1))
         allocate(SS_int%gl_Cell_Belong(3, 4, N1))
+        allocate(SS_int%gl_Cell_interpol_matrix(4, 4, N1))
 		
 		SS_int%gl_all_Cell = 0
         SS_int%gl_Cell_Belong = 0.0
         SS_int%gl_Cell_neighbour = 0
         SS_int%gl_Cell_center = 0.0
+        SS_int%gl_Cell_interpol_matrix = 0.0
+        SS_int%gl_all_triangle = .False.
 
         N1 = size(SS%gl_all_Cell(1, :))
         allocate(SS_int%gl_yzel(2, N1 + SS%par_n_END - 1 + SS%par_n_TS + SS%par_m_O - 1 + 1))  ! Добавляем центр координат
 		SS_int%gl_yzel = 0.0
+        n_yzel = N1 + SS%par_n_END - 1 + SS%par_n_TS + SS%par_m_O - 1 + 1
+        allocate(SS_int%gd(SS_int%n_par, n_yzel))
+        allocate(SS_int%hydrogen(5, SS_int%n_Hidrogen, n_yzel))
+
 		
         ! Заполняем координаты узлов --------------------------------------------------------------------------
 		do i = 1, N1
 			SS_int%gl_yzel(:, i) = SS%gl_Cell_Centr(:, i, 1)
+			SS_int%gd(:, i) = SS%gd(:, i, 1)
+			SS_int%hydrogen(:, :, i) = SS%hydrogen(:, :, i, 1)
 		end do
 
         N2 = size(SS%gl_Cell_A(:, 1))
@@ -60,6 +75,11 @@ module Interpol
             p1(1) = norm2(p1)
             p1(2) = 0.0  ! Проекция узла на ось симметрии
             SS_int%gl_yzel(:, N1 + i) = p1
+
+            SS_int%gd(:, N1 + i) = SS%gd(:, cell, 1)
+			SS_int%hydrogen(:, :, N1 + i) = SS%hydrogen(:, :, cell, 1)
+            SS_int%gd(4, N1 + i) = 0.0
+            SS_int%hydrogen(4, :, N1 + i) = 0.0
 		end do
 		
 		N3 = size(SS%gl_Cell_B(:, 1))
@@ -70,6 +90,11 @@ module Interpol
             p1(1) = -norm2(p1)
             p1(2) = 0.0  ! Проекция узла на ось симметрии
             SS_int%gl_yzel(:, N1 + N2 + i) = p1
+
+            SS_int%gd(:,N1 + N2 + i) = SS%gd(:, cell, 1)
+			SS_int%hydrogen(:, :, N1 + N2 + i) = SS%hydrogen(:, :, cell, 1)
+            SS_int%gd(4, N1 + N2 + i) = 0.0
+            SS_int%hydrogen(4, :, N1 + N2 + i) = 0.0
 		end do
 		
 		! Заполняем A - ячейки --------------------------------------------------------------------------
@@ -621,8 +646,81 @@ module Interpol
 
         ! Считаем Ax + By + C для каждой грани
         call Int_Belong_init(SS_int)
+        call Int_Matrix_init(SS_int)
 
     end subroutine Int_Init
+
+    subroutine Int_Matrix_init(SS)
+	    USE ieee_arithmetic
+        TYPE (Inter_Setka), intent(in out) :: SS
+        integer(4) :: i, N, a1, a2, a3, a4
+        real(8) :: M(4, 4), p1(2), p2(2), p3(2), p4(2), MM(3, 3), S
+
+        N = size(SS%gl_all_Cell(1, :))
+
+        do i = 1, N
+            a1 = SS%gl_all_Cell(1, i)
+            a2 = SS%gl_all_Cell(2, i)
+            a3 = SS%gl_all_Cell(3, i)
+            a4 = SS%gl_all_Cell(4, i)
+
+            p1 = SS%gl_yzel(:, a1)
+            p2 = SS%gl_yzel(:, a2)
+            p3 = SS%gl_yzel(:, a3)
+            p4 = SS%gl_yzel(:, a4)
+
+            if(a1 == a4 .or. a3 == a4) then
+                ! В этом случае у нас треугольник
+                SS%gl_all_triangle(i) = .True.
+
+                SS%gl_all_triangle(i) = .False.
+                MM(1, 1) = p1(1)
+                MM(1, 2) = p1(2)
+                MM(1, 3) = 1.0
+
+                MM(2, 1) = p2(1)
+                MM(2, 2) = p2(2)
+                MM(2, 3) = 1.0
+
+                MM(3, 1) = p3(1)
+                MM(3, 2) = p3(2)
+                MM(3, 3) = 1.0
+
+
+                SS%gl_Cell_interpol_matrix(1:3, 1:3, i) = matinv3(MM)
+
+                S = SS%gl_Cell_interpol_matrix(1, 1, i)
+
+                if(ieee_is_normal(S) == .False.) STOP "Error 690 Int_Matrix_init vdbfhf46397kjhgefjk99"
+            else
+                SS%gl_all_triangle(i) = .False.
+                M(1, 1) = p1(1)
+                M(1, 2) = p1(2)
+                M(1, 3) = p1(1) * p1(2)
+                M(1, 4) = 1.0
+
+                M(2, 1) = p2(1)
+                M(2, 2) = p2(2)
+                M(2, 3) = p2(1) * p2(2)
+                M(2, 4) = 1.0
+
+                M(3, 1) = p3(1)
+                M(3, 2) = p3(2)
+                M(3, 3) = p3(1) * p3(2)
+                M(3, 4) = 1.0
+
+                M(4, 1) = p4(1)
+                M(4, 2) = p4(2)
+                M(4, 3) = p4(1) * p4(2)
+                M(4, 4) = 1.0
+
+                SS%gl_Cell_interpol_matrix(:, :, i) = matinv4(M)
+                S = SS%gl_Cell_interpol_matrix(1, 1, i)
+                if(ieee_is_normal(S) == .False.) STOP "Error 690 Int_Matrix_init vdbfhf46397kjhgefjk99"
+            end if
+        end do
+
+    end subroutine Int_Matrix_init
 
     subroutine Int_Belong_init(SS)
         TYPE (Inter_Setka), intent(in out) :: SS
