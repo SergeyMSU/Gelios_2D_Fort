@@ -85,4 +85,16 @@ module My_func
         B(3,3) = +detinv * (A(1,1)*A(2,2) - A(1,2)*A(2,1))
     end function
 
+    subroutine Print_matrix_real(A)
+        real(8), intent(in) :: A(:, :)   !! Matrix
+        integer(4) :: mi, ni
+
+        do mi = 1, size(A(:, 1))
+            do ni = 1, size(A(1, :))
+                write(*,"(F8.2,$)") A(mi,ni)
+            end do
+            write (*,*) ''
+        end do
+    end subroutine Print_matrix_real
+
 end module My_func

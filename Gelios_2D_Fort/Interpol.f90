@@ -672,8 +672,6 @@ module Interpol
             if(a1 == a4 .or. a3 == a4) then
                 ! В этом случае у нас треугольник
                 SS%gl_all_triangle(i) = .True.
-
-                SS%gl_all_triangle(i) = .False.
                 MM(1, 1) = p1(1)
                 MM(1, 2) = p1(2)
                 MM(1, 3) = 1.0
@@ -764,14 +762,16 @@ module Interpol
         end do
     end subroutine Int_Belong_init
 
-    subroutine Int_Find_Cell(SS, x, y, num)
+    subroutine Int_Find_Cell(SS, x, y, num, outer)
         ! Поиск номера ячейки по её координатам
         ! num = предположительный изначальный номер (если не знаем пусть будет равен 1)
+        ! Если outer == .True. то точка находится за пределами расчётной области, но найдена максимально близкая к ней ячейка
+        ! В этом случае просто не надо интерполировать, а надо просто взять значения в блихжайшём узле
         TYPE (Inter_Setka), intent(in) :: SS
         real(8), intent(in) :: x, y
         integer(4), intent(in out) :: num
         integer(4) :: j, gran, sosed, max_num
-        LOGICAL :: outer
+        LOGICAL, intent(out) :: outer
 
         max_num = 0
         outer = .False.
@@ -808,9 +808,118 @@ module Interpol
 
             EXIT loop1
         end do loop1
-
-
     end subroutine Int_Find_Cell
+
+    subroutine Int_Get_Parameter(SS, x, y, num, PAR_gd, PAR_hydrogen)
+        TYPE (Inter_Setka), intent(in) :: SS
+        real(8), intent(in) :: x, y
+        integer(4), intent(in out) :: num
+        real(8), intent(out), optional :: PAR_gd(:)
+        real(8), intent(out), optional :: PAR_hydrogen(:, :)
+
+        LOGICAL :: outer
+        real(8) :: dist, r(2), dist_min, yzel_min, M(4, 4), v(4), MM(4), ccc
+        integer(4) :: i, yzel, j
+
+        call Int_Find_Cell(SS, x, y, num, outer)  ! Находим ячейку, которой принадлежит точка
+
+        if(outer == .True.) then  ! Точка за пределами области не надо интерполировать, надо найти близжайший узел
+            dist_min = 100000.0
+            do i = 1, 4
+                yzel = SS%gl_all_Cell(i, num)
+                r = SS%gl_yzel(:, yzel)
+                dist = sqrt((x - r(1))**2 + (y - r(2))**2)
+                if(dist < dist_min) then
+                    dist_min = dist
+                    yzel_min = yzel
+                end if
+            end do
+
+            if(present(PAR_gd)) then
+                if(size(PAR_gd) /= SS%n_par) STOP "Error Int_Get_Parameter size(PAR_gd) /= SS%n_par   09876tyuinewufhugferafrgnmiutr"
+                PAR_gd = SS%gd(:, yzel_min)
+            end if
+
+            if(present(PAR_hydrogen)) then
+                if(size(PAR_hydrogen(1, :)) /= SS%n_Hidrogen) STOP "Error Int_Get_Parameter size(PAR_hydrogen) /= SS%n_par   oehwjfiehurgegvve"
+                PAR_hydrogen = SS%hydrogen(:, :, yzel_min)
+            end if
+
+        else
+            if(SS%gl_all_triangle(num) == .True.) then ! ТРЕУГОЛЬНИК
+				
+                M = SS%gl_Cell_interpol_matrix(:, :, num)
+
+                MM = 0.0
+
+                v(1) = x
+                v(2) = y
+                v(3) = 1.0
+
+                do i = 1, 3
+                    do j = 1, 3
+                        MM(i) = MM(i) + v(j) * M(j, i)
+                    end do
+                end do
+
+                if(present(PAR_gd)) then
+                    if(size(PAR_gd) /= SS%n_par) STOP "Error Int_Get_Parameter size(PAR_gd) /= SS%n_par   09876tyuinewufhugferafrgnmiutr"
+                    PAR_gd = 0.0
+                    do i = 1, 3
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_gd(:) = PAR_gd(:) + MM(i) * SS%gd(:, yzel)
+                    end do
+                end if
+
+                if(present(PAR_hydrogen)) then
+                    if(size(PAR_hydrogen(1, :)) /= SS%n_Hidrogen) STOP "Error Int_Get_Parameter size(PAR_hydrogen) /= SS%n_par   oehwjfiehurgegvve"
+                    PAR_hydrogen = 0.0
+                    do i = 1, 3
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_hydrogen = PAR_hydrogen + MM(i) * SS%hydrogen(:, :, yzel)
+                    end do
+                end if
+
+			else   ! ПРЯМОУГОЛЬНИК
+				
+                M = SS%gl_Cell_interpol_matrix(:, :, num)
+
+                MM = 0.0
+
+                v(1) = x
+                v(2) = y
+                v(3) = x * y
+                v(4) = 1.0
+
+                do i = 1, 4
+                    do j = 1, 4
+						ccc = v(i) * M(j, i)
+                        MM(i) = MM(i) + v(j) * M(j, i)
+                    end do
+                end do
+
+                if(present(PAR_gd)) then
+                    if(size(PAR_gd) /= SS%n_par) STOP "Error Int_Get_Parameter size(PAR_gd) /= SS%n_par   09876tyuinewufhugferafrgnmiutr"
+                    PAR_gd = 0.0
+                    do i = 1, 4
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_gd(:) = PAR_gd(:) + MM(i) * SS%gd(:, yzel)
+                    end do
+                end if
+
+                if(present(PAR_hydrogen)) then
+                    if(size(PAR_hydrogen(1, :)) /= SS%n_Hidrogen) STOP "Error Int_Get_Parameter size(PAR_hydrogen) /= SS%n_par   oehwjfiehurgegvve"
+                    PAR_hydrogen = 0.0
+                    do i = 1, 4
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_hydrogen = PAR_hydrogen + MM(i) * SS%hydrogen(:, :, yzel)
+                    end do
+                end if
+
+            end if
+        end if
+
+    end subroutine Int_Get_Parameter
 
     subroutine Int_Print_all_point(SS)
         TYPE (Inter_Setka), intent(in out) :: SS

@@ -14,6 +14,7 @@ module Algoritm
     subroutine Gas_dynamic_algoritm(SS)
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: num, i, i_max
+        real(8) :: par(5), parH(5, 4)
 
         call Read_setka_bin(SS, "00002")
 
@@ -42,6 +43,10 @@ module Algoritm
         print*, "____________________________________________"
 
         call Int_Init(gl_S2, SS)
+        call Int_Print_Cell(gl_S2)
+        
+        !call Int_Get_Parameter(gl_S2, 260.0_8, 19.5_8, num, PAR_gd = par, PAR_hydrogen = parH)
+
 
 
         i_max = 0!350
@@ -55,6 +60,7 @@ module Algoritm
 
         call Print_GD(SS)
         call Save_setka_bin(SS, "00003")
+        pause
     end subroutine Gas_dynamic_algoritm
 
     subroutine Start_GD_algoritm(SS, all_step_, area)
@@ -270,6 +276,129 @@ module Algoritm
         print*, "ALL_TIME = ", ALL_TIME
 
     end subroutine Start_GD_algoritm
+
+    subroutine Calc_move_velosity(SS, step)
+        !! Вычисляем скорости движения граней
+        TYPE (Setka), intent(in out) :: SS
+        integer(4), intent(in) :: step
+        integer(4) :: Num, i, s1, s2
+        real(8) :: normal(2), qqq1(8), qqq2(8), POTOK(8)
+        real(8) :: dsl, dsc, dsp
+
+        Num = size(SS%gl_TS)
+
+        !$omp parallel
+        !$omp do private(gran, normal, s1, s2, qqq1, qqq2, POTOK, dsl, dsc, dsp)
+        do i = 1, Num
+            qqq1 = 0.0
+            qqq2 = 0.0
+            gran = SS%gl_TS(i)
+            normal = SS%gl_Gran_normal(:, gran, step)
+            s1 = SS%gl_Gran_neighbour(1, gran)
+            s2 = SS%gl_Gran_neighbour(2, gran)
+
+            qqq1(1) = SS%gd(1, s1, step)
+            qqq1(2) = SS%gd(3, s1, step)
+            qqq1(3) = SS%gd(4, s1, step)
+            qqq1(5) = SS%gd(2, s1, step)
+
+            qqq2(1) = SS%gd(1, s2, step)
+            qqq2(2) = SS%gd(3, s2, step)
+            qqq2(3) = SS%gd(4, s2, step)
+            qqq2(5) = SS%gd(2, s2, step)
+
+            call chlld(2, normal(1), normal(2), 0.0_8, &
+				0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
+
+            normal = normal * dsl
+            s1 = SS%gl_all_Gran(1, gran)
+            s2 = SS%gl_all_Gran(2, gran)
+
+            gl_yzel_Vel(:, s1) = gl_yzel_Vel(:, s1) + normal
+            gl_yzel_Vel(:, s2) = gl_yzel_Vel(:, s2) + normal
+        end do
+        !$omp end do
+        !$omp end parallel
+
+    end subroutine Calc_move_velosity
+
+    subroutine Move_all(SS, step, TT)
+        !! Передвигаем узлы сетки
+        TYPE (Setka), intent(in out) :: SS
+        integer(4), intent(in) :: step
+        real(8), intent(in) :: TT
+
+        integer(4) :: step2, N1, N2, j, i, node, del
+        real(8) :: the, R_TS, R_HP, R_BS, coord(2), norma, vel(2), the2, coord2(2)
+
+        step2 = mod(step, 2) + 1 
+
+        !! Движение сетки
+        ! A - лучи ************************************************************
+        N2 = size(SS%gl_RAY_A(1, :))
+        N1 = size(SS%gl_RAY_A(:, 1))
+        do j = 1, N2
+
+            the = (j - 1) * par_pi/2.0/(N2 - 1)
+
+            node = SS%gl_RAY_A(SS%par_n_TS, j)
+            coord = gl_yzel(:, node, step)
+            norma = norm2(coord)
+            vel = gl_yzel_Vel(:, node)
+            del = gl_Point_num(node)
+            if(del > 1) vel = vel/del
+            R_TS = norm2(coord * (1.0 + DOT_PRODUCT(vel * TT, coord/norma)/norma))
+
+            node = SS%gl_RAY_A(SS%par_n_HP, j)
+            R_HP = norm2(gl_yzel(:, node, step))
+
+            node = SS%gl_RAY_A(SS%par_n_BS, j)
+            R_BS = norm2(gl_yzel(:, node, step))
+
+            do i = 1, N1
+                if (i == 1) then
+                    CYCLE
+                end if
+
+                call Set_Ray_A(SS, i, j, R_TS, R_HP, R_BS, step2)
+            end do
+        end do
+
+        ! B - лучи ************************************************************
+        N2 = size(SS%gl_RAY_B(1, :))
+        N1 = size(SS%gl_RAY_B(:, 1))
+        do j = 1, N2
+
+            the = par_pi/2.0 + (j) * SS%par_triple_point/(N2)
+            the2 = par_pi/2.0 + (j) * SS%par_triple_point_2/(N2)
+
+            node = SS%gl_RAY_B(SS%par_n_TS, j)
+            coord = gl_yzel(:, node, step)
+            norma = norm2(coord)
+            vel = gl_yzel_Vel(:, node)
+            del = gl_Point_num(node)
+            if(del > 1) vel = vel/del
+            R_TS = norm2(coord * (1.0 + DOT_PRODUCT(vel * TT, coord/norma)/norma))
+            
+            node = SS%gl_RAY_B(SS%par_n_HP, j)
+            coord2 = gl_yzel(:, node, step)
+            vel = gl_yzel_Vel(:, node)
+            del = gl_Point_num(node)
+            if(del > 1) vel = vel/del
+            coord2 = coord2 + vel * TT
+            R_HP = (coord2(2) - R_TS * sin(the))/sin(the2)
+
+            do i = 1, N1
+                if (i == 1) then
+                    CYCLE
+                end if
+
+                call Set_Ray_B(SS, i, j, R_TS, R_HP, 1)
+            end do
+        end do
+
+
+    end subroutine Move_all
 
     subroutine Algoritm_Bound_condition(SS)
         !! Задаём граничные условия в сетке (на внутренней сфере для газовой динамики)

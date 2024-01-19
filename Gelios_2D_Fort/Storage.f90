@@ -59,6 +59,9 @@ module STORAGE
         integer(4) :: par_n_points                         ! Всего точек в сетке (считается при инициализации сетки)
 
         real(8), allocatable :: gl_yzel(:, :, :)   ! (2, :, 2) набор координат узлов сетки
+        real(8), allocatable :: gl_yzel_Vel(:, :)   ! (2, :) Скорость движения узлов сетки  !TODO NO-SAVE
+        ! Этот массив не надо сохранять при сохранении сетки в файл - это промежуточный рабочий массив
+        integer(4), allocatable :: gl_Point_num(:)   ! Сколько раз скорость записана в узел  !TODO NO-SAVE
 
         ! Лучи, на которых распологаются точки сетки
         integer(4), allocatable :: gl_RAY_A(:,:)   ! Набор А-лучей размерности 3 (на этом луче, в этой плоскости)
@@ -106,10 +109,12 @@ module STORAGE
         integer(4), allocatable :: gl_Cell_number(:, :)     ! (2, :) номер каждой ячейки внутри своего типа
 
         ! Поверхности выделения
-        integer(4), allocatable :: gl_Contact(:)            ! Контакт 
+        integer(4), allocatable :: gl_Contact(:)            ! Контакт - номеры граней, которые образуют контактную поверхность
         ! Контакт состоит из номеров граней
         integer(4), allocatable :: gl_TS(:)
         integer(4), allocatable :: gl_BS(:)
+        !? Нужно проверить, чтобы нормали у граней-поверхностей были ориентированы "наружу"
+        ! TS проверена!
 
         integer(4), allocatable :: gl_Gran_type(:)      ! Показывает тип грани 
         ! (0 - обычная, 1 - TS, 2 - HP, 3 - BS)     
@@ -153,7 +158,10 @@ module STORAGE
         real(8), allocatable :: gl_Cell_Belong(:, :, :)       ! Все грани (3, 4, :) имеют по A B C, 4 грани в ячейке, 
         ! Ax + By + C = 0  (если > 0 то за пределами ячейки)
 
-        integer(4), allocatable :: gl_Cell_interpol_matrix(:, :, :)   ! (4, 4, :) Набор из 4 соседей для каждой ячейки
+        real(4), allocatable :: gl_Cell_interpol_matrix(:, :, :)   ! (4, 4, :) Набор из 4 соседей для каждой ячейки
+        ! Ax + By + Cxy + D
+        ! Ax + By + C
+        ! 
         ! интерполяционная матрица для каждой ячейки
 
         !! ФИЗИКА

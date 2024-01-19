@@ -49,6 +49,8 @@ module GEOMETRY
                 (SS%par_m_A + SS%par_m_BC + SS%par_m_K - 1)  ! Всего точек в сетке
         
         allocate(SS%gl_yzel(2, SS%par_n_points, 2))
+        allocate(SS%gl_yzel_Vel(2, SS%par_n_points))
+        allocate(SS%gl_Point_num(SS%par_n_points))
 
         N2 = size(SS%gl_Cell_A(1, :))
         N1 = size(SS%gl_Cell_A(:, 1))
@@ -114,6 +116,8 @@ module GEOMETRY
 
         SS%gl_yzel = 0.0_8
         SS%gl_Cell_Centr = 0.0
+
+        SS%gl_yzel_Vel = 0.0
 
 
     end subroutine Init_Setka
@@ -898,7 +902,7 @@ module GEOMETRY
     subroutine Set_Ray_B(SS, i, j, R_TS, R_HP, step)
         ! step - 1 или 2  показывает какой массив координат мы меняем
         ! R_TS - это расстояние от TS до центра
-        !! R_HP - это расстояние по второму лучу от TS до HP
+        !! R_HP - это расстояние по второй координате от TS до HP
         TYPE (Setka), intent(in out) :: SS
         integer(4), INTENT(IN) :: i, j, step
         real(8), INTENT(IN) :: R_TS, R_HP
@@ -1722,6 +1726,7 @@ module GEOMETRY
         ! Автоматическая проверка граней (их соседей) и соседей (в ячейках)
         TYPE (Setka), intent(in) :: SS
         integer(4) :: i, j, sosed, gran, N
+        real(8) :: normal(2), gran_center(2)
 
         print*, "Proverka_grans_sosed start"
 
@@ -1739,6 +1744,22 @@ module GEOMETRY
                     if(sosed /= SS%gl_Gran_neighbour(1, gran) .and. sosed /= SS%gl_Gran_neighbour(2, gran)) STOP "ERROR Proverka_grans_sosed 1316 456yuhgrewsdhjkiu"  
                 end if
             end do
+        end do
+
+        ! Проверка на то, чтобы нормали у поверхностей разрыва были по умолчанию ориентированы наружу
+
+        N = size(SS%gl_TS)
+
+        do i = 1, N
+            gran = SS%gl_TS(i)
+            normal = SS%gl_Gran_normal(:, gran, 1)
+            gran_center = SS%gl_Gran_Center(:, gran, 1)
+
+            if(DOT_PRODUCT(normal, gran_center) < 0.0) then
+                print*, "Error TS normal Proverka_grans_sosed 2345y6gedwadrtfgybrev"
+                pause
+                STOP
+            end if
         end do
 
         print*, "Proverka_grans_sosed end"
