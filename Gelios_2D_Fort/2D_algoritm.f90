@@ -64,7 +64,7 @@ module Algoritm
 
 
 
-        i_max = 10!200!350
+        i_max = 0!200!350
         do i = 1, i_max
             if (mod(i, 1) == 0) then
                 print*, "Global step = ", i, "from ", i_max
@@ -87,6 +87,7 @@ module Algoritm
         call Geo_Print_Surface(SS)
         call Save_setka_bin(SS, "00026")
         call Print_Grans(SS)
+        call Print_Cell_Centr(SS)
         ! call Print_TVD_Sosed(SS)
 
         !pause
@@ -181,12 +182,12 @@ module Algoritm
 					phi2 = polar_angle(gran_center(1), gran_center(2))
 
                     ! Определяем TVD-соседей (они не понадобятся в гиперзвуке)
-                    TVD_sosed_1 = gl_Gran_neighbour_TVD(1, gran)
+                    TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(1, gran)
                     if(SS%gl_Gran_neighbour(1, gran) /= cell) then
                         TVD_sosed_2 = TVD_sosed_1
-                        TVD_sosed_1 = gl_Gran_neighbour_TVD(2, gran)
+                        TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(2, gran)
                     else
-                        TVD_sosed_2 = gl_Gran_neighbour_TVD(2, gran)
+                        TVD_sosed_2 = SS%gl_Gran_neighbour_TVD(2, gran)
                     end if
 
                     !! Условия в гиперзвуке
@@ -229,7 +230,7 @@ module Algoritm
                             par2(2) = par2(2) * r3**(2 * SS%par_ggg) / r2**(2 * SS%par_ggg)
                         else
                             !! Здесь надо делать ТВД
-                            
+
                         end if
                     end if
 

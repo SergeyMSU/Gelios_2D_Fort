@@ -8,7 +8,7 @@ module GEOMETRY
     subroutine Init_Setka(SS)        ! Выделение памяти под все массивы сетки
         ! Предполагается, что все параметры сетки определены
         TYPE (Setka), intent(in out) :: SS
-        integer(4) :: N1, n2, n
+        integer(4) :: N1, n2, n, i, cell, j
 
         if(SS%init_geo == .True.) then
             STOP "ERROR  Init_Setka  987ytuikjhyt"  
@@ -123,9 +123,6 @@ module GEOMETRY
         SS%gl_Cell_Centr = 0.0
 
         SS%gl_yzel_Vel = 0.0
-
-        ! Нужно распределить зоны ячеек
-
 
     end subroutine Init_Setka
 
@@ -872,6 +869,8 @@ module GEOMETRY
         call Geo_Culc_length_area(SS, 1)
         call Geo_Culc_length_area(SS, 2)
 
+        call Geo_Culc_zone(SS)
+
         
     end subroutine Build_Setka_start
 
@@ -1149,14 +1148,6 @@ module GEOMETRY
 
         return
     end subroutine Set_Ray_E
-
-    subroutine Get_gran_parameter(SS, gran, cell)
-        !! Получение параметров на грани с двух сторон
-        !! Функция учитывает источник и ТВД распределения
-        TYPE (Setka), intent(in) :: SS
-        integer(4), intent(in) :: gran, cell
-
-    end subroutine Get_gran_parameter
 
     subroutine Geo_Find_Cell(SS, x, y, num)
         ! Поиск номера ячейки по её координатам
@@ -1467,26 +1458,26 @@ module GEOMETRY
 
 
         open(1, file = SS%name // '_Print_Cell_Centr.txt')
-        write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y', 'Type' "
+        write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y', 'Type', 'zone' "
 
         do j = 1, size(SS%gl_Cell_A(1, :))
             do i = 1, size(SS%gl_Cell_A(:, 1))
                 node = SS%gl_Cell_A(i, j)
-                write(1,*) SS%gl_Cell_Centr(:, node, 1), 1
+                write(1,*) SS%gl_Cell_Centr(:, node, 1), 1, SS%gl_all_Cell_zone(node)
             end do
         end do
 
         do j = 1, size(SS%gl_Cell_B(1, :))
             do i = 1, size(SS%gl_Cell_B(:, 1))
                 node = SS%gl_Cell_B(i, j)
-                write(1,*) SS%gl_Cell_Centr(:, node, 1), 2
+                write(1,*) SS%gl_Cell_Centr(:, node, 1), 2, SS%gl_all_Cell_zone(node)
             end do
         end do
 
         do j = 1, size(SS%gl_Cell_C(1, :))
             do i = 1, size(SS%gl_Cell_C(:, 1))
                 node = SS%gl_Cell_C(i, j)
-                write(1,*) SS%gl_Cell_Centr(:, node, 1), 3
+                write(1,*) SS%gl_Cell_Centr(:, node, 1), 3, SS%gl_all_Cell_zone(node)
             end do
         end do
 
@@ -2079,6 +2070,54 @@ module GEOMETRY
 
     end subroutine Geo_culc_TVD_sosed
 
+    subroutine Geo_Culc_zone(SS)
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: N1, N2, i, j, cell
+
+        ! Нужно распределить зоны ячеек
+        SS%gl_all_Cell_zone = 4
+        N2 = size(SS%gl_Cell_A(1, :))
+        N1 = size(SS%gl_Cell_A(:, 1))
+        do j = 1, N2
+            do i = 1, N1
+                cell = SS%gl_Cell_A(i, j)
+                if(i < SS%par_n_TS) then
+                    SS%gl_all_Cell_zone(cell) = 1 
+                else if (i < SS%par_n_HP) then
+                    SS%gl_all_Cell_zone(cell) = 2
+                else if (i < SS%par_n_BS) then
+                    SS%gl_all_Cell_zone(cell) = 3
+                end if
+            end do
+        end do
+
+        N2 = size(SS%gl_Cell_B(1, :))
+        N1 = size(SS%gl_Cell_B(:, 1))
+        do j = 1, N2
+            do i = 1, N1
+                cell = SS%gl_Cell_B(i, j)
+                if(i < SS%par_n_TS) then
+                    SS%gl_all_Cell_zone(cell) = 1 
+                else 
+                    SS%gl_all_Cell_zone(cell) = 2
+                end if
+            end do
+        end do
+
+        N2 = size(SS%gl_Cell_C(1, :))
+        N1 = size(SS%gl_Cell_C(:, 1))
+        do j = 1, N2
+            do i = 1, N1
+                cell = SS%gl_Cell_C(i, j)
+                if(i < SS%par_n_HP - SS%par_n_TS + 1) then
+                    SS%gl_all_Cell_zone(cell) = 2 
+                else if(i < SS%par_n_BS - SS%par_n_TS + 1) then
+                    SS%gl_all_Cell_zone(cell) = 3
+                end if
+            end do
+        end do
+    end subroutine Geo_Culc_zone
+
     subroutine Save_setka_bin(SS, name)  ! Сохранение сетки в бинарном файле
         TYPE (Setka), intent(in) :: SS
         CHARACTER(len = 5), intent(in) :: name
@@ -2322,6 +2361,7 @@ module GEOMETRY
         call Geo_Culc_normal(SS, 2) 
         call Geo_Culc_length_area(SS, 2)
         call Geo_culc_TVD_sosed(SS)
+        call Geo_Culc_zone(SS)
 
         call Proverka_grans_sosed(SS)
 

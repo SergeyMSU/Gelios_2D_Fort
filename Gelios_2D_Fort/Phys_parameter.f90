@@ -88,6 +88,126 @@ module Phys_parameter
 
     end subroutine Phys_input_flow
 
+    subroutine Get_gran_parameter(SS, gran, cell, par1_, par2_, now)
+        !! Получение параметров на грани с двух сторон
+        !! Функция учитывает источник и ТВД распределения
+        TYPE (Setka), intent(in) :: SS
+        integer(4), intent(in) :: gran, cell, now
+        real(8), intent(out) :: par1_(:), par2_(:)
+
+        real(8) :: c1(2), c2(2), c3(2), c4(2), c5(2)
+        real(8) :: r1, r2, r3, r4, r5
+        real(8) :: phi1, phi2, phi3, phi4, phi5, Vr, Vphi
+        real(8) :: par1(5), par2(5), par3(5), par4(5)
+        integer(4) :: s1, s2, s3, s4, s5
+        logical :: istoch1, istoch2
+
+        s1 = SS%gl_Gran_neighbour(1, gran)
+        s2 = SS%gl_Gran_neighbour(2, gran)
+        s3 = SS%gl_Gran_neighbour_TVD(1, gran)
+        s4 = SS%gl_Gran_neighbour_TVD(2, gran)
+        if(cell /= s1) then
+            s5 = s1
+            s1 = s2
+            s2 = s5
+            s5 = s3
+            s3 = s4
+            s4 = s5
+        end if
+
+        !! Потом можно будет убрать проверку
+        if(s1 /= cell) then
+            print*, "ERROR 987yhfjik3f4ofw3vtg54wbbwqvctracqcfrarvw"
+            STOP
+        end if
+
+        if(s2 == -1) then
+            call Phys_input_flow(SS, par2)
+            par1_ = par2
+            par2_ = par2
+            return
+        else if(s2 == -2) then
+            par1_ = SS%gd(1:5, cell, now)
+            if(par1_(3) > SS%par_Velosity_inf/3.0) par1_(3) = SS%par_Velosity_inf
+            par2_ = par1_
+            return
+        else if(s2 == -3) then
+            par1_ = SS%gd(1:5, cell, now)
+            par2_ = par1_
+            return
+        else if(s2 == -4) then  !!  Ось симметрии
+            par1_ = SS%gd(1:5, s1, now)
+            if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5) then
+                c1 = SS%gl_Cell_Centr(:, s1, now)
+                c5 = SS%gl_Gran_Center(:, gran, now)
+                r1 = norm2(c1)
+                r5 = norm2(c5)
+                phi1 = polar_angle(c1(1), c1(2))
+                phi5 = polar_angle(c5(1), c5(2))
+                call polyar_skorost(phi1, par1_(3), par1_(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par1_(3), par1_(4))
+                par1_(1) = par1_(1) * r1**2 / r5**2
+                par1_(5) = par1_(5) * r1**2 / r5**2
+                par1_(2) = par1_(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+            end if
+            par2_ = par1_
+            par2_(4) = -par1_(4)
+        end if
+
+        par1 = SS%gd(1:5, s1, now)
+        par2 = SS%gd(1:5, s2, now)
+
+        istoch1 = .False.
+        istoch2 = .False.
+        if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5) istoch1 = .True.
+        if(norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5) istoch2 = .True.
+
+        c1 = SS%gl_Cell_Centr(:, s1, now)
+        c2 = SS%gl_Cell_Centr(:, s2, now)
+        c5 = SS%gl_Gran_Center(:, gran, now)
+
+        r1 = norm2(c1)
+        r2 = norm2(c2)
+        r5 = norm2(c5)
+
+        phi1 = polar_angle(c1(1), c1(2))
+        phi2 = polar_angle(c2(1), c2(2))
+        phi5 = polar_angle(c5(1), c5(2))
+
+        if(istoch1 == .True. .and. istoch2 == .False.) then
+            call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+            call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
+            par1(1) = par1(1) * r1**2 / r5**2
+            par1(5) = par1(5) * r1**2 / r5**2
+            par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+        else if(istoch1 == .False. .and. istoch2 == .True.) then
+            call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
+            call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
+            par2(1) = par2(1) * r2**2 / r5**2
+            par2(5) = par2(5) * r2**2 / r5**2
+            par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+
+        else if(istoch1 == .True. .and. istoch2 == .True.) then
+            call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+            call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
+            par1(1) = par1(1) * r1**2 / r5**2
+            par1(5) = par1(5) * r1**2 / r5**2
+            par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+
+            call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
+            call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
+            par2(1) = par2(1) * r2**2 / r5**2
+            par2(5) = par2(5) * r2**2 / r5**2
+            par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+        else
+            
+        end if
+
+        par1_ = par1
+        par2_ = par2
+
+    end subroutine Get_gran_parameter
+
     subroutine Calc_sourse_MF(SS, cell, sourse, step)  ! Считаются мультифлюидные источники
         TYPE (Setka), intent(in) :: SS
         real(8), intent(out) :: sourse(:)  ! (масса, два импульса и энергия)
