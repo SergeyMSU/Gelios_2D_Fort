@@ -1,5 +1,6 @@
 module GEOMETRY
     use STORAGE 
+    use My_func
     implicit none 
 
     contains
@@ -34,6 +35,8 @@ module GEOMETRY
         allocate(SS%gl_Cell_Centr(2, N1, 2))
         allocate(SS%gl_Cell_type(N1))
         allocate(SS%gl_Cell_number(2, N1))
+        allocate(SS%gl_all_Cell_zone(N1))
+        SS%gl_all_Cell_zone = 0
 
         ALLOCATE(SS%gd(SS%n_par, N1 ,2))
         ALLOCATE(SS%hydrogen(5, SS%n_Hidrogen, N1 ,2))
@@ -75,16 +78,18 @@ module GEOMETRY
         allocate(SS%gl_Gran_normal(2, n, 2))
         allocate(SS%gl_Gran_length(n, 2))
         allocate(SS%gl_Gran_Center(2, n, 2))
+        allocate(SS%gl_Gran_neighbour_TVD(2, n))
 
-        allocate(SS%gl_Contact( (SS%par_m_O + SS%par_m_A + SS%par_m_BC - 1)  ))   ! Выделяем память под контакт
+        allocate(SS%gl_HP( (SS%par_m_O + SS%par_m_A + SS%par_m_BC - 1)  ))   ! Выделяем память под контакт
         allocate(SS%gl_TS( (SS%par_m_A + SS%par_m_BC + SS%par_m_K - 1) ))   ! Выделяем память под TS
         allocate(SS%gl_BS( (SS%par_m_A - 1) ))   ! Выделяем память под BS
 
-        SS%gl_Contact = 0
+        SS%gl_HP = 0
         SS%gl_TS = 0
         SS%gl_BS = 0
         SS%gl_Gran_type = 0
 
+        SS%gl_Gran_neighbour_TVD = 0
         SS%gl_all_Gran = 0
         SS%gl_Gran_neighbour = 0
         SS%gl_Cell_gran = 0
@@ -119,8 +124,55 @@ module GEOMETRY
 
         SS%gl_yzel_Vel = 0.0
 
+        ! Нужно распределить зоны ячеек
+
 
     end subroutine Init_Setka
+
+    subroutine Dell_Setka(SS)
+        TYPE (Setka), intent(in out) :: SS
+
+        deallocate(SS%gl_RAY_A)
+        deallocate(SS%gl_RAY_B)
+        deallocate(SS%gl_RAY_C)
+        deallocate(SS%gl_RAY_O)
+        deallocate(SS%gl_RAY_K)
+        deallocate(SS%gl_RAY_D)
+        deallocate(SS%gl_RAY_E)
+
+        deallocate(SS%gl_Cell_A)
+        deallocate(SS%gl_Cell_B)
+        deallocate(SS%gl_Cell_C)
+
+        deallocate(SS%gl_all_Cell)
+        deallocate(SS%gl_Cell_neighbour)
+        deallocate(SS%gl_Cell_Centr)
+        deallocate(SS%gl_Cell_type)
+        deallocate(SS%gl_Cell_number)
+
+        deallocate(SS%gd)
+        deallocate(SS%hydrogen)
+
+        deallocate(SS%gl_Cell_gran)
+        deallocate(SS%gl_Cell_gran_dist)
+        deallocate(SS%gl_Cell_belong)
+        deallocate(SS%gl_Cell_square)
+
+        deallocate(SS%gl_yzel)
+        deallocate(SS%gl_yzel_Vel)
+        deallocate(SS%gl_Point_num)
+
+        deallocate(SS%gl_all_Gran)
+        deallocate(SS%gl_Gran_neighbour)
+        deallocate(SS%gl_Gran_type)
+        deallocate(SS%gl_Gran_normal)
+        deallocate(SS%gl_Gran_length)
+        deallocate(SS%gl_Gran_Center)
+
+        deallocate(SS%gl_HP)
+        deallocate(SS%gl_TS)
+        deallocate(SS%gl_BS)
+    end subroutine Dell_Setka
 
     subroutine Build_Setka_start(SS)        ! Начальное построение сетки
         TYPE (Setka), intent(in out) :: SS
@@ -979,7 +1031,7 @@ module GEOMETRY
 
     subroutine Set_Ray_O(SS, i, j, R_HP, step)
         ! step - 1 или 2  показывает какой массив координат мы меняем
-        ! R_HP - высота
+        ! R_HP - высота (y - координата)
         ! Распределение x - координат считается автоматически от x - координаты крайней точки B на гелиопаузе
         TYPE (Setka), intent(in out) :: SS
         integer(4), INTENT(IN) :: i, j, step
@@ -1097,6 +1149,14 @@ module GEOMETRY
 
         return
     end subroutine Set_Ray_E
+
+    subroutine Get_gran_parameter(SS, gran, cell)
+        !! Получение параметров на грани с двух сторон
+        !! Функция учитывает источник и ТВД распределения
+        TYPE (Setka), intent(in) :: SS
+        integer(4), intent(in) :: gran, cell
+
+    end subroutine Get_gran_parameter
 
     subroutine Geo_Find_Cell(SS, x, y, num)
         ! Поиск номера ячейки по её координатам
@@ -1270,16 +1330,16 @@ module GEOMETRY
 		node = 1
 
 		do j = 1, size( SS%gl_Cell_A(SS%par_n_HP - 1, :) )
-			SS%gl_Contact(node) = SS%gl_Cell_gran(1, SS%gl_Cell_A(SS%par_n_HP - 1, j))
-			SS%gl_Gran_type(SS%gl_Contact(node)) = 2
+			SS%gl_HP(node) = SS%gl_Cell_gran(1, SS%gl_Cell_A(SS%par_n_HP - 1, j))
+			SS%gl_Gran_type(SS%gl_HP(node)) = 2
 			node = node + 1
 				
 				
 		end do
 
 		do j = 1, size( SS%gl_Cell_C(SS%par_n_HP - SS%par_n_TS, :) )
-			SS%gl_Contact(node) = SS%gl_Cell_gran(1, SS%gl_Cell_C(SS%par_n_HP - SS%par_n_TS, j))
-			SS%gl_Gran_type(SS%gl_Contact(node)) = 2
+			SS%gl_HP(node) = SS%gl_Cell_gran(1, SS%gl_Cell_C(SS%par_n_HP - SS%par_n_TS, j))
+			SS%gl_Gran_type(SS%gl_HP(node)) = 2
 			node = node + 1
 				
 		end do
@@ -1540,12 +1600,14 @@ module GEOMETRY
         ! Печатаем центры всех ячеек
         TYPE (Setka), intent(in) :: SS
         integer :: i, j, node
+        real(8) :: Mach
 
         open(1, file = SS%name // '_Print_GD.txt')
-        write(1,*) "TITLE = 'HP'  VARIABLES = X, Y, Rho, p, u, v, Q, Volume"
+        write(1,*) "TITLE = 'HP'  VARIABLES = X, Y, Rho, p, u, v, Q, Mach"
 
         do j = 1, size(SS%gl_all_Cell(1, :))
-            write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), SS%gl_Cell_square(j, 1)
+            Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
+            write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach
         end do
 
         close(1)
@@ -1657,14 +1719,20 @@ module GEOMETRY
 
     end subroutine Print_Connect
 
-    subroutine Print_Grans(SS)
+    subroutine Print_Grans(SS, number)
         ! Печатаем все ячейки (есть дублирование), каждая ячейка печатается отдельно
         TYPE (Setka), intent(in) :: SS
-        integer(4) :: N, i, a1, a2, j
+        integer(4), intent(in), OPTIONAL :: number
+        integer(4) :: N, i, a1, a2, j, num
+        character(len=5) :: name
+
+        num = 0
+        if(PRESENT(number)) num = number
+        write(unit=name,fmt='(i5.5)') num
 
         N = size(SS%gl_all_Gran(1, :))
 
-        open(1, file = SS%name // '_Print_Grans.txt')
+        open(1, file = 'Print_Grans_' // name // '.txt')
         write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y'  ZONE T= 'HP', N= ", 2 * N, ", E =  ", N , ", F=FEPOINT, ET=LINESEG"
 
         do i = 1, N
@@ -1681,18 +1749,64 @@ module GEOMETRY
         close(1)
     end subroutine Print_Grans
 
-    subroutine Geo_Print_Surface(SS)
+    subroutine Print_TVD_Sosed(SS)
+        ! Печатаем все ячейки (есть дублирование), каждая ячейка печатается отдельно
+        TYPE (Setka), intent(in) :: SS
+        integer(4) :: N, i, s1, s2, j
+        real(8) :: c1(2), c2(2), c3(2)
+
+
+        N = size(SS%gl_all_Gran(1, :))
+        open(1, file = 'Print_TVD_sosed.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y'  ZONE T= 'HP', N= ", 3 * N, ", E =  ", 2 * N , ", F=FEPOINT, ET=LINESEG"
+
+        do i = 1, N
+            c1 = SS%gl_Gran_Center(:, i, 1)
+            s1 = SS%gl_Gran_neighbour_TVD(1, i)
+            s2 = SS%gl_Gran_neighbour_TVD(2, i)
+
+            if(s1 > 0) then
+                c2 = SS%gl_Cell_Centr(:, s1, 1)
+            else
+                c2 = c1
+            end if
+
+            if(s2 > 0) then
+                c3 = SS%gl_Cell_Centr(:, s2, 1)
+            else
+                c3 = c1
+            end if
+
+            write(1, *) c1, c2, c3
+        end do
+
+        do j = 0, N
+            write(1,*) 3 * j + 1, 3 * j + 2
+            write(1,*) 3 * j + 1, 3 * j + 3
+        end do
+
+        close(1)
+    end subroutine Print_TVD_Sosed
+
+    subroutine Geo_Print_Surface(SS, number)
         ! Печатаем поверхности, которые выделяем
         TYPE (Setka), intent(in) :: SS
-        integer(4) :: i, N, a1, a2, gr, j
+        integer(4), intent(in), OPTIONAL :: number
+        integer(4) :: i, N, a1, a2, gr, j, num
+        character(len=5) :: name
 
-        N = size(SS%gl_Contact) + size(SS%gl_TS) + size(SS%gl_BS)
+        num = 0
+        if(PRESENT(number)) num = number
+        write(unit=name,fmt='(i5.5)') num
 
-        open(1, file = SS%name // '_Print_Surface.txt')
+
+        N = size(SS%gl_HP) + size(SS%gl_TS) + size(SS%gl_BS)
+
+        open(1, file = SS%name // "_Print_Surface_" // name // ".txt")
         write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y'  ZONE T= 'HP', N= ", 2 * N, ", E =  ", N , ", F=FEPOINT, ET=LINESEG"
 
-        do i = 1, size(SS%gl_Contact)
-            gr = SS%gl_Contact(i)
+        do i = 1, size(SS%gl_HP)
+            gr = SS%gl_HP(i)
             a1 = SS%gl_all_Gran(1, gr)
             a2 = SS%gl_all_Gran(2, gr)
             write(1, *) SS%gl_yzel(:, a1, 1)
@@ -1725,8 +1839,8 @@ module GEOMETRY
     subroutine Proverka_grans_sosed(SS)
         ! Автоматическая проверка граней (их соседей) и соседей (в ячейках)
         TYPE (Setka), intent(in) :: SS
-        integer(4) :: i, j, sosed, gran, N
-        real(8) :: normal(2), gran_center(2)
+        integer(4) :: i, j, sosed, gran, N, s1, s2
+        real(8) :: normal(2), gran_center(2), gran_center2(2), z1(2), z2(2), the1, the2
 
         print*, "Proverka_grans_sosed start"
 
@@ -1749,18 +1863,106 @@ module GEOMETRY
         ! Проверка на то, чтобы нормали у поверхностей разрыва были по умолчанию ориентированы наружу
 
         N = size(SS%gl_TS)
-
         do i = 1, N
             gran = SS%gl_TS(i)
             normal = SS%gl_Gran_normal(:, gran, 1)
             gran_center = SS%gl_Gran_Center(:, gran, 1)
 
             if(DOT_PRODUCT(normal, gran_center) < 0.0) then
-                print*, "Error TS normal Proverka_grans_sosed 2345y6gedwadrtfgybrev"
+                print*, "Error TS normal Proverka_grans_sosed oihiuergfuevguebgeg"
                 pause
                 STOP
             end if
         end do
+
+        N = size(SS%gl_HP)
+        do i = 1, N
+            gran = SS%gl_HP(i)
+            normal = SS%gl_Gran_normal(:, gran, 1)
+            gran_center = SS%gl_Gran_Center(:, gran, 1)
+            gran_center2(1) = -120.0
+            gran_center2(2) = -50.0
+
+            if(DOT_PRODUCT(normal, gran_center - gran_center2) < 0.0) then
+                print*, "Error HP normal Proverka_grans_sosed 08xcvgfdertyukopuy"
+                pause
+                STOP
+            end if
+        end do
+
+        N = size(SS%gl_BS)
+        do i = 1, N
+            gran = SS%gl_BS(i)
+            normal = SS%gl_Gran_normal(:, gran, 1)
+            gran_center = SS%gl_Gran_Center(:, gran, 1)
+            gran_center2(1) = -100.0
+            gran_center2(2) = 0.0
+
+            if(DOT_PRODUCT(normal, gran_center - gran_center2) < 0.0) then
+                print*, "Error BS normal Proverka_grans_sosed ijtrogeuyvghcvhythjyt"
+                pause
+                STOP
+            end if
+        end do
+
+
+        ! Проверка, чтобы узлы у граней-поверхностей шли в правильном порядке
+        N = size(SS%gl_TS)
+        do i = 1, N
+            gran = SS%gl_TS(i)
+            s1 = SS%gl_all_Gran(1, gran)
+            s2 = SS%gl_all_Gran(2, gran)
+
+            z1 = SS%gl_yzel(:, s1, 1)
+            z2 = SS%gl_yzel(:, s2, 1)
+            
+            the1 = polar_angle(z1(1), z1(2))
+            the2 = polar_angle(z2(1), z2(2))
+
+            if(the2 < the1) then
+                print*, "Error 1869 Proverka_grans_sosed  8w48tvw78wajv08waa"
+                STOP
+            end if
+        end do
+
+        ! Проверка, чтобы узлы у граней-поверхностей шли в правильном порядке
+        N = size(SS%gl_HP)
+        do i = 1, N
+            gran = SS%gl_HP(i)
+            s1 = SS%gl_all_Gran(1, gran)
+            s2 = SS%gl_all_Gran(2, gran)
+
+            z1 = SS%gl_yzel(:, s1, 1)
+            z2 = SS%gl_yzel(:, s2, 1)
+            
+            the1 = polar_angle(z1(1), z1(2))
+            the2 = polar_angle(z2(1), z2(2))
+
+            if(the2 < the1) then
+                print*, "Error 1888 Proverka_grans_sosed  lkfyrguyrdvsaefvrs"
+                STOP
+            end if
+        end do
+
+        ! Проверка, чтобы узлы у граней-поверхностей шли в правильном порядке
+        N = size(SS%gl_BS)
+        do i = 1, N
+            gran = SS%gl_BS(i)
+            s1 = SS%gl_all_Gran(1, gran)
+            s2 = SS%gl_all_Gran(2, gran)
+
+            z1 = SS%gl_yzel(:, s1, 1)
+            z2 = SS%gl_yzel(:, s2, 1)
+            
+            the1 = polar_angle(z1(1), z1(2))
+            the2 = polar_angle(z2(1), z2(2))
+
+            if(the2 < the1) then
+                print*, "Error 1907 Proverka_grans_sosed  56ub5345vwcqtvbyer"
+                STOP
+            end if
+        end do
+
 
         print*, "Proverka_grans_sosed end"
 
@@ -1800,6 +2002,82 @@ module GEOMETRY
         
         return
     end function sgushenie_4
+
+    subroutine Geo_culc_TVD_sosed(SS)
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: Num, gr, cell, j, cell2, best
+        real(8) :: normal(2), c1(2), c2(2), vec(2), xc, dotmax
+
+        SS%gl_Gran_neighbour_TVD = 0
+
+        Num = size(SS%gl_all_Gran(1, :))
+
+        ! Пробегаемся по первым соседям каждой грани
+        do gr = 1, Num
+            normal = SS%gl_Gran_normal(:, gr, 1)
+            cell = 0
+            cell2 = 0
+            dotmax = 0.0
+            best = 0
+
+            cell = SS%gl_Gran_neighbour(1, gr) 
+            if(cell < 1) CYCLE
+
+            c1 = SS%gl_Cell_Centr(:, cell, 1)
+
+            do j = 1, 4
+                cell2 = SS%gl_Cell_neighbour(j, cell)
+                if(cell2 < 1) CYCLE
+                c2 = SS%gl_Cell_Centr(:, cell2, 1)
+                vec = c2 - c1
+				vec = vec/norm2(vec)
+                xc = DOT_PRODUCT(vec, -normal)
+				if (dotmax < xc) then
+					dotmax = xc
+					best = j
+				end if
+            end do
+
+			if (best /= 0 .and. dotmax > 0.3) then
+				SS%gl_Gran_neighbour_TVD(1, gr) = SS%gl_Cell_neighbour(best, cell)
+			end if
+
+        end do
+
+        ! Пробегаемся по вторым соседям каждой грани
+        do gr = 1, Num
+            normal = SS%gl_Gran_normal(:, gr, 1)
+            cell = 0
+            cell2 = 0
+            dotmax = 0
+            best = 0
+
+            cell = SS%gl_Gran_neighbour(2, gr) 
+            if(cell < 1) CYCLE
+
+            c1 = SS%gl_Cell_Centr(:, cell, 1)
+
+            do j = 1, 4
+                cell2 = SS%gl_Cell_neighbour(j, cell)
+                if(cell2 < 1) CYCLE
+                c2 = SS%gl_Cell_Centr(:, cell2, 1)
+                vec = c2 - c1
+				vec = vec/norm2(vec)
+                xc = DOT_PRODUCT(vec, normal)
+				if (dotmax < xc) then
+					dotmax = xc
+					best = j
+				end if
+            end do
+
+			if (best /= 0 .and. dotmax > 0.3) then
+				SS%gl_Gran_neighbour_TVD(2, gr) = SS%gl_Cell_neighbour(best, cell)
+			end if
+
+        end do
+
+
+    end subroutine Geo_culc_TVD_sosed
 
     subroutine Save_setka_bin(SS, name)  ! Сохранение сетки в бинарном файле
         TYPE (Setka), intent(in) :: SS
@@ -1874,14 +2152,11 @@ module GEOMETRY
 
         write(1) SS%gl_Cell_Centr
         
-
         write(1) SS%gl_all_Gran
         write(1) SS%gl_Gran_neighbour
         write(1) SS%gl_Gran_normal
         write(1) SS%gl_Gran_length                     
         write(1) SS%gl_Gran_Center                      
-        
-
         
         write(1) SS%gl_Cell_belong
         write(1) SS%gl_Cell_square
@@ -1890,7 +2165,7 @@ module GEOMETRY
         write(1) SS%gl_Cell_number
 
         ! Поверхности выделения
-        write(1) SS%gl_Contact
+        write(1) SS%gl_HP
         write(1) SS%gl_TS
         write(1) SS%gl_BS
 
@@ -1904,6 +2179,26 @@ module GEOMETRY
         write(1) SS%hydrogen
 
 
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+
         close(1)
 
     end subroutine Save_setka_bin
@@ -1912,6 +2207,7 @@ module GEOMETRY
         TYPE (Setka), intent(in out) :: SS
         CHARACTER(len = 5), intent(in) :: name
         logical :: exists
+        integer(4) :: i, j, k
 
         inquire(file= "Save_all_" // name // ".bin", exist=exists)
     
@@ -2007,7 +2303,7 @@ module GEOMETRY
         read(1) SS%gl_Cell_number
 
         ! Поверхности выделения
-        read(1) SS%gl_Contact
+        read(1) SS%gl_HP
         read(1) SS%gl_TS
         read(1) SS%gl_BS
 
@@ -2020,10 +2316,25 @@ module GEOMETRY
         read(1) SS%gd
         read(1) SS%hydrogen
 
+        call Geo_Culc_normal(SS, 1) 
+        call Geo_Culc_length_area(SS, 1)
+        call Culc_Cell_Centr(SS, 2)
+        call Geo_Culc_normal(SS, 2) 
+        call Geo_Culc_length_area(SS, 2)
+        call Geo_culc_TVD_sosed(SS)
 
         call Proverka_grans_sosed(SS)
 
         close(1)
+
+        do i = 1, size(SS%hydrogen(1, 1, :, 1))
+            do j = 1, size(SS%hydrogen(1, :, 1, 1))
+                do k = 1, 2
+                    if(SS%hydrogen(1, j, i, k) <= 0.0) SS%hydrogen(1, j, i, k) = 0.00000001
+                    if(SS%hydrogen(2, j, i, k) <= 0.0) SS%hydrogen(2, j, i, k) = 0.00000001
+                end do
+            end do
+        end do
 
     end subroutine Read_setka_bin
 

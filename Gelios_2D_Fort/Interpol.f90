@@ -728,6 +728,7 @@ module Interpol
         N1 = size(SS%gl_Cell_Belong(1, 1, :))
 
         do i = 1, N1  ! По всем ячейкам
+
             do j = 1, 4  ! По всем граням
                 yz1 = SS%gl_all_Cell(j, i)
                 jj = j + 1
@@ -762,16 +763,20 @@ module Interpol
         end do
     end subroutine Int_Belong_init
 
-    subroutine Int_Find_Cell(SS, x, y, num, outer)
+    subroutine Int_Find_Cell(SS, xx, yy, num, outer)
         ! Поиск номера ячейки по её координатам
         ! num = предположительный изначальный номер (если не знаем пусть будет равен 1)
         ! Если outer == .True. то точка находится за пределами расчётной области, но найдена максимально близкая к ней ячейка
         ! В этом случае просто не надо интерполировать, а надо просто взять значения в блихжайшём узле
         TYPE (Inter_Setka), intent(in) :: SS
-        real(8), intent(in) :: x, y
+        real(8), intent(in) :: xx, yy
         integer(4), intent(in out) :: num
         integer(4) :: j, gran, sosed, max_num
         LOGICAL, intent(out) :: outer
+        real(8) :: x, y
+
+        x = xx
+        y = yy
 
         max_num = 0
         outer = .False.
@@ -779,7 +784,15 @@ module Interpol
         loop1:do while(.TRUE.)
             max_num = max_num + 1
             outer = .False.
-            if(max_num > 1000000) then
+
+            if(max_num > 3000) then
+                x = x + 0.000001
+                y = y + 0.000001
+            end if
+
+            if(max_num > 100000) then
+                print*, x, y
+                print*, num
                 STOP "ERROR Int_Find_Cell 683 iuyhgw4it0pflkjhrfe"
             end if
 
@@ -869,6 +882,12 @@ module Interpol
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_gd(:) = PAR_gd(:) + MM(i) * SS%gd(:, yzel)
                     end do
+
+                    ! if(PAR_gd(1) <= 0.0) then
+                    !     Print*, "ERROR 887 <0 ouw7n8yvn987rnt97wct5gewv"
+                    !     pause
+                    !     STOP
+                    ! end if
                 end if
 
                 if(present(PAR_hydrogen)) then
@@ -878,7 +897,15 @@ module Interpol
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_hydrogen = PAR_hydrogen + MM(i) * SS%hydrogen(:, :, yzel)
                     end do
+
+                    ! if(PAR_hydrogen(1, 3) <= 0.0 .or. PAR_hydrogen(2, 3) <= 0.0) then
+                    !     Print*, "ERROR 887 <0 y54b6unewvbyerev5e"
+                    !     pause
+                    !     STOP
+                    ! end if
+
                 end if
+
 
 			else   ! ПРЯМОУГОЛЬНИК
 				
@@ -905,6 +932,13 @@ module Interpol
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_gd(:) = PAR_gd(:) + MM(i) * SS%gd(:, yzel)
                     end do
+
+                    ! if(PAR_gd(1) <= 0.0) then
+                    !     Print*, "ERROR 887 <0 ve5bt4vv3v676543565e74yvbyr"
+                    !     pause
+                    !     STOP
+                    ! end if
+
                 end if
 
                 if(present(PAR_hydrogen)) then
@@ -914,6 +948,17 @@ module Interpol
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_hydrogen = PAR_hydrogen + MM(i) * SS%hydrogen(:, :, yzel)
                     end do
+
+                    ! if(PAR_hydrogen(1, 3) <= 0.0 .or. PAR_hydrogen(2, 3) <= 0.0) then
+                    !     Print*, "ERROR 887 <0 veete4vt545vt43t"
+                    !     print*, "__________________"
+                    !     call Print_matrix_real(SS%hydrogen(:, :, yzel))
+                    !     print*, "__________________"
+                    !     call Print_matrix_real(PAR_hydrogen)
+                    !     pause
+                    !     STOP
+                    ! end if
+
                 end if
 
             end if

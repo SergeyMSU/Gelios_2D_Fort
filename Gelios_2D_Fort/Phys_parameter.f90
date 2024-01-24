@@ -1,6 +1,7 @@
 module Phys_parameter
     use STORAGE 
     use GEOMETRY
+    USE ieee_arithmetic
     implicit none 
 
     contains
@@ -110,6 +111,14 @@ module Phys_parameter
             u_H = SS%hydrogen(3, i, cell, step)
             v_H = SS%hydrogen(4, i, cell, step)
 
+            if(ro_H <= 0.0) then
+                ro_H = 0.0000001
+            end if
+
+            if(p_H <= 0.0) then
+                p_H = 0.0000001
+            end if
+
             U_M_H(i) = sqrt( (u - u_H)**2 + (v - v_H)**2 + &
             (64.0 / (9.0 * par_pi)) * (0.5 * p / ro + p_H / ro_H) )
             UU_H(i) = sqrt( (u - u_H)**2 + (v - v_H)**2 + &
@@ -131,6 +140,26 @@ module Phys_parameter
         end do
         
         sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)
+
+
+        ! if(ieee_is_nan(sourse(2))) then
+        !     print*, "error source nan re5brtnmujtymuntr"
+		! 	ro_H = SS%hydrogen(1, 3, cell, step)
+        !     p_H = SS%hydrogen(2, 3, cell, step)
+        !     u_H = SS%hydrogen(3, 3, cell, step)
+        !     v_H = SS%hydrogen(4, 3, cell, step)
+        !     print*, ro, p, u, v
+        !     print*, ro_H, p_H, u_H, v_H
+        !     print*, "______________"
+        !     print*, nu
+		! 	print*, "______________"
+        !     print*, sigma
+		! 	print*, "______________"
+        !     print*, U_M_H
+        !     print*, "______________"
+        !     print*, sourse
+        !     STOP
+        ! end if
         
 	end subroutine Calc_sourse_MF
 

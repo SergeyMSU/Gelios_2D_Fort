@@ -1,6 +1,8 @@
 
 module My_func
     implicit none 
+    
+    real(8), parameter :: MF_par_pi = acos(-1.0_8) 
 
     contains
 
@@ -29,6 +31,56 @@ module My_func
         return
         
     end function linear1
+
+    !@cuf attributes(host, device) & 
+    real(8) pure function polar_angle(x, y)
+        real(8), intent(in) :: x, y
+
+        if (dabs(x) + dabs(y) < 0.000001) then
+            polar_angle = 0.0_8
+            return
+        end if
+
+
+        if (x < 0) then
+            polar_angle = atan(y / x) + 1.0 * MF_par_pi
+        elseif (x > 0 .and. y >= 0) then
+            polar_angle = atan(y / x)
+        elseif (x > 0 .and. y < 0) then
+            polar_angle = atan(y / x) + 2.0 * MF_par_pi
+        elseif (y > 0 .and. x >= 0 .and. x <= 0) then
+            polar_angle = MF_par_pi / 2.0
+        elseif (y < 0 .and. x >= 0 .and. x <= 0) then
+            polar_angle =  3.0 * MF_par_pi / 2.0
+        end if
+
+        return
+    end function polar_angle
+
+    !@cuf attributes(host, device) & 
+    subroutine polyar_skorost(phi, Vy, Vz, Vr, Vphi)
+        ! ѕеревод скорости из декартовой в пол€рную с помощью пол€рного угла
+        ! Variables
+        implicit none
+        real(8), intent(in) :: phi, Vy, Vz
+        real(8), intent(out) :: Vr, Vphi
+
+        Vr = Vy * cos(phi) + Vz * sin(phi)
+        Vphi = Vz * cos(phi) - Vy * sin(phi)
+    end subroutine polyar_skorost
+
+    !@cuf attributes(host, device) & 
+    subroutine dekard_polyar_skorost(phi, Vr, Vphi, Vy, Vz)
+        ! ѕеревод скорости из пол€рной в декартову
+        ! Variables
+        implicit none
+        real(8), intent(in) :: phi, Vr, Vphi 
+        real(8), intent(out) :: Vy, Vz
+
+        Vy = Vr * cos(phi) - Vphi * sin(phi)
+        Vz = Vr * sin(phi) + Vphi * cos(phi)
+
+    end subroutine dekard_polyar_skorost
 
     pure function matinv4(A) result(B)
         !! Performs a direct calculation of the inverse of a 4?4 matrix.
