@@ -1605,6 +1605,32 @@ module GEOMETRY
 
     end subroutine Print_GD
 
+    subroutine Print_GD_1D(SS)
+        ! ѕечатаем центры всех €чеек
+        TYPE (Setka), intent(in) :: SS
+        integer :: i, j, node
+        real(8) :: Mach, c(2)
+
+        open(1, file = SS%name // '_Print_GD_1D.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = X, Rho, p, u, v, Q, Mach"
+
+        do i = size(SS%gl_Cell_B(:, 1)), 1, -1
+            j = SS%gl_Cell_B(i, 1)
+            Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
+			c = SS%gl_Cell_Centr(1, j, 1)
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach
+        end do
+
+        do i = 1, size(SS%gl_Cell_A(:, 1))
+            j = SS%gl_Cell_A(i, 1)
+            Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach
+        end do
+
+        close(1)
+
+    end subroutine Print_GD_1D
+
     subroutine Print_Cell(SS)
         ! ѕечатаем все €чейки (есть дублирование), кажда€ €чейка печатаетс€ отдельно
         TYPE (Setka), intent(in) :: SS
@@ -1825,8 +1851,9 @@ module GEOMETRY
         end do
 
         close(1)
-    end subroutine Geo_Print_Surface
+	end subroutine Geo_Print_Surface
 
+	
     subroutine Proverka_grans_sosed(SS)
         ! јвтоматическа€ проверка граней (их соседей) и соседей (в €чейках)
         TYPE (Setka), intent(in) :: SS

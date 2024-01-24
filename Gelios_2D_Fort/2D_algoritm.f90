@@ -7,6 +7,7 @@ module Algoritm
     USE ieee_arithmetic
     USE OMP_LIB
     USE Interpol
+    USE cgod
     implicit none 
 
     contains
@@ -23,7 +24,7 @@ module Algoritm
 
         call Int_Print_Cell(gl_S2)
 
-        call Read_setka_bin(SS, "00025")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "00031")      ! ОСНОВНАЯ СЕТКА
         
 
 
@@ -64,12 +65,12 @@ module Algoritm
 
 
 
-        i_max = 0!200!350
+        i_max = 250 * 6 * 4!200!350
         do i = 1, i_max
-            if (mod(i, 1) == 0) then
+            if (mod(i, 50) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
-            call Start_GD_algoritm(SS, 5000, 2)
+            call Start_GD_algoritm(SS, 5000, 2) !5000
 
             call Culc_Cell_Centr(SS, 1)
             call Geo_Culc_normal(SS, 1) 
@@ -78,16 +79,17 @@ module Algoritm
             call Geo_Culc_normal(SS, 2) 
             call Geo_Culc_length_area(SS, 2)
 
-            call Start_GD_algoritm(SS, 500, 1)
+            call Start_GD_algoritm(SS, 500, 1) !500
 
             call Algoritm_Reinterpol(SS, gl_S2)
         end do
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "00026")
-        call Print_Grans(SS)
-        call Print_Cell_Centr(SS)
+        call Save_setka_bin(SS, "00032")
+        ! call Print_Grans(SS)
+        ! call Print_Cell_Centr(SS)
+        call Print_GD_1D(SS)
         ! call Print_TVD_Sosed(SS)
 
         !pause
@@ -106,6 +108,7 @@ module Algoritm
         real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(5), source(4), r2, r3, par3(5), par4(5)
         real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME, lenght, wc, gran_center(2), sosed_center(2)
         logical :: tvd1, tvd2
+        integer(4) :: kdir, idgod, KOBL
 
 		all_step = all_step_
         if(mod(all_step, 2) == 1) all_step = all_step + 1   ! Делаем общее число шагов чётным
@@ -144,7 +147,7 @@ module Algoritm
             !$omp parallel
 
 
-            !$omp do private(sosed_center, phi3, gran_center, Vr, Vphi, phi1, phi2, r, par1_TVD, wc, &
+            !$omp do private(KOBL, kdir, idgod, sosed_center, phi3, gran_center, Vr, Vphi, phi1, phi2, r, par1_TVD, wc, &
             !$omp r3, r2, loc_time, gr, gran, sosed, center, par1, TVD_sosed_1, TVD_sosed_2, &
             !$omp par2, ro, p, u, v, Q, normal, Sqv, Vol, Vol2, ro2, p2, u2, v2, Q2, pp, qqq1, &
             !$omp qqq2, POTOK2, POTOK, source, dsl, dsc, dsp, lenght, par3, par4, tvd1, tvd2)
@@ -171,83 +174,88 @@ module Algoritm
 
                 ! Пробегаемся по граням
                 do gr = 1, 4
-                    tvd1 = .True.
-                    tvd2 = .True.
+                    ! tvd1 = .True.
+                    ! tvd2 = .True.
 					POTOK2 = 0.0
+                    KOBL = 0
+                    kdir = 0
+                    idgod = 0
                     gran = SS%gl_Cell_gran(gr, cell)
                     sosed = SS%gl_Cell_neighbour(gr, cell)
                     if(sosed == 0) CYCLE
                     gran_center = SS%gl_Gran_Center(:, gran, now)
-                    r2 = norm2(gran_center)
-					phi2 = polar_angle(gran_center(1), gran_center(2))
 
-                    ! Определяем TVD-соседей (они не понадобятся в гиперзвуке)
-                    TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(1, gran)
-                    if(SS%gl_Gran_neighbour(1, gran) /= cell) then
-                        TVD_sosed_2 = TVD_sosed_1
-                        TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(2, gran)
-                    else
-                        TVD_sosed_2 = SS%gl_Gran_neighbour_TVD(2, gran)
-                    end if
 
-                    !! Условия в гиперзвуке
-                    if(r < 60 .and. center(1) < 30.0 .and. norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5 ) then
-                        par1_TVD = par1
-                        call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
-                        call dekard_polyar_skorost(phi2, Vr, Vphi, par1_TVD(3), par1_TVD(4))
-                        par1_TVD(1) = par1(1) * r**2 / r2**2
-                        par1_TVD(5) = par1(5) * r**2 / r2**2
-                        par1_TVD(2) = par1(2) * r**(2.0 * SS%par_ggg) / r2**(2.0 * SS%par_ggg)
-                        tvd1 = .False.
-                    else
-                        par1_TVD = par1
-                    end if
+                    ! r2 = norm2(gran_center)
+					! phi2 = polar_angle(gran_center(1), gran_center(2))
 
-                    ! Задаём параметры соседа для распада разрыва
-                    if(sosed == 0) then
-                        CYCLE
-                    else if(sosed == -1) then
-                        call Phys_input_flow(SS, par2)
-                    else if(sosed == -2) then
-                        par2 = par1
-                        if(par2(3) > SS%par_Velosity_inf/2.0) par2(3) = SS%par_Velosity_inf
-                    else if(sosed == -3) then
-                        par2 = par1
-                    else if(sosed == -4) then
-                        par2 = par1_TVD
-                        par2(4) = -par1_TVD(4)
-                    else
-                        par2 = SS%gd(1:5, sosed, now)    ! Получили газодинамические параметры
-                        if(r < 60 .and. center(1) < 30.0 .and. norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5 ) then
-                            tvd2 = .False.
-                            sosed_center = SS%gl_Cell_Centr(:, sosed, now)
-                            r3 = norm2(sosed_center)
-                            phi3 = polar_angle(sosed_center(1), sosed_center(2))
-                            call polyar_skorost(phi3, par2(3), par2(4), Vr, Vphi)
-                            call dekard_polyar_skorost(phi2, Vr, Vphi, par2(3), par2(4))
-                            par2(1) = par2(1) * r3**2 / r2**2
-                            par2(5) = par2(5) * r3**2 / r2**2
-                            par2(2) = par2(2) * r3**(2 * SS%par_ggg) / r2**(2 * SS%par_ggg)
-                        else
-                            !! Здесь надо делать ТВД
+                    ! ! Определяем TVD-соседей (они не понадобятся в гиперзвуке)
+                    ! TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(1, gran)
+                    ! if(SS%gl_Gran_neighbour(1, gran) /= cell) then
+                    !     TVD_sosed_2 = TVD_sosed_1
+                    !     TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(2, gran)
+                    ! else
+                    !     TVD_sosed_2 = SS%gl_Gran_neighbour_TVD(2, gran)
+                    ! end if
 
-                        end if
-                    end if
+                    ! !! Условия в гиперзвуке
+                    ! if(r < 60 .and. center(1) < 30.0 .and. norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5 ) then
+                    !     par1_TVD = par1
+                    !     call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+                    !     call dekard_polyar_skorost(phi2, Vr, Vphi, par1_TVD(3), par1_TVD(4))
+                    !     par1_TVD(1) = par1(1) * r**2 / r2**2
+                    !     par1_TVD(5) = par1(5) * r**2 / r2**2
+                    !     par1_TVD(2) = par1(2) * r**(2.0 * SS%par_ggg) / r2**(2.0 * SS%par_ggg)
+                    !     tvd1 = .False.
+                    ! else
+                    !     par1_TVD = par1
+                    ! end if
 
-                    if(par2(1) <= 0.000000001) then
-                        print*, "Error rho2 89 45465u76jhgrefrwcwdf4c, ", par2(1) 
-                        print*, "num = ", cell, sosed
-                        print*, "center = ", center
-                        print*, "_______________"
-                        print*, par2
-                        print*, "_______________"
-                        print*, par1
-                        print*, "_______massiv________"
-                        print*, SS%gd(1:5, sosed, 1)
-                        print*, "_______________"
-                        print*, SS%gd(1:5, sosed, 2)
-                        pause
-                    end if
+                    ! ! Задаём параметры соседа для распада разрыва
+                    ! if(sosed == 0) then
+                    !     CYCLE
+                    ! else if(sosed == -1) then
+                    !     call Phys_input_flow(SS, par2)
+                    ! else if(sosed == -2) then
+                    !     par2 = par1
+                    !     if(par2(3) > SS%par_Velosity_inf/2.0) par2(3) = SS%par_Velosity_inf
+                    ! else if(sosed == -3) then
+                    !     par2 = par1
+                    ! else if(sosed == -4) then
+                    !     par2 = par1_TVD
+                    !     par2(4) = -par1_TVD(4)
+                    ! else
+                    !     par2 = SS%gd(1:5, sosed, now)    ! Получили газодинамические параметры
+                    !     if(r < 60 .and. center(1) < 30.0 .and. norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5 ) then
+                    !         tvd2 = .False.
+                    !         sosed_center = SS%gl_Cell_Centr(:, sosed, now)
+                    !         r3 = norm2(sosed_center)
+                    !         phi3 = polar_angle(sosed_center(1), sosed_center(2))
+                    !         call polyar_skorost(phi3, par2(3), par2(4), Vr, Vphi)
+                    !         call dekard_polyar_skorost(phi2, Vr, Vphi, par2(3), par2(4))
+                    !         par2(1) = par2(1) * r3**2 / r2**2
+                    !         par2(5) = par2(5) * r3**2 / r2**2
+                    !         par2(2) = par2(2) * r3**(2 * SS%par_ggg) / r2**(2 * SS%par_ggg)
+                    !     else
+                    !         !! Здесь надо делать ТВД
+
+                    !     end if
+                    ! end if
+
+                    ! if(par2(1) <= 0.000000001) then
+                    !     print*, "Error rho2 89 45465u76jhgrefrwcwdf4c, ", par2(1) 
+                    !     print*, "num = ", cell, sosed
+                    !     print*, "center = ", center
+                    !     print*, "_______________"
+                    !     print*, par2
+                    !     print*, "_______________"
+                    !     print*, par1
+                    !     print*, "_______massiv________"
+                    !     print*, SS%gd(1:5, sosed, 1)
+                    !     print*, "_______________"
+                    !     print*, SS%gd(1:5, sosed, 2)
+                    !     pause
+                    ! end if
 
                     normal = SS%gl_Gran_normal(:, gran, now)
                     Sqv = SS%gl_Gran_length(gran, now)
@@ -258,6 +266,7 @@ module Algoritm
                     ! Нужно вычислить скорость движения грани
                     wc = DOT_PRODUCT((SS%gl_Gran_Center(:, gran, now2) -  gran_center)/TT, normal)
 
+                    call Get_gran_parameter(SS, gran, cell, par1_TVD, par2, now)
 
                     qqq1(1) = par1_TVD(1)
                     qqq1(5) = par1_TVD(2)
@@ -275,8 +284,30 @@ module Algoritm
                     qqq2(6:8) = 0.0
                     qqq2(9) = par2(5)
 
-                    call chlld_Q(1, normal(1), normal(2), 0.0_8, &
-                    wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
+                    !if(.False.) then
+                    if(SS%gl_Gran_type(gran) /= 0) then
+						continue
+                        call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
+                        normal(1), normal(2), 0.0_8, 1.0_8, &
+                        wc, qqq1(1:8), qqq2(1:8), &
+                        dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                        POTOK2)
+
+                        if (idgod == 2) then
+                            POTOK2 = 0.0
+                            call chlld_Q(1, normal(1), normal(2), 0.0_8, &
+                                wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
+                        else
+                            if(dsc >= wc) then  !! Правильно считаем конвективный перенос
+                                POTOK2(9) = POTOK2(1) / qqq1(1) * qqq1(9)
+                            else
+                                POTOK2(9) = POTOK2(1) / qqq2(1) * qqq2(9)
+                            end if
+                        end if
+                    else
+                        call chlld_Q(1, normal(1), normal(2), 0.0_8, &
+                        wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
+                    end if
 
                     loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )
 
@@ -378,11 +409,12 @@ module Algoritm
         integer(4) :: Num, i, s1, s2, gran, Num2, Num3, s3
         real(8) :: normal(2), qqq1(8), qqq2(8), POTOK(8)
         real(8) :: dsl, dsc, dsp
-        real(8) :: koeff_TS, koeff_HP, koeff_BS, c1(2), c2(2), c3(2)
+        real(8) :: koeff_TS, koeff_HP, koeff_BS, c1(2), c2(2), c3(2), wc
+        integer(4) :: kdir, idgod, KOBL
 
-        koeff_TS = 0.001
-        koeff_HP = 0.01
-        koeff_BS = 0.01
+        koeff_TS = 0.002
+        koeff_HP = 0.1
+        koeff_BS = 0.1
 
         Num = size(SS%gl_TS)
 
@@ -394,10 +426,14 @@ module Algoritm
         Num3 = size(SS%gl_BS)
 
         !$omp parallel
-        !$omp do private(gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
+        !$omp do private(KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
         do i = 1, Num
             qqq1 = 0.0
             qqq2 = 0.0
+            wc = 0.0
+            KOBL = 0
+            kdir = 0
+            idgod = 0
             gran = SS%gl_TS(i)
             normal = SS%gl_Gran_normal(:, gran, step)
             s1 = SS%gl_Gran_neighbour(1, gran)
@@ -413,8 +449,17 @@ module Algoritm
             qqq2(3) = SS%gd(4, s2, step)
             qqq2(5) = SS%gd(2, s2, step)
 
-            call chlld(2, normal(1), normal(2), 0.0_8, &
+
+            call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
+                normal(1), normal(2), 0.0_8, 1.0_8, &
+                wc, qqq1(1:8), qqq2(1:8), &
+                dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                POTOK)
+
+            if (idgod == 2) then
+                call chlld(2, normal(1), normal(2), 0.0_8, &
 				0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
+            end if
 
             normal = normal * dsl * koeff_TS
             s1 = SS%gl_all_Gran(1, gran)
@@ -454,10 +499,14 @@ module Algoritm
         end do
         !$omp end do
 
-        !$omp do private(gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
+        !$omp do private(KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
         do i = 1, Num2
             qqq1 = 0.0
             qqq2 = 0.0
+            wc = 0.0
+            KOBL = 0
+            kdir = 0
+            idgod = 0
             gran = SS%gl_HP(i)
             normal = SS%gl_Gran_normal(:, gran, step)
             s1 = SS%gl_Gran_neighbour(1, gran)
@@ -473,8 +522,19 @@ module Algoritm
             qqq2(3) = SS%gd(4, s2, step)
             qqq2(5) = SS%gd(2, s2, step)
 
-            call chlld(2, normal(1), normal(2), 0.0_8, &
+            ! call chlld(2, normal(1), normal(2), 0.0_8, &
+			! 	0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
+
+            call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
+                normal(1), normal(2), 0.0_8, 1.0_8, &
+                wc, qqq1, qqq2, &
+                dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                POTOK)
+
+            if (idgod == 2) then
+                call chlld(2, normal(1), normal(2), 0.0_8, &
 				0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
+            end if
 
             normal = normal * dsc * koeff_HP
             s1 = SS%gl_all_Gran(1, gran)
@@ -493,6 +553,12 @@ module Algoritm
 
             c1 = SS%gl_yzel(:, s1, step)
             c2 = SS%gl_yzel(:, s2, step)
+
+            if(c1(1) < -80.0) then
+				continue
+                normal = normal * 5.0
+                CYCLE
+            end if
 
             if(i > 1) then
                 gran = SS%gl_HP(i - 1)
@@ -513,10 +579,14 @@ module Algoritm
         end do
         !$omp end do
 
-        !$omp do private(gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
+        !$omp do private(KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
         do i = 1, Num3
             qqq1 = 0.0
             qqq2 = 0.0
+            wc = 0.0
+            KOBL = 0
+            kdir = 0
+            idgod = 0
             gran = SS%gl_BS(i)
             normal = SS%gl_Gran_normal(:, gran, step)
             s1 = SS%gl_Gran_neighbour(1, gran)
@@ -532,8 +602,19 @@ module Algoritm
             qqq2(3) = SS%gd(4, s2, step)
             qqq2(5) = SS%gd(2, s2, step)
 
-            call chlld(2, normal(1), normal(2), 0.0_8, &
+            ! call chlld(2, normal(1), normal(2), 0.0_8, &
+			! 	0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
+
+            call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
+                normal(1), normal(2), 0.0_8, 1.0_8, &
+                wc, qqq1, qqq2, &
+                dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                POTOK)
+
+            if (idgod == 2) then
+                call chlld(2, normal(1), normal(2), 0.0_8, &
 				0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
+            end if
 
             normal = normal * dsp * koeff_BS
             s1 = SS%gl_all_Gran(1, gran)

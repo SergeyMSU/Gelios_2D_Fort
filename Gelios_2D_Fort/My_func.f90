@@ -7,18 +7,48 @@ module My_func
     contains
 
     !@cuf attributes(host, device) & 
-    ! real(8) pure function  linear(x1, t1, x2, t2, x3, t3, y)
-    !     ! Главное значение с параметрами 2
-    !     ! Строим линии между 1 и 2,  2 и 3, потом находим минмодом значение в y
-    !     implicit none
-    !     real(8), intent(in) :: x1, x2, x3, y, t1, t2, t3
-    !     real(8) :: d
-
-    !     d = minmod((t1 - t2) / (x1 - x2), (t2 - t3) / (x2 - x3))
-    !     linear =  (d * (y - x2) + t2)
-    !     return
+    integer(4) pure function signum(x)
+        implicit none
+        real(8), intent(in) :: x
         
-    ! end function linear
+        if (x > 0) then
+            signum = 1
+            return
+        else if (x < 0) then
+            signum = -1
+            return
+        else 
+            signum = 0
+            return
+        end if
+    end function signum
+        
+    !@cuf attributes(host, device) & 
+    real(8) pure function minmod(x, y)
+        implicit none
+        real(8), intent(in) :: x, y
+        
+        if (signum(x) + signum(y) == 0) then
+            minmod = 0.0_8
+            return
+        else
+            minmod = ((signum(x) + signum(y)) / 2.0) * min(dabs(x), dabs(y)) ! minmod
+            return   
+        end if
+    end function minmod
+
+    !@cuf attributes(host, device) & 
+    real(8) pure function  linear(x1, t1, x2, t2, x3, t3, y)
+        ! Главное значение с параметрами 2
+        ! Строим линии между 1 и 2,  2 и 3, потом находим минмодом значение в y
+        implicit none
+        real(8), intent(in) :: x1, x2, x3, y, t1, t2, t3
+        real(8) :: d
+
+        d = minmod((t1 - t2) / (x1 - x2), (t2 - t3) / (x2 - x3))
+        linear =  (d * (y - x2) + t2)
+        return
+    end function linear
 
     !@cuf attributes(host, device) & 
     real(8) pure function  linear1(x1, t1, x2, t2, y)

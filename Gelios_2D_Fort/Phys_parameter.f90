@@ -97,9 +97,9 @@ module Phys_parameter
 
         real(8) :: c1(2), c2(2), c3(2), c4(2), c5(2)
         real(8) :: r1, r2, r3, r4, r5
-        real(8) :: phi1, phi2, phi3, phi4, phi5, Vr, Vphi
+        real(8) :: phi1, phi2, phi3, phi4, phi5, Vr, Vphi, d1, d2, d3
         real(8) :: par1(5), par2(5), par3(5), par4(5)
-        integer(4) :: s1, s2, s3, s4, s5
+        integer(4) :: s1, s2, s3, s4, s5, i
         logical :: istoch1, istoch2
 
         s1 = SS%gl_Gran_neighbour(1, gran)
@@ -137,7 +137,7 @@ module Phys_parameter
             return
         else if(s2 == -4) then  !!  Ось симметрии
             par1_ = SS%gd(1:5, s1, now)
-            if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5) then
+            if(norm2(par1_(3:4))/sqrt(SS%par_ggg * par1_(2)/par1_(1)) > 2.5) then
                 c1 = SS%gl_Cell_Centr(:, s1, now)
                 c5 = SS%gl_Gran_Center(:, gran, now)
                 r1 = norm2(c1)
@@ -152,6 +152,7 @@ module Phys_parameter
             end if
             par2_ = par1_
             par2_(4) = -par1_(4)
+            return
         end if
 
         par1 = SS%gd(1:5, s1, now)
@@ -200,7 +201,32 @@ module Phys_parameter
             par2(5) = par2(5) * r2**2 / r5**2
             par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
         else
-            
+            if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2)) then
+                if(s3 > 0 .and. s4 > 0) then
+                    c3 = SS%gl_Cell_Centr(:, s3, now)
+                    c4 = SS%gl_Cell_Centr(:, s4, now)
+                    d1 = -norm2(c5 - c1)
+                    d2 = -norm2(c5 - c3)
+                    d3 = norm2(c5 - c2)
+                    par3 = SS%gd(1:5, s3, now)
+                    par4 = SS%gd(1:5, s4, now)
+
+                    do i = 1, 5 
+                        par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
+                    end do
+
+                    d2 = -d1
+                    d1 = -d3
+                    d3 = d2
+                    d2 = -norm2(c4 - c3)
+
+                    do i = 1, 5 
+                        par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
+                    end do
+                    
+                    return
+                end if
+            end if
         end if
 
         par1_ = par1
