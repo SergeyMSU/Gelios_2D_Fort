@@ -179,4 +179,28 @@ module My_func
         end do
     end subroutine Print_matrix_real
 
+    !@cuf attributes(host, device) & 
+    subroutine dekard_skorost(z, x, y, Vr, Vphi, Vtheta, Vz, Vx, Vy)
+        implicit none
+        real(8), intent(in) :: x, y, z,  Vr, Vphi, Vtheta
+        real(8), intent(out) :: Vx, Vy, Vz
+        real(8) :: r_2, the_2, phi_2
+
+        r_2 = sqrt(x * x + y * y + z * z);
+        the_2 = acos(z / r_2);
+        phi_2 = polar_angle(x, y);
+        
+        !print*, r_2, the_2, phi_2, Vr, Vphi, Vtheta
+        !print*, sin(the_2), cos(phi_2), cos(the_2), sin(phi_2)
+
+        Vx = Vr * sin(the_2) * cos(phi_2) + Vtheta * cos(the_2) * cos(phi_2) - Vphi * sin(phi_2);
+        Vy = Vr * sin(the_2) * sin(phi_2) + Vtheta * cos(the_2) * sin(phi_2) + Vphi * cos(phi_2);
+        Vz = Vr * cos(the_2) - Vtheta * sin(the_2);
+	end subroutine dekard_skorost
+
+    real(8) pure function kvv(x, y, z)
+        real(8), intent (in) :: x, y, z
+        kvv = x**2 + y**2 + z**2
+    end function kvv
+
 end module My_func

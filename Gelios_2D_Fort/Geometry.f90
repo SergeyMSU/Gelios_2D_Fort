@@ -75,6 +75,7 @@ module GEOMETRY
         allocate(SS%gl_all_Gran(2, n))
         allocate(SS%gl_Gran_neighbour(2, n))
         allocate(SS%gl_Gran_type(n))
+        allocate(SS%gl_Gran_shem(n))
         allocate(SS%gl_Gran_normal(2, n, 2))
         allocate(SS%gl_Gran_length(n, 2))
         allocate(SS%gl_Gran_Center(2, n, 2))
@@ -88,6 +89,7 @@ module GEOMETRY
         SS%gl_TS = 0
         SS%gl_BS = 0
         SS%gl_Gran_type = 0
+        SS%gl_Gran_shem = 1          !  HLL по умолчанию
 
         SS%gl_Gran_neighbour_TVD = 0
         SS%gl_all_Gran = 0
@@ -1215,6 +1217,103 @@ module GEOMETRY
         end do
     end subroutine Culc_Cell_Centr
 
+    subroutine Geo_Set_sxem(SS)
+        ! ”станавливаем схему дл€ грани
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: N, i, s1, s2, t1, t2, yz1, yz2, j, HP
+        real(8) :: c(2)
+
+        SS%gl_Gran_shem = 2
+
+        N = size(SS%gl_Gran_shem)
+        do i = 1, N
+            s1 = SS%gl_Gran_neighbour(1, i)
+            s2 = SS%gl_Gran_neighbour(2, i)
+
+            if(s1 < 1 .or. s2 < 1) then
+                SS%gl_Gran_shem(i) = 3
+                CYCLE
+            end if
+
+            t1 = SS%gl_all_Cell_zone(s1)
+            t2 = SS%gl_all_Cell_zone(s2)
+
+            if(t1 /= t2) then
+                SS%gl_Gran_shem(i) = 3
+                CYCLE
+            end if
+
+            if(t1 == 1 .or. t2 == 1) then
+                SS%gl_Gran_shem(i) = 3
+                CYCLE
+            end if
+
+            c = SS%gl_Gran_Center(:, i, 1)
+
+            if(c(1) < -60) then
+                SS%gl_Gran_shem(i) = 3
+                CYCLE
+            end if
+
+            if(t1 == 2 .or. t2 == 2) then
+                SS%gl_Gran_shem(i) = 1
+                CYCLE
+            end if
+
+            
+
+        end do
+
+        do j = 1, 1 !size(SS%gl_Cell_A(1, :))
+            do i = SS%par_n_TS,  SS%par_n_HP - 1
+                s1 = SS%gl_Cell_A(i, j)
+                s2 = SS%gl_Cell_gran(3, s1)
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+                s2 = SS%gl_Cell_gran(4, s1)
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+            end do
+        end do
+
+        do j = 1, 1 !size(SS%gl_Cell_A(1, :))
+            do i = SS%par_n_HP,  size(SS%gl_Cell_A(:, 1))
+                s1 = SS%gl_Cell_A(i, j)
+                s2 = SS%gl_Cell_gran(3, s1)
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 2
+                s2 = SS%gl_Cell_gran(4, s1)
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 2
+            end do
+        end do
+
+        ! do j = 1, 5 !size(SS%gl_Cell_A(1, :))
+        !     do i = SS%par_n_HP - 8,  SS%par_n_HP + 7
+        !         s1 = SS%gl_Cell_A(i, j)
+        !         s2 = SS%gl_Cell_gran(1, s1)
+        !         if(s2 > 0) SS%gl_Gran_shem(s2) = 0
+        !         s2 = SS%gl_Cell_gran(2, s1)
+        !         if(s2 > 0) SS%gl_Gran_shem(s2) = 0
+        !     end do
+        ! end do
+
+        N = size(SS%gl_Gran_shem)
+        do i = 1, N
+            s1 = SS%gl_Gran_neighbour(1, i)
+            s2 = SS%gl_Gran_neighbour(2, i)
+
+            if(s1 < 1 .or. s2 < 1) then
+                CYCLE
+            end if
+
+            t1 = SS%gl_all_Cell_zone(s1)
+            t2 = SS%gl_all_Cell_zone(s2)
+
+            if(t1 /= t2) then
+                SS%gl_Gran_shem(i) = 3
+                CYCLE
+            end if
+        end do
+
+    end subroutine Geo_Set_sxem
+
     subroutine Geo_Culc_length_area(SS, step)
         ! —читаем длины граней и площади €чеек, использу€ координаты узлов на слое step
         TYPE (Setka), intent(in out) :: SS
@@ -1750,13 +1849,13 @@ module GEOMETRY
         N = size(SS%gl_all_Gran(1, :))
 
         open(1, file = 'Print_Grans_' // name // '.txt')
-        write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y'  ZONE T= 'HP', N= ", 2 * N, ", E =  ", N , ", F=FEPOINT, ET=LINESEG"
+        write(1,*) "TITLE = 'HP'  VARIABLES = 'X', 'Y', 'Sxem'  ZONE T= 'HP', N= ", 2 * N, ", E =  ", N , ", F=FEPOINT, ET=LINESEG"
 
         do i = 1, N
             a1 = SS%gl_all_Gran(1, i)
             a2 = SS%gl_all_Gran(2, i)
-            write(1,*) SS%gl_yzel(:, a1, 1)
-            write(1,*) SS%gl_yzel(:, a2, 1)
+            write(1,*) SS%gl_yzel(:, a1, 1), SS%gl_Gran_shem(i)
+            write(1,*) SS%gl_yzel(:, a2, 1), SS%gl_Gran_shem(i)
         end do
 
         do j = 0, N
@@ -1853,7 +1952,6 @@ module GEOMETRY
         close(1)
 	end subroutine Geo_Print_Surface
 
-	
     subroutine Proverka_grans_sosed(SS)
         ! јвтоматическа€ проверка граней (их соседей) и соседей (в €чейках)
         TYPE (Setka), intent(in) :: SS

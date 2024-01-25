@@ -24,7 +24,9 @@ module Algoritm
 
         call Int_Print_Cell(gl_S2)
 
-        call Read_setka_bin(SS, "00031")      ! ќ—Ќќ¬Ќјя —≈“ ј
+        call Read_setka_bin(SS, "00034")      ! ќ—Ќќ¬Ќјя —≈“ ј
+
+        call Geo_Set_sxem(SS)
         
 
 
@@ -65,9 +67,9 @@ module Algoritm
 
 
 
-        i_max = 250 * 6 * 4!200!350
+        i_max = 100!200!350
         do i = 1, i_max
-            if (mod(i, 50) == 0) then
+            if (mod(i, 5) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
             call Start_GD_algoritm(SS, 5000, 2) !5000
@@ -86,8 +88,8 @@ module Algoritm
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "00032")
-        ! call Print_Grans(SS)
+        call Save_setka_bin(SS, "00035")
+        call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
         ! call Print_TVD_Sosed(SS)
@@ -285,8 +287,8 @@ module Algoritm
                     qqq2(9) = par2(5)
 
                     !if(.False.) then
-                    if(SS%gl_Gran_type(gran) /= 0) then
-						continue
+                    !if(.True.) then
+                    if(SS%gl_Gran_shem(gran) == 3) then
                         call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                         normal(1), normal(2), 0.0_8, 1.0_8, &
                         wc, qqq1(1:8), qqq2(1:8), &
@@ -305,7 +307,7 @@ module Algoritm
                             end if
                         end if
                     else
-                        call chlld_Q(1, normal(1), normal(2), 0.0_8, &
+                        call chlld_Q(SS%gl_Gran_shem(gran), normal(1), normal(2), 0.0_8, &
                         wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
                     end if
 
@@ -540,6 +542,10 @@ module Algoritm
             s1 = SS%gl_all_Gran(1, gran)
             s2 = SS%gl_all_Gran(2, gran)
 
+            c1 = SS%gl_yzel(:, s1, step)
+            c2 = SS%gl_yzel(:, s2, step)
+
+
             SS%gl_yzel_Vel(:, s1) = SS%gl_yzel_Vel(:, s1) + normal
             SS%gl_yzel_Vel(:, s2) = SS%gl_yzel_Vel(:, s2) + normal
 
@@ -548,17 +554,16 @@ module Algoritm
 
             !! —юда же напишем поверхностное нат€жение
             !! Ёто поверхностое нат€жение работает только в случае, если скорость движени€ узла везда как среднее движени€ его граней
-            s1 = SS%gl_all_Gran(1, gran)
-            s2 = SS%gl_all_Gran(2, gran)
+            ! s1 = SS%gl_all_Gran(1, gran)
+            ! s2 = SS%gl_all_Gran(2, gran)
 
-            c1 = SS%gl_yzel(:, s1, step)
-            c2 = SS%gl_yzel(:, s2, step)
+            ! c1 = SS%gl_yzel(:, s1, step)
+            ! c2 = SS%gl_yzel(:, s2, step)
 
-            if(c1(1) < -80.0) then
-				continue
-                normal = normal * 5.0
-                CYCLE
-            end if
+            ! if(c1(1) < -80.0) then
+			! 	continue
+            !     CYCLE
+            ! end if
 
             if(i > 1) then
                 gran = SS%gl_HP(i - 1)
@@ -790,8 +795,8 @@ module Algoritm
 
         do j = 1, N2
 
-            yz = SS%gl_RAY_O(1, j)
-            coord = SS%gl_yzel(:, yz, step)
+            node = SS%gl_RAY_O(1, j)
+            coord = SS%gl_yzel(:, node, step)
             vel = SS%gl_yzel_Vel(:, node)
             del = SS%gl_Point_num(node)
             if(del > 1) vel = vel/del
