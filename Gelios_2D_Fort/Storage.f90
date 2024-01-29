@@ -8,8 +8,14 @@ module STORAGE
 
     integer(4), parameter :: par_n_zone = 6! 7  !  Количество радиусов (но есть ещё внешняя зона)
 	integer(4), parameter :: par_m_zone = 7! 6  !  Количество лучей по углу (от 0 до 180)
-    integer(4), parameter :: par_n_potok = 32! 32  ! Число потоков (у каждого потока свой стек)
-    integer(4), parameter :: par_n_parallel = 20  ! Для распараллеливания цикла (т.е. каждый поток будет в среднем обрабатывать
+    integer(4), parameter :: par_n_potok = 1! 32! 32  ! Число потоков (у каждого потока свой стек)
+    integer(4), parameter :: par_n_parallel = 1! 20  ! Для распараллеливания цикла (т.е. каждый поток будет в среднем обрабатывать такое число итераций
+    integer(4), parameter :: par_stek = 1000  ! Глубина стека (заранее выделяется память под него)
+    integer(4), parameter :: par_n_sort = 4  !  Количество сортов атомов
+
+    logical, parameter :: MK_is_NaN = .False.    ! Нужны ли проверки на nan
+	logical, parameter :: MK_Mu_stat = .False.    ! Нужно ли накапливать веса для статистики и весовых каэффициентов
+	logical, parameter :: MK_photoionization = .True.    ! Нужна ли фотоионизация
 
     real(8), parameter :: par_Rmax = 220.0  !  Радиус сферы, с которой запускаем частицы
 
@@ -17,13 +23,13 @@ module STORAGE
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 3 * 18!6 * 11! 17   ! 1 = 10 минут счёта (с пикапами 18 минут)
-	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
+	integer(4), parameter :: MK_k_multiply = 1 !3 * 18!6 * 11! 17   ! 1 = 10 минут счёта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_mul1 = 1 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
-	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 600 Число исходных частиц первого типа (с полусферы)
-	integer(4), parameter :: MK_N2 = MK_k_mul1 * 20/par_n_parallel  ! 200
-	integer(4), parameter :: MK_N3 = MK_k_mul2 * 20/par_n_parallel     ! (вылет сзади)
-	integer(4), parameter :: MK_N4 = MK_k_mul1 * 20/par_n_parallel   ! (вылет спереди с цилиндра)
+	integer(4), parameter :: MK_N1 = MK_k_mul1 * 10/par_n_parallel   ! 60 Число исходных частиц первого типа (с полусферы)
+	integer(4), parameter :: MK_N2 = MK_k_mul1 * 1/par_n_parallel   ! 20
+	integer(4), parameter :: MK_N3 = MK_k_mul2 * 1/par_n_parallel   ! 20
+	integer(4), parameter :: MK_N4 = MK_k_mul1 * 1/par_n_parallel   ! 20
 
     !! Модуль хранит всю сетку со всеми параметрами
     TYPE Setka 
@@ -61,6 +67,8 @@ module STORAGE
         real(8) :: par_Velosity_inf = -2.54279_8
         real(8) :: par_n_H_LISM = 3.5_8
         real(8) :: par_Kn = 49.9018   !0.4326569808         ! в перезарядке
+        real(8) :: par_nu_ph = 12.2125 
+        real(8) :: par_E_ph = 0.10878
         !! -------------------------------------------------------------
 
         !! Набор параметров сгущения
@@ -91,16 +99,16 @@ module STORAGE
 
         real(8), allocatable :: M_K_particle(:, :, :)   ! Частицы (8, par_stek, число потоков)
         ! (три координаты, три скорости, вес, радиус перегелия)
-        integer(4), allocatable :: M_K_particle_2(:, :, :)  ! Частицы (4, par_stek, число потоков)
-        ! (в какой ячейке частица, сорт, зона назначения по r, зона назначения по углу)
+        integer(4), allocatable :: M_K_particle_2(:, :, :)  ! Частицы (5, par_stek, число потоков)
+        ! (в какой ячейке частица, сорт, зона назначения по r, зона назначения по углу, в какой ячейке в интерполяционной сетке)
         logical(4), allocatable :: M_K_particle_3(:, :, :, :)  ! Частицы (par_n_zone + 1, par_m_zone + 1, par_stek, число потоков)
-        ! (в какой ячейке частица, сорт, зона назначения по r, зона назначения по углу)
+        ! Массив для набора статистики весов по зонам 
 
         real(8) :: MK_R_zone(par_n_zone)   ! Радиусы зон
         real(8) :: MK_al_zone(par_m_zone)   ! Лучи зон
         real(8) :: MK_SINKR(par_m_zone + 1)   ! Критические синусы для каждой зоны по углу
-        real(8), allocatable :: MK_Mu(:, :, :)   ! Веса зон (par_n_zone + 1, par_m_zone + 1, сортов)
-        real(8), allocatable :: MK_Mu_statistic(:, :, :)   ! Веса зон (par_n_zone + 1, par_m_zone + 1, сортов)
+        real(8), allocatable :: MK_Mu(:, :, :)   ! Веса зон (par_n_zone + 1, par_m_zone + 1, сортов par_n_sort)
+        real(8), allocatable :: MK_Mu_statistic(:, :, :)   ! Веса зон (par_n_zone + 1, par_m_zone + 1, сортов par_n_sort)
         ! Для накапливания весов зон
 
         real(8) :: MK_gam_zone(par_n_zone)   ! Параметр гамма для зон
@@ -111,6 +119,10 @@ module STORAGE
         integer(4) :: MK_N                  ! Сколько всего частиц запущено (сумма по всем потокам)
 
         real(8) :: MK_Mu_mult = 100.0_8  ! На что домножаем веса для избежания потери точности
+
+        integer(4) :: par_n_moment = 19 !9  !  Сколько различных моментов считаем (длинна массива)
+        real(8) :: par_Rleft   ! Левая стенка для Монте-Карло (она правее сеточной)
+        real(8) :: par_Rup     ! Верзняя стенка для Монте-Карло (она ниже чем у сетки)
 
         !! -------------------------------------------------------------------------------------
         
@@ -271,6 +283,16 @@ module STORAGE
 
 
     contains 
+
+    real(8) pure function MK_sigma(x)
+        real(8), intent (in) :: x
+        MK_sigma = (1.0 - par_a_2 * log(x))**2
+    end function MK_sigma
+
+    real(8) pure function MK_sigma2(x, y)
+        real(8), intent (in) :: x, y
+        MK_sigma2 = (1.0 - par_a_2 * log(x * y))**2
+    end function MK_sigma2
 
 
 end module STORAGE

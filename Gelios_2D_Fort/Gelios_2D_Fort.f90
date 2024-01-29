@@ -12,8 +12,9 @@ include "Geometry.f90"
 include "Phys_parameter.f90"
 include "Surfaces.f90"
 include "Interpol.f90"
-include "2D_algoritm.f90"
 include "M-K.f90"
+include "2D_algoritm.f90"
+
 	
 	
 program Gelios_2D_Fort
@@ -22,9 +23,9 @@ program Gelios_2D_Fort
     USE SURFACE
     USE Phys_parameter
     USE Interpol
+    USE Monte_Karlo
     USE Algoritm
 	USE My_func
-    USE Monte_Karlo
 
     implicit none
 
@@ -93,7 +94,8 @@ program Gelios_2D_Fort
     
     ! call Geo_request(gl_S1)
 
-    call Gas_dynamic_algoritm(gl_S1)
+    !call Gas_dynamic_algoritm(gl_S1)
+    call MK_algoritm(gl_S1)
 
     !call Print_Cell(gl_S1)
 

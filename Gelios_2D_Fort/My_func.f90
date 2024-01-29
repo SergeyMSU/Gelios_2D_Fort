@@ -203,4 +203,20 @@ module My_func
         kvv = x**2 + y**2 + z**2
     end function kvv
 
+    !@cuf attributes(host, device) & 
+    subroutine spherical_skorost(z, x, y, Vz, Vx, Vy, Vr, Vphi, Vtheta)
+        implicit none
+        real(8), intent(in) :: x, y, z, Vx, Vy, Vz
+        real(8), intent(out) :: Vr, Vphi, Vtheta
+        real(8) :: r_1, the_1, phi_1
+
+        r_1 = sqrt(x * x + y * y + z * z)
+        the_1 = acos(z / r_1)
+        phi_1 = polar_angle(x, y)
+
+        Vr = Vx * sin(the_1) * cos(phi_1) + Vy * sin(the_1) * sin(phi_1) + Vz * cos(the_1);
+        Vtheta = Vx * cos(the_1) * cos(phi_1) + Vy * cos(the_1) * sin(phi_1) - Vz * sin(the_1);
+        Vphi = -Vx * sin(phi_1) + Vy * cos(phi_1);
+	end subroutine spherical_skorost
+
 end module My_func

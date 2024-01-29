@@ -82,6 +82,102 @@ module SURFACE
 
 	end subroutine SUR_Download
 
+    subroutine SUR_Save(SURF, name)
+        TYPE (Surfaces), intent(in) :: SURF
+        character(len=5), intent(in) :: name
+        logical :: exists
+        integer(4) :: n, i
+        real(8) :: alp, r, x, y
+
+
+        print*, "Start SUR_Save"
+
+        if(SURF%init == .False.) then
+            STOP "ERROR SUR_Save SURF%init!  -irhgty6wtrfdvbfje"
+        end if
+
+        open(1, file = "surface_" // name // ".bin", FORM = 'BINARY')
+
+        ! ----------------------------- TS
+        n = size(SURF%TS(1, :))
+        write(1) n
+
+        do i = 1, n
+            write(1) SURF%TS(1, i)
+            write(1) SURF%TS(2, i)
+        end do
+
+        ! ----------------------------- HP
+        n = size(SURF%HP(1, :))
+        write(1) n
+
+        do i = 1, n
+            write(1) SURF%HP(3, i)
+            write(1) SURF%HP(4, i)
+            write(1) SURF%HP(1, i)
+            write(1) SURF%HP(2, i)
+        end do
+
+        ! ----------------------------- HP
+        n = size(SURF%BS(1, :))
+        write(1) n
+
+        do i = 1, n
+            write(1) SURF%BS(3, i) 
+            write(1) SURF%BS(4, i) 
+            write(1) SURF%BS(1, i) 
+            write(1) SURF%BS(2, i) 
+        end do
+
+        close(1)
+
+        print*, "END SUR_Save"
+
+	end subroutine SUR_Save
+
+    subroutine SUR_init(SURF, SS)
+        TYPE (Surfaces), intent(in out) :: SURF
+        TYPE (Setka), intent(in) :: SS
+
+        integer(4) :: i, j, k, n, gr
+        real(8) :: c(2), r, alp, x, y
+
+        n = size(SS%gl_TS)
+        allocate(SURF%TS(2, n))
+
+        do i = 1, n
+            gr = SS%gl_TS(i)
+            c = SS%gl_Gran_Center(:, gr, 1)
+            SURF%TS(1, i) = polar_angle(c(1), c(2))
+            SURF%TS(2, i) = norm2(c)
+        end do
+
+
+        n = size(SS%gl_HP)
+        allocate(SURF%HP(4, n))
+
+        do i = 1, n
+            gr = SS%gl_HP(i)
+            c = SS%gl_Gran_Center(:, gr, 1)
+            SURF%HP(1, i) = polar_angle(c(1), c(2))
+            SURF%HP(2, i) = norm2(c)
+            SURF%HP(3:4, i) = c
+        end do
+
+
+        n = size(SS%gl_BS)
+        allocate(SURF%BS(4, n))
+
+        do i = 1, n
+            gr = SS%gl_BS(i)
+            c = SS%gl_Gran_Center(:, gr, 1)
+            SURF%BS(1, i) = polar_angle(c(1), c(2))
+            SURF%BS(2, i) = norm2(c)
+            SURF%BS(3:4, i) = c
+        end do
+
+    end subroutine SUR_init
+
 	! real(8) pure function SUR_GET_TS(SURF, alp)
     real(8) function SUR_GET_TS(SURF, alp)
         ! Получить r_TS по углу

@@ -8,6 +8,7 @@ module Algoritm
     USE OMP_LIB
     USE Interpol
     USE cgod
+    USE Monte_Karlo
     implicit none 
 
     contains
@@ -96,6 +97,44 @@ module Algoritm
 
         !pause
     end subroutine Gas_dynamic_algoritm
+
+    subroutine MK_algoritm(SS)
+        TYPE (Setka), intent(in out) :: SS
+
+        call Read_setka_bin(SS, "00034")      ! ОСНОВНАЯ СЕТКА
+		print*, "A1"
+        call SUR_init(gl_surf1, SS)
+		print*, "A2"
+        call Int_Init(gl_S2, SS)
+		print*, "A3"
+
+        call Init_Setka(gl_S3)
+		print*, "A4"
+        call Build_Setka_start(gl_S3)
+		print*, "A5"
+	    call Algoritm_ReMove_Surface(gl_S3, gl_surf1)
+		print*, "A6"
+
+        !print*, gl_S2%gd(:, 1)
+        !print*, gl_S2%gd(:, 2)
+        !print*, gl_S2%gd(:, 3)
+
+        print*, "A7"
+
+        call Algoritm_Reinterpol(gl_S3, gl_S2)
+		print*, gl_S3%gd(:, 1, 1)
+        print*, gl_S3%gd(:, 2, 1)
+        print*, gl_S3%gd(:, 3, 1)
+		print*, "A8"
+
+        call Print_Cell(gl_S3)
+
+        call M_K_start(gl_S3, gl_S2)
+
+        print*, "END"
+        pause 
+
+    end subroutine MK_algoritm
 
     subroutine Start_GD_algoritm(SS, all_step_, area)
         TYPE (Setka), intent(in out) :: SS
@@ -1229,6 +1268,11 @@ module Algoritm
 
         call Geo_Culc_length_area(SS, 1)
         call Geo_Culc_length_area(SS, 2)
+
+        call Geo_Find_Surface(SS)  ! Находим поверхности, которые выделяем
+
+        call Geo_culc_TVD_sosed(SS)
+        call Geo_Culc_zone(SS)
 		
 	end subroutine Algoritm_ReMove_Surface
 
@@ -1240,6 +1284,7 @@ module Algoritm
         integer(4) :: N, i, num
         real(8) :: center(2)
         real(8) :: parH(5, 4)
+        real(8) :: par(5)
 
         if(size(SS%hydrogen(:, 1, 1, 2)) /= size(parH(:, 1))) STOP "ERROR 1 size Algoritm_Reinterpol 5y65gw4fervsgf "
         if(size(SS%hydrogen(1, :, 1, 2)) /= size(parH(1, :))) STOP "ERROR 2 size Algoritm_Reinterpol 98y8t4uhvtiewvgtssfvgs "
@@ -1250,9 +1295,11 @@ module Algoritm
 
         do i = 1, N
             center = SS%gl_Cell_Centr(:, i, 1)
-            call Int_Get_Parameter(XX, center(1), center(2), num, PAR_hydrogen = parH)
+            call Int_Get_Parameter(XX, center(1), center(2), num, PAR_hydrogen = parH, PAR_gd = par)
             SS%hydrogen(:, :, i, 1) = parH
             SS%hydrogen(:, :, i, 2) = parH
+            SS%gd(:, i, 1) = par
+            SS%gd(:, i, 2) = par
         end do
     end subroutine Algoritm_Reinterpol
 

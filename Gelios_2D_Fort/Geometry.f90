@@ -871,7 +871,9 @@ module GEOMETRY
         call Geo_Culc_length_area(SS, 1)
         call Geo_Culc_length_area(SS, 2)
 
+        call Geo_culc_TVD_sosed(SS)
         call Geo_Culc_zone(SS)
+
 
         
     end subroutine Build_Setka_start
@@ -1151,19 +1153,21 @@ module GEOMETRY
         return
     end subroutine Set_Ray_E
 
-    subroutine Geo_Find_Cell(SS, x, y, num)
+    subroutine Geo_Find_Cell(SS, x, y, num, inzone)
         ! ѕоиск номера €чейки по еЄ координатам
         ! num = предположительный изначальный номер (если не знаем пусть будет равен 1)
         TYPE (Setka), intent(in) :: SS
         real(8), intent(in) :: x, y
         integer(4), intent(in out) :: num
         integer(4) :: j, gran, sosed, max_num
+        logical, intent(out), OPTIONAL :: inzone
 
         max_num = 0
 
         loop1:do while(.TRUE.)
             max_num = max_num + 1
-
+			if(present(inzone)) inzone = .True.
+			
             if(max_num > 1000000) then
                 STOP "ERROR Geo_Find_Cell 1091 784yrhfji348hr2ygytgfbibsvghvdcvgdscd"
             end if
@@ -1177,6 +1181,7 @@ module GEOMETRY
                 !print*, "normal = ", SS%gl_Gran_normal(:, gran, 1)
 
                 if(SS%gl_Cell_belong(1, j, num) * x + SS%gl_Cell_belong(2, j, num) * y + SS%gl_Cell_belong(3, j, num) > 0) then
+                    if(present(inzone)) inzone = .False.
                     sosed = SS%gl_Gran_neighbour(1, gran)
                     if(sosed == num) sosed = SS%gl_Gran_neighbour(2, gran)
 
@@ -1313,6 +1318,77 @@ module GEOMETRY
         end do
 
     end subroutine Geo_Set_sxem
+
+    subroutine Geo_Time_fly(SS, XX, VV, time, cell, next)  ! Ќаходим врем€ time до вылета из €чейки
+        TYPE (Setka), intent(in) :: SS
+        real(8), intent(in) :: XX(3), VV(3)
+        real(8), intent(out) :: time
+        integer(4), intent(in) :: cell
+        integer(4), intent(out) :: next
+
+        real(8) :: A, B, C, a1, a2, a3
+        real(8) :: b1, b2, b3, b4, b5, b6, b7, t1, t2, min_t, b33
+        integer(4) :: i, gr, min_i
+
+        min_t = 100000000000.0
+
+        !print*, XX(1), norm2(XX(2:3))
+
+        do i = 1, 4
+            gr = SS%gl_Cell_gran(i, cell)
+
+            if(SS%gl_Cell_neighbour(i, cell) == -4) CYCLE
+            if(gr == 0) CYCLE  ! Ётой грани нет в €чейке
+
+            A = SS%gl_Cell_belong(1, i, cell)
+            B = SS%gl_Cell_belong(2, i, cell)
+            C = SS%gl_Cell_belong(3, i, cell)
+
+            a3 = XX(2)**2 + XX(3)**2
+            a2 = 2.0  * (XX(2) * VV(2) + XX(3) * VV(3))
+            a1 = VV(2)**2 + VV(3)**2
+
+            !print*, "abs = ", A, B, C, a1, a2, a3
+            !print*, "X = ", XX
+            !print*, "V - ", VV
+
+            b1 = (A**2 * a3 * VV(1)**2 + a1 * (-a3 * B**2 + (C + A * XX(1))**2))
+            b2 = a2**2 * B**2 - 4.0  * A * a2  * VV(1) * (C + A * XX(1))
+            if(b2 + 4.0 * b1 < 0) CYCLE
+            b33 = sqrt(b2 + 4.0 * b1)
+            b3 = -a2 * B + b33
+            b4 = a2 * B + b33
+            b5 = 2 * A * VV(1) * (C + A * XX(1)) + B * b3
+            b6 = 2 * A * VV(1) * (C + A * XX(1)) - B * b4
+            b7 = 2 * a1 * B**2 - 2 * A**2 * VV(1)**2
+            t1 = b5/b7
+            t2 = b6/b7
+
+            !print*, "t = ", t1, t2
+
+            if(t1 > 0.0000001 .and. t1 < min_t .and. dabs(A * (XX(1) + t1 * VV(1)) + B * sqrt(a1 * t1**2 + a2 * t1 + a3) + C) < 0.0001  ) then
+                min_t = t1
+                min_i = i
+            end if
+
+            if(t2 > 0.0000001 .and. t2 < min_t .and. dabs(A * (XX(1) + t2 * VV(1)) + B * sqrt(a1 * t2**2 + a2 * t2 + a3) + C) < 0.0001  ) then
+                min_t = t2
+                min_i = i
+            end if
+
+        end do
+
+        
+        next = SS%gl_Cell_neighbour(min_i, cell)
+        time = min_t
+
+
+
+        !print*, XX(1) + time * VV(1), norm2(XX(2:3) + time * VV(2:3))
+        !pause
+        return
+
+    end subroutine Geo_Time_fly
 
     subroutine Geo_Culc_length_area(SS, step)
         ! —читаем длины граней и площади €чеек, использу€ координаты узлов на слое step
