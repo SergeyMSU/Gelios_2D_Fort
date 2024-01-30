@@ -8,8 +8,9 @@ module STORAGE
 
     integer(4), parameter :: par_n_zone = 6! 7  !  Количество радиусов (но есть ещё внешняя зона)
 	integer(4), parameter :: par_m_zone = 7! 6  !  Количество лучей по углу (от 0 до 180)
-    integer(4), parameter :: par_n_potok = 1! 32! 32  ! Число потоков (у каждого потока свой стек)
-    integer(4), parameter :: par_n_parallel = 1! 20  ! Для распараллеливания цикла (т.е. каждый поток будет в среднем обрабатывать такое число итераций
+    integer(4), parameter :: par_n_potok = 32! 32! 32  ! Число потоков (у каждого потока свой стек)
+    integer(4), parameter :: par_n_claster = 1  ! Число компьютеров (для MPI)
+    integer(4), parameter :: par_n_parallel = 20! 20  ! Для распараллеливания цикла (т.е. каждый поток будет в среднем обрабатывать такое число итераций
     integer(4), parameter :: par_stek = 1000  ! Глубина стека (заранее выделяется память под него)
     integer(4), parameter :: par_n_sort = 4  !  Количество сортов атомов
 
@@ -23,13 +24,13 @@ module STORAGE
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 1 !3 * 18!6 * 11! 17   ! 1 = 10 минут счёта (с пикапами 18 минут)
-	integer(4), parameter :: MK_k_mul1 = 1 * MK_k_multiply! 6
+	integer(4), parameter :: MK_k_multiply = 3 !3 * 18!6 * 11! 17   ! 1 = 10 минут счёта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
-	integer(4), parameter :: MK_N1 = MK_k_mul1 * 10/par_n_parallel   ! 60 Число исходных частиц первого типа (с полусферы)
-	integer(4), parameter :: MK_N2 = MK_k_mul1 * 1/par_n_parallel   ! 20
-	integer(4), parameter :: MK_N3 = MK_k_mul2 * 1/par_n_parallel   ! 20
-	integer(4), parameter :: MK_N4 = MK_k_mul1 * 1/par_n_parallel   ! 20
+	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 60 Число исходных частиц первого типа (с полусферы)
+	integer(4), parameter :: MK_N2 = MK_k_mul1 * 20/par_n_parallel   ! 20
+	integer(4), parameter :: MK_N3 = MK_k_mul2 * 20/par_n_parallel   ! 20
+	integer(4), parameter :: MK_N4 = MK_k_mul1 * 20/par_n_parallel   ! 20
 
     !! Модуль хранит всю сетку со всеми параметрами
     TYPE Setka 
@@ -104,6 +105,11 @@ module STORAGE
         logical(4), allocatable :: M_K_particle_3(:, :, :, :)  ! Частицы (par_n_zone + 1, par_m_zone + 1, par_stek, число потоков)
         ! Массив для набора статистики весов по зонам 
 
+        integer(4) :: par_n_moment = 13 !9  !  Сколько различных моментов считаем (длинна массива)
+        real(8), allocatable :: M_K_Moment(:, :, :, :)  ! (19, par_n_sort, :, par_n_potok) То, что накапливаем в ячейках (по каждому сорту отдельно)
+        !(rho, u, v, T, In, Iu, Iv, IT, Huu, Huv, Hvv, Huuu, Hvvv)
+        !(1  , 2, 3, 4, 5,  6,  7,  8,  9,   10,  11,  12,   13)
+
         real(8) :: MK_R_zone(par_n_zone)   ! Радиусы зон
         real(8) :: MK_al_zone(par_m_zone)   ! Лучи зон
         real(8) :: MK_SINKR(par_m_zone + 1)   ! Критические синусы для каждой зоны по углу
@@ -120,7 +126,6 @@ module STORAGE
 
         real(8) :: MK_Mu_mult = 100.0_8  ! На что домножаем веса для избежания потери точности
 
-        integer(4) :: par_n_moment = 19 !9  !  Сколько различных моментов считаем (длинна массива)
         real(8) :: par_Rleft   ! Левая стенка для Монте-Карло (она правее сеточной)
         real(8) :: par_Rup     ! Верзняя стенка для Монте-Карло (она ниже чем у сетки)
 
@@ -203,7 +208,7 @@ module STORAGE
         ! 3 - Godunov
 
         !! ФИЗИКА
-        integer(4) :: n_Hidrogen = 4  ! Число сортов атомов водорода
+        integer(4) :: n_Hidrogen = par_n_sort  ! Число сортов атомов водорода
         integer(4) :: n_par = 5  !! Число физических параметров в задаче
         ! 5 газодинамических
         ! 4 * n_Hidrogen - Водород

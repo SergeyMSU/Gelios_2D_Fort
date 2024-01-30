@@ -39,16 +39,21 @@ module Monte_Karlo
         cell = 1
 
 
-        call Get_sensor_sdvig()
+        call Get_sensor_sdvig(SS, 0)
 
+		!$omp parallel
+		!$omp do private(potok, num, mu_, Wt_, Wp_, Wr_, X_, bb, i, Vx, Vy, &
+		!$omp Vz, cell, sin_, x, phi, y, z, ksi, r_peregel, no, to_i, to_j, ksi1, &
+		!$omp ksi2, ksi3, ksi4, ksi5, ll, rr, Vphi, Vr, inzone)
         do iter = 1, par_n_potok * par_n_parallel
 
             potok = (omp_get_thread_num() + 1) 
+			cell = 1
 
-            ! !$omp critical
+            !$omp critical
                 print*, "start potok = ", potok, " iter = ", iter, "   step = ", step, "from = ", par_n_potok * par_n_parallel
                 step = step + 1
-			! !$omp end critical
+			!$omp end critical
 
             ! Запускаем частицы первого типа (с полусферы)
             do num = 1, MK_N1
@@ -137,9 +142,140 @@ module Monte_Karlo
 
 			end do
 
+			! Запускаем частицы третьего типа (вылет сзади)
+			do num = 1, MK_N3
+				call MK_Velosity_initial2(SS, potok, Vx, Vy, Vz)
+				call M_K_rand(SS%sensor(1, 1, potok), SS%sensor(2, 1, potok), SS%sensor(3, 1, potok), ksi1)
+				call M_K_rand(SS%sensor(1, 1, potok), SS%sensor(2, 1, potok), SS%sensor(3, 1, potok), ksi2)
+				rr = sqrt(ksi1 * (SS%par_Rup) * (SS%par_Rup))
+				phi = ksi2 * 2.0 * par_pi
+				y = rr * cos(phi)
+				z = rr * sin(phi)
+				
+				call Geo_Find_Cell(SS, SS%par_Rleft, sqrt(y**2 + z**2), cell, inzone = inzone)
+				
+				if(cell < 1) then
+					!$MPI call MPI_Abort(MPI_COMM_WORLD, 105, mpi_ierror)
+					STOP "Error 0lhy976yihkodfresdfre  "
+				end if
+				
+				SS%stek(potok) = SS%stek(potok) + 1
+				SS%M_K_particle(1:7, SS%stek(potok), potok) = (/ SS%par_Rleft, y, z, Vx, Vy, Vz,  SS%MK_mu3 * SS%MK_Mu_mult /)
+				SS%M_K_particle_2(1, SS%stek(potok), potok) = cell       ! В какой ячейке находится
+				SS%M_K_particle_2(2, SS%stek(potok), potok) = SS%gl_all_Cell_zone(cell) ! Сорт
+				call MK_Distination(SS, SS%M_K_particle(1:3, SS%stek(potok), potok), SS%M_K_particle(4:6, SS%stek(potok), potok),&
+					to_i, to_j, r_peregel)
+				SS%M_K_particle(8, SS%stek(potok), potok) = r_peregel
+				SS%M_K_particle_2(3, SS%stek(potok), potok) = to_i  ! Зона назначения
+				SS%M_K_particle_2(4, SS%stek(potok), potok) = to_j  ! Зона назначения
+
+				call M_K_Fly(SS, SS_int, potok)
+			end do
+			
+			! Запускаем частицы четвёрного типа (вылет спереди с части плоскости)
+			do num = 1, MK_N4
+				call MK_Velosity_initial(SS, potok, Vx, Vy, Vz)
+				call M_K_rand(SS%sensor(1, 1, potok), SS%sensor(2, 1, potok), SS%sensor(3, 1, potok), ksi1)
+				call M_K_rand(SS%sensor(1, 1, potok), SS%sensor(2, 1, potok), SS%sensor(3, 1, potok), ksi2)
+				rr = sqrt(ksi1 * ((SS%par_Rup**2) - (par_Rmax**2)) + (par_Rmax**2))
+				phi = ksi2 * 2.0 * par_pi
+				y = rr * cos(phi)
+				z = rr * sin(phi)
+				
+				call Geo_Find_Cell(SS, -0.001_8, sqrt(y**2 + z**2), cell, inzone = inzone)
+				
+				if(cell < 1) then
+					!$MPI call MPI_Abort(MPI_COMM_WORLD, 106, mpi_ierror)
+					STOP "Error 0lhy976yihko133131312  "
+				end if
+				
+				SS%stek(potok) = SS%stek(potok) + 1
+				SS%M_K_particle(1:7, SS%stek(potok), potok) = (/ -0.001_8, y, z, Vx, Vy, Vz,  SS%MK_mu4 * SS%MK_Mu_mult /)
+				SS%M_K_particle_2(1, SS%stek(potok), potok) = cell       ! В какой ячейке находится
+				SS%M_K_particle_2(2, SS%stek(potok), potok) = SS%gl_all_Cell_zone(cell) ! Сорт
+				call MK_Distination(SS, SS%M_K_particle(1:3, SS%stek(potok), potok), SS%M_K_particle(4:6, SS%stek(potok), potok),&
+					to_i, to_j, r_peregel)
+				SS%M_K_particle(8, SS%stek(potok), potok) = r_peregel
+				SS%M_K_particle_2(3, SS%stek(potok), potok) = to_i  ! Зона назначения
+				SS%M_K_particle_2(4, SS%stek(potok), potok) = to_j  ! Зона назначения
+
+				call M_K_Fly(SS, SS_int, potok)
+			end do
 
         end do
+		!$omp end do
 
+		!$omp end parallel
+
+		print*, "END ALL particle"
+		
+		end_time = omp_get_wtime()
+		print *, "Time work: ", (end_time-start_time)/60.0, "   in minutes"
+
+		no = SS%MK_Mu_mult * SS%MK_N * par_n_claster
+		SS%M_K_Moment(:, :, :, :) = SS%M_K_Moment(:, :, :, :) / no  ! Вынес сюда для избежания потери точности при сложении
+
+		do i = 2, par_n_potok
+			SS%M_K_Moment(:, :, :, 1) = SS%M_K_Moment(:, :, :, 1) + SS%M_K_Moment(:, :, :, i)
+		end do
+
+		! Бежим по всем ячейкам и нормируем моменты
+		do i = 1, size(SS%M_K_Moment(1, 1, :, 1))
+
+			no = Geo_Get_Volume_Rotate(SS, i, 360.0_8)
+			
+			SS%M_K_Moment(:, :, i, 1) = SS%sqv * SS%M_K_Moment(:, :, i, 1) / no
+
+			do j = 1, par_n_sort
+				if(SS%M_K_Moment(1, j, i, 1) > 0.000001) then
+					SS%M_K_Moment(2:3, j, i, 1) = SS%M_K_Moment(2:3, j, i, 1)/SS%M_K_Moment(1, j, i, 1)  ! Скорости
+					SS%M_K_Moment(4, j, i, 1) = (1.0/3.0) * ( SS%M_K_Moment(4, j, i, 1)/SS%M_K_Moment(1, j, i, 1) - &
+						kvv(SS%M_K_Moment(2, j, i, 1), SS%M_K_Moment(3, j, i, 1), 0.0_8) )  ! Temp
+					
+					SS%M_K_Moment(9, j, i, 1) = SS%M_K_Moment(9, j, i, 1) / SS%M_K_Moment(1, j, i, 1) - &
+						SS%M_K_Moment(2, j, i, 1)**2
+					SS%M_K_Moment(10, j, i, 1) = SS%M_K_Moment(10, j, i, 1) / SS%M_K_Moment(1, j, i, 1) - &
+						SS%M_K_Moment(2, j, i, 1)*SS%M_K_Moment(3, j, i, 1)
+					SS%M_K_Moment(11, j, i, 1) = SS%M_K_Moment(11, j, i, 1) / SS%M_K_Moment(1, j, i, 1) - &
+						SS%M_K_Moment(3, j, i, 1)**2
+					SS%M_K_Moment(12, j, i, 1) = 2.0 * SS%M_K_Moment(2, j, i, 1)**3 + 3.0 * SS%M_K_Moment(2, j, i, 1) * SS%M_K_Moment(9, j, i, 1) - &
+						SS%M_K_Moment(12, j, i, 1) / SS%M_K_Moment(1, j, i, 1) 
+					SS%M_K_Moment(13, j, i, 1) = 2.0 * SS%M_K_Moment(3, j, i, 1)**3 + 3.0 * SS%M_K_Moment(3, j, i, 1) * SS%M_K_Moment(11, j, i, 1) - &
+						SS%M_K_Moment(13, j, i, 1) / SS%M_K_Moment(1, j, i, 1) 	
+				end if
+			end do
+			
+			SS%M_K_Moment(5:8, :, i, 1) = SS%M_K_Moment(5:8, :, i, 1) * SS%par_n_H_LISM
+		end do
+
+		! Вне расчётной области нужно заполнить значения в тетраэдрах
+		loop2: do i = 1, size(SS%M_K_Moment(1, 1, :, 1))
+			do j = 1, 4
+				pp = SS%gl_all_Cell(j, i)
+				if(pp < 1) CYCLE
+				
+				if((SS%gl_yzel(1, pp, 1) >= 0.0 .and. norm2(SS%gl_yzel(:, pp, 1)) >= par_Rmax)) then
+					SS%M_K_Moment(:, :, i, 1) = 0.0
+					SS%M_K_Moment(1, 4, i, 1) = 1.0
+					SS%M_K_Moment(5, 4, i, 1) = 1.0
+					SS%M_K_Moment(10, 4, i, 1) = 0.5
+					SS%M_K_Moment(13, 4, i, 1) = 0.5
+					SS%M_K_Moment(15, 4, i, 1) = 0.5
+					SS%M_K_Moment(2, 4, i, 1) = SS%par_Velosity_inf
+					CYCLE loop2
+				end if
+			end do
+		end do loop2
+
+
+
+		! Сохраняем параметры водорода в массивы переменных
+
+		if(par_n_sort /= SS%n_Hidrogen) print*, "ERROR 9iur987e8y7bn24243289vwrtbryd"
+
+		SS%hydrogen(1, :, :, 1) = SS%M_K_Moment(1, :, :, 1)
+		SS%hydrogen(3:5, :, :, 1) = SS%M_K_Moment(2:4, :, :, 1)
+		SS%hydrogen(:, :, :, 2) = SS%hydrogen(:, :, :, 1)
 
     end subroutine M_K_start
 
@@ -200,28 +336,33 @@ module Monte_Karlo
 			
 			loop1: do  ! пока частица не вылетит из области или не обрежется рулеткой
 				!print*, particle(1), norm2(particle(2:3))
+				!print*, particle
+				!print*, "__________________"
 				cell = particle_2(1)
 				mu = particle(7)                                ! Вес частицы
 			
+				!print*, "AA"
 				call Geo_Time_fly(SS, particle(1:3), particle(4:6), time, cell, next)  ! Находим время time до вылета из ячейки
-				
+				!print*, "BB"
 				time = max(0.0000001_8, time * 1.0001) ! Увеличим время, чтобы частица точно вышла из ячейки
 
 				r_exit = particle(1:3) + time * particle(4:6)
 				next2 = cell
 				call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
 				do while(next2 == cell .and. inzone == .True.) 
-					print*, "Error 171 next2 == cell  time = ", time
+					! print*, "Error 171 next2 == cell  time = ", time
 					! print*, particle(1), norm2(particle(2:3))
 					! print*, "----------------------"
 					! print*, particle(4:6)
 					! print*, "----------------------"
 					! print*, r_exit(1), norm2(r_exit(2:3))
 					! print*, "----------------------"
-					time = time * 1.01
+					! STOP
+					time = time * 1.05
 					r_exit = particle(1:3) + time * particle(4:6)
 					call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
 				end do
+				!print*, "CC"
 				
 				kappa = 0.0
 				do ijk = 1, 3
@@ -247,6 +388,20 @@ module Monte_Karlo
 					vy = PAR(4) * cos(phi)
 					vz = PAR(4) * sin(phi)
 					ro = PAR(1)
+
+					if(ieee_is_nan(cp)) then
+                    print*, "error cp nan bntjumki,lo;.piuyntbvtcrwrwfv"
+                    print*, "cell = ", cell
+                    print*, "______________ 0"
+                    print*, PAR
+                    print*, "______________ 1"
+                    print*, particle
+                    print*, "______________ 2"
+                    print*, ddt, time
+                    print*, "______________ 3"
+					pause
+                    STOP
+                end if
 				
 					if(ro <= 0.0 .or. ro > 1000.0) then
 						print*, PAR
@@ -271,7 +426,7 @@ module Monte_Karlo
 			
 					kappa = kappa + (nu_ex * time/3.0)  ! по перезарядке
 				end do
-				
+				!print*, "DD"
 				area2 = SS%gl_all_Cell_zone(cell) ! Зона рождения
 				
 				r = norm2(particle(1:3) + time/2.0 * particle(4:6))
@@ -293,7 +448,7 @@ module Monte_Karlo
 				mu_ph = 0.0
 				if(MK_photoionization) mu_ph = (kappa_ph / kappa_all) * mu_perez  ! Вес ионизированного атома
 				mu_ex = mu_perez - mu_ph      ! Вес перезаряженного на протонах атома
-				
+				!print*, "EE"
 				
 				if(mu2 < 0.0) then
 					print*, mu2, mu, mu_ex, kappa
@@ -330,7 +485,12 @@ module Monte_Karlo
 						mu/max(0.3 * SS%MK_SINKR(from_j), sin(polar_angle( r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2) )))
 					!$omp end critical
 				end if
-				
+
+				!print*, "FF"
+				! НАДО НАКОПИТЬ МОМЕНТЫ
+				call MK_ADD_MOMENT(SS, n_potok, particle_2(2), cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
+					 particle(4:6), particle(1:3), u, cp, uz, u1, u2, u3, skalar)
+				!print*, "GG"
 				
 				call spherical_skorost(r_ex(1), r_ex(2), r_ex(3), vx, vy, vz, Ur, Uphi, Uthe)
 				call spherical_skorost(r_ex(1), r_ex(2), r_ex(3), particle(4), particle(5), particle(6), Vr, Vphi, Vthe)
@@ -342,13 +502,16 @@ module Monte_Karlo
 					II = MK_geo_zones(SS, r, 1.2_8) - 1
 				end if
 				
+				!print*, "GGG"
 				call M_K_Change_Velosity4(SS, n_potok, Ur/cp, Uthe/cp, Uphi/cp, Vr/cp, Vthe/cp, Vphi/cp, Wr, Wthe, Wphi, mu_, &
 					cp, r, II, r_ex(1), r_ex(2), r_ex(3), bb)
+				!print*, "GGGG"
 				
 				Wr = Wr * cp
 				Wthe = Wthe * cp
 				Wphi = Wphi * cp
 				
+				!print*, "A"
 				do i = 1, II + 1
 					if(i == II + 1 .and. bb == .False.) CYCLE  ! Если не запускается основной атом
 					call dekard_skorost(r_ex(1), r_ex(2), r_ex(3), Wr(i), Wphi(i), Wthe(i), v1, v2, v3)
@@ -379,7 +542,7 @@ module Monte_Karlo
 					end if
 					
 				end do
-				
+				!print*, "B"
 				! Проверяем, нужно ли вырубить неперезаряженную часть атома
 				call MK_ruletka(SS, n_potok, particle_2(3), particle_2(4), from_i, from_j, particle_2(2), &
 						r, particle(8), mu2, bb2)
@@ -389,7 +552,7 @@ module Monte_Karlo
 				! Находим следующую ячейку
 				
 				particle(1:3) = particle(1:3) + time * particle(4:6)
-				if(next <= 0) then
+				if(next <= 0 .or. inzone == .False.) then
 					if (norm2(particle(1:3)) <= 100.0) then
 						print*, "Error 23e2323 ", particle(1:3)
 						pause
@@ -399,10 +562,16 @@ module Monte_Karlo
 				
 				11	continue 
 				
-				
+				!print*, "C"
 				call Geo_Find_Cell(SS, particle(1), sqrt(particle(2)**2 + particle(3)**2), next, inzone = inzone) ! Находим точно следующий тетраэдр 
-
-				if(inzone == .False.) STOP "Error inzone 09247trfyvwuueicvtghrbertvbyj kjbhvgcfxf"
+				!print*, "D"
+				
+				if(inzone == .False.) then
+					print*, particle
+					print*, "____________________"
+					print*, cell, next, inzone
+					STOP "Error inzone 09247trfyvwuueicvtghrbertvbyj kjbhvgcfxf"
+				end if
 
 				if (next < 1) then ! ЗАТЫК
 					next = 3
@@ -436,6 +605,62 @@ module Monte_Karlo
 
 	end subroutine M_K_Fly
 
+	subroutine MK_ADD_MOMENT(SS, n_potok, sort, cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, u, cp, uz, u1, u2, u3, skalar)
+		TYPE (Setka), intent(in out) :: SS
+		integer(4), intent(in) :: n_potok, sort, cell
+		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), u, cp, uz, u1, u2, u3, mu_ex, mu_ph, skalar
+
+		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3
+
+		alpha = polar_angle(XX(2), XX(3))
+		v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
+
+
+		SS%M_K_Moment(1, sort, cell, n_potok) = SS%M_K_Moment(1, sort, cell, n_potok) + t_ex * mu + t2 * mu2
+		SS%M_K_Moment(2, sort, cell, n_potok) = SS%M_K_Moment(2, sort, cell, n_potok) + (t_ex * mu + t2 * mu2) * VV(1)
+		SS%M_K_Moment(3, sort, cell, n_potok) = SS%M_K_Moment(3, sort, cell, n_potok) + (t_ex * mu + t2 * mu2) * v
+		SS%M_K_Moment(4, sort, cell, n_potok) = SS%M_K_Moment(4, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * kvv(VV(1), VV(2), VV(3))
+
+		SS%M_K_Moment(9, sort, cell, n_potok) = SS%M_K_Moment(9, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * VV(1)**2
+		SS%M_K_Moment(10, sort, cell, n_potok) = SS%M_K_Moment(10, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * VV(1) * v
+		SS%M_K_Moment(11, sort, cell, n_potok) = SS%M_K_Moment(11, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * v * v
+		SS%M_K_Moment(12, sort, cell, n_potok) = SS%M_K_Moment(12, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * VV(1)**3
+		SS%M_K_Moment(13, sort, cell, n_potok) = SS%M_K_Moment(13, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * v**3
+
+		if (u / cp > 7.0) then
+			uz_M = MK_Velosity_2(u, cp)/ (uz * (cp**2) * cp * par_pi * par_sqrtpi)
+			uz_E = MK_Velosity_3(u, cp)
+			
+			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) - mu_ex * uz_M * u1 / u
+			SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) - mu_ex * uz_M * (u2 * cos(alpha) + u3 * sin(alpha)) / u
+			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+				mu_ex * (-0.25 * (3.0 * cp**2 + 2.0 * u**2) * (uz_E / uz) - uz_M * skalar / u)
+		else
+			k1 = MK_int_1(u, cp)
+			k2 = MK_int_2(u, cp)
+			k3 = MK_int_3(u, cp)
+			
+			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ex * (k2/k1) * u1 / u
+			SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ex * (k2/k1) * (u2 * cos(alpha) + u3 * sin(alpha)) / u
+			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+				mu_ex * (-0.5 * k3/k1 + k2/k1 * skalar / u)
+		end if
+
+		! Добавим интеграллы по фотоионизации  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		SS%M_K_Moment(5, sort, cell, n_potok) = SS%M_K_Moment(5, sort, cell, n_potok) + mu_ph 
+		SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ph * VV(1)
+		SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ph * v
+		SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+			mu_ph * (0.5 * norm2(VV) + SS%par_E_ph)
+
+	end subroutine MK_ADD_MOMENT
+
 
     subroutine M_K_Set(SS)
 		TYPE (Setka), intent(in out) :: SS
@@ -456,6 +681,7 @@ module Monte_Karlo
 		allocate(SS%sensor(3, 2, par_n_potok))
 		allocate(SS%stek(par_n_potok))
 		allocate(SS%MK_Mu(par_n_zone + 1, par_m_zone + 1, par_n_sort))
+		allocate(SS%M_K_Moment(SS%par_n_moment, par_n_sort, size(SS%gl_all_Cell(1, :)), par_n_potok))
 		
 	
 		SS%MK_Mu = 1.0
@@ -463,6 +689,7 @@ module Monte_Karlo
 		SS%M_K_particle_2 = 0
 		SS%stek = 0
 		SS%sensor = 1
+		SS%M_K_Moment = 0.0
 		
 		! Задаём радиусы зон
 		!MK_R_zone(1) = 1.0
@@ -504,7 +731,7 @@ module Monte_Karlo
 		
 		close(2)
 		
-		
+		SS%MK_Mu(:, :, 1) = SS%MK_Mu(:, :, 1) * 1.5
 		SS%MK_Mu(:, :, 2) = SS%MK_Mu(:, :, 2) * 0.2
 		SS%MK_Mu(:, :, 3) = SS%MK_Mu(:, :, 3) * 0.5
 		SS%MK_Mu(:, :, 4) = SS%MK_Mu(:, :, 4) * 0.5
@@ -562,8 +789,42 @@ module Monte_Karlo
 	end subroutine M_K_init
 
 
-    subroutine Get_sensor_sdvig()
+    subroutine Get_sensor_sdvig(SS, sdvig)
+		! Считываем датчики случайных чисел из файла
+		! Variables
+		TYPE (Setka), intent(in out) :: SS
+		integer, intent(in) :: sdvig
+		logical :: exists
+		integer(4) :: i, a, b, c, j
 		
+		
+		inquire(file="rnd_my.txt", exist=exists)
+		
+		if (exists == .False.) then
+			pause "net faila!!!  345434wertew21313edftr3e"
+			STOP "net faila!!!"
+		end if
+		
+		if (par_n_claster * par_n_potok * 2 > 1021) then
+			print*, "NE XVATAET DATCHIKOV 31 miuhi8789pok9"
+			pause
+		end if
+		
+		open(1, file = "rnd_my.txt", status = 'old')
+		
+		do i = 1, sdvig
+			read(1,*) a, b, c
+			read(1,*) a, b, c
+		end do
+		
+		do i = 1, par_n_potok
+			read(1,*) a, b, c
+			SS%sensor(:, 1, i) = (/ a, b, c /)
+			read(1,*) a, b, c
+			SS%sensor(:, 2, i) = (/ a, b, c /)
+		end do
+		
+		close(1)
 	end subroutine Get_sensor_sdvig
 
 	subroutine M_K_Change_Velosity4(SS, potok, Ur, Uthe, Uphi, Vr, Vthe, Vphi, Wr_, Wthe_, Wphi_, mu_, cp, r, I_, x_ex, y_ex, z_ex, bb)

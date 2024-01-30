@@ -1321,7 +1321,8 @@ module GEOMETRY
 
     subroutine Geo_Time_fly(SS, XX, VV, time, cell, next)  ! Ќаходим врем€ time до вылета из €чейки
         TYPE (Setka), intent(in) :: SS
-        real(8), intent(in) :: XX(3), VV(3)
+        real(8), intent(in out) :: XX(3)
+        real(8), intent(in) :: VV(3)
         real(8), intent(out) :: time
         integer(4), intent(in) :: cell
         integer(4), intent(out) :: next
@@ -1330,7 +1331,10 @@ module GEOMETRY
         real(8) :: b1, b2, b3, b4, b5, b6, b7, t1, t2, min_t, b33
         integer(4) :: i, gr, min_i
 
+        11   continue 
+
         min_t = 100000000000.0
+        min_i = -1
 
         !print*, XX(1), norm2(XX(2:3))
 
@@ -1377,6 +1381,19 @@ module GEOMETRY
             end if
 
         end do
+
+        if(min_i == -1) then
+            XX(1) = XX(1) + 0.00001
+            XX(2:3) = XX(2:3) * 1.00001
+            GO TO 11
+            ! print*, "ERROR min_i"
+            ! print*, "__________________"
+            ! print*, XX
+            ! print*, "__________________"
+            ! print*, VV
+            ! print*, "__________________"
+            ! STOP
+        end if
 
         
         next = SS%gl_Cell_neighbour(min_i, cell)
@@ -1485,6 +1502,54 @@ module GEOMETRY
         end do
 
     end subroutine Geo_Culc_normal
+
+    real(8) function Geo_Get_Volume_Rotate(SS, cell, angle)
+        ! ”гол подаЄтс€ в градусах
+        TYPE (Setka), intent(in) :: SS
+        integer(4), INTENT(IN) :: cell
+        real(8), INTENT(IN) :: angle
+        real(8) :: A, G, a1(2), a2(2), a3(2), a4(2), c1(2), c2(2), p1(2), p2(2), S1, S2, S
+        integer(4) :: k, i, gr, yz1, yz2, yz3, yz4
+
+        A = 0.0
+        G = 0.0
+        k = 0
+
+        S = SS%gl_Cell_square(cell, 1)
+
+        yz1 = SS%gl_all_Cell(1, cell)
+        yz2 = SS%gl_all_Cell(2, cell)
+        yz3 = SS%gl_all_Cell(3, cell)
+        yz4 = SS%gl_all_Cell(4, cell)
+
+        if(yz1 == yz4) then
+            a1 = SS%gl_yzel(:, yz1, 1)
+            a2 = SS%gl_yzel(:, yz2, 1)
+            a3 = SS%gl_yzel(:, yz3, 1)
+
+            c1 = (a1 + a2 + a3)/3.0
+        else
+            a1 = SS%gl_yzel(:, yz1, 1)
+            a2 = SS%gl_yzel(:, yz2, 1)
+            a3 = SS%gl_yzel(:, yz3, 1)
+            a4 = SS%gl_yzel(:, yz4, 1)
+
+            p1 = a3 - a1
+            p2 = a4 - a1
+            S1 = 0.5 * dabs(p1(1) * p2(2) - p1(2) * p2(1))
+            p2 = a2 - a1
+            S2 = 0.5 * dabs(p1(1) * p2(2) - p1(2) * p2(1))
+
+            c1 = (a1 + a3 + a4)/3.0
+            c2 = (a1 + a2 + a3)/3.0
+
+            if(dabs(S - S1 - S2) > 0.0001) STOP "ERROR kfjoriuh9vn854ybevrw5tbyev5"
+
+            c1 = (S1 * c1 + S2 * c2)/S
+        end if
+
+	    Geo_Get_Volume_Rotate = S * c1(2) * par_pi * angle / 180.0;   ! ¬ градусах можно подавать угол
+    end function Geo_Get_Volume_Rotate
 
     subroutine Geo_Find_Surface(SS)   ! «аполн€ет массивы поверхностей, которые выдел€ютс€
 		use STORAGE
@@ -1780,6 +1845,28 @@ module GEOMETRY
 
     end subroutine Print_GD
 
+    subroutine Print_hydrogen(SS)
+        ! ѕечатаем центры всех €чеек
+        TYPE (Setka), intent(in) :: SS
+        integer :: i, j, node
+        real(8) :: Mach
+
+        open(1, file = SS%name // '_Print_hydrogen.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = X, Y" 
+        write(1,*)",Rho1, p1, u1, v1, T1"
+        write(1,*)",Rho2, p2, u2, v2, T2"
+        write(1,*)",Rho3, p3, u3, v3, T3"
+        write(1,*)",Rho4, p4, u4, v4, T4"
+
+        do j = 1, size(SS%gl_all_Cell(1, :))
+            write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%hydrogen(1:5, 1, j, 1), &
+            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1)
+        end do
+
+        close(1)
+
+    end subroutine Print_hydrogen
+
     subroutine Print_GD_1D(SS)
         ! ѕечатаем центры всех €чеек
         TYPE (Setka), intent(in) :: SS
@@ -1805,6 +1892,36 @@ module GEOMETRY
         close(1)
 
     end subroutine Print_GD_1D
+
+    subroutine Print_hydrogen_1D(SS)
+        ! ѕечатаем центры всех €чеек
+        TYPE (Setka), intent(in) :: SS
+        integer :: i, j, node
+
+        open(1, file = SS%name // '_Print_hydrogen_1D.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = X" 
+        write(1,*)",Rho1, p1, u1, v1, T1"
+        write(1,*)",Rho2, p2, u2, v2, T2"
+        write(1,*)",Rho3, p3, u3, v3, T3"
+        write(1,*)",Rho4, p4, u4, v4, T4"
+
+        do i = size(SS%gl_Cell_B(:, 1)), 1, -1
+            j = SS%gl_Cell_B(i, 1)
+            
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
+                SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1)
+        end do
+
+        do i = 1, size(SS%gl_Cell_A(:, 1))
+            j = SS%gl_Cell_A(i, 1)
+
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
+            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1)
+        end do
+
+        close(1)
+
+    end subroutine Print_hydrogen_1D
 
     subroutine Print_Cell(SS)
         ! ѕечатаем все €чейки (есть дублирование), кажда€ €чейка печатаетс€ отдельно

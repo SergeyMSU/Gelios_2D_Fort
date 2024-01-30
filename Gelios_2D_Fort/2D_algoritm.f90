@@ -108,6 +108,17 @@ module Algoritm
         call Int_Init(gl_S2, SS)
 		print*, "A3"
 
+        !! Задаём параметры мини-сетки
+        gl_S3%par_m_A = 20! 30      ! Количество лучей A в плоскости
+        gl_S3%par_m_BC = 10! 18      ! Количество лучей B/C в плоскости
+        gl_S3%par_m_O = 10! 17      ! Количество лучей O в плоскости
+        gl_S3%par_m_K = 8! 7      ! Количество лучей K в плоскости
+        gl_S3%par_n_TS =  27! 26                    ! Количество точек до TS (TS включается)
+        gl_S3%par_n_HP =  37! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
+        gl_S3%par_n_BS =  57! 60! 5                 ! Количество точек BS (BS включается)
+        gl_S3%par_n_END = 65! 72! 6                ! Количество точек до конца сетки (конец включается)
+        gl_S3%par_n_IA =  12! 12                   ! Количество точек, которые входят во внутреннюю область
+        gl_S3%par_n_IB =  14! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
         call Init_Setka(gl_S3)
 		print*, "A4"
         call Build_Setka_start(gl_S3)
@@ -130,6 +141,11 @@ module Algoritm
         call Print_Cell(gl_S3)
 
         call M_K_start(gl_S3, gl_S2)
+
+        call Print_hydrogen(gl_S3)
+        call Print_hydrogen_1D(gl_S3)
+
+        call Save_setka_bin(gl_S3, "B0034")
 
         print*, "END"
         pause 
@@ -1298,6 +1314,8 @@ module Algoritm
             call Int_Get_Parameter(XX, center(1), center(2), num, PAR_hydrogen = parH, PAR_gd = par)
             SS%hydrogen(:, :, i, 1) = parH
             SS%hydrogen(:, :, i, 2) = parH
+            if(par(1) <= 0.0) par(1) = 0.0000001
+            if(par(2) <= 0.0) par(2) = 0.000001
             SS%gd(:, i, 1) = par
             SS%gd(:, i, 2) = par
         end do
