@@ -266,9 +266,9 @@ module Phys_parameter
             end if
 
             U_M_H(i) = sqrt( (u - u_H)**2 + (v - v_H)**2 + &
-            (64.0 / (9.0 * par_pi)) * (0.5 * p / ro + p_H / ro_H) )
+            (64.0 / (9.0 * par_pi)) * (p / ro + 2.0 * p_H / ro_H) )
             UU_H(i) = sqrt( (u - u_H)**2 + (v - v_H)**2 + &
-            (4.0 / par_pi) * (0.5 * p / ro + p_H / ro_H) )
+            (4.0 / par_pi) * (p / ro + 2.0 * p_H / ro_H) )
             sigma(i) = (1.0 - SS%par_a_2 * log(U_M_H(i)))**2
             nu(i) = ro * ro_H * U_M_H(i) * sigma(i)
         end do
@@ -282,7 +282,7 @@ module Phys_parameter
             sourse(2) =  sourse(2) + nu(i) * (u_H - u)
             sourse(3) =  sourse(3) + nu(i) * (v_H - v)
             sourse(4) = sourse(4) + nu(i) * ( (u_H**2 + v_H**2 - &
-                u**2 - v**2)/2.0 + (UU_H(i)/U_M_H(i)) * (p_H/ro_H - 0.5 * p/ro ) )
+                u**2 - v**2)/2.0 + (UU_H(i)/U_M_H(i)) * (2.0 * p_H/ro_H - p/ro ) )
         end do
         
         sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)

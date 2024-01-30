@@ -4,6 +4,7 @@ module Monte_Karlo
     USE ieee_arithmetic
     USE My_func
 	USE OMP_LIB
+	USE Phys_parameter
     implicit none 
 
 
@@ -51,9 +52,10 @@ module Monte_Karlo
 			cell = 1
 
             !$omp critical
-                print*, "start potok = ", potok, " iter = ", iter, "   step = ", step, "from = ", par_n_potok * par_n_parallel
+                print*, "Start potok = ", potok, " iter = ", iter, "   step = ", step, "from = ", par_n_potok * par_n_parallel
                 step = step + 1
 			!$omp end critical
+
 
             ! Запускаем частицы первого типа (с полусферы)
             do num = 1, MK_N1
@@ -202,6 +204,10 @@ module Monte_Karlo
 				call M_K_Fly(SS, SS_int, potok)
 			end do
 
+			!$omp critical
+                print*, "END potok = ", potok, " iter = ", iter
+			!$omp end critical
+
         end do
 		!$omp end do
 
@@ -231,7 +237,6 @@ module Monte_Karlo
 					SS%M_K_Moment(2:3, j, i, 1) = SS%M_K_Moment(2:3, j, i, 1)/SS%M_K_Moment(1, j, i, 1)  ! Скорости
 					SS%M_K_Moment(4, j, i, 1) = (1.0/3.0) * ( SS%M_K_Moment(4, j, i, 1)/SS%M_K_Moment(1, j, i, 1) - &
 						kvv(SS%M_K_Moment(2, j, i, 1), SS%M_K_Moment(3, j, i, 1), 0.0_8) )  ! Temp
-					
 					SS%M_K_Moment(9, j, i, 1) = SS%M_K_Moment(9, j, i, 1) / SS%M_K_Moment(1, j, i, 1) - &
 						SS%M_K_Moment(2, j, i, 1)**2
 					SS%M_K_Moment(10, j, i, 1) = SS%M_K_Moment(10, j, i, 1) / SS%M_K_Moment(1, j, i, 1) - &
@@ -257,7 +262,7 @@ module Monte_Karlo
 				if((SS%gl_yzel(1, pp, 1) >= 0.0 .and. norm2(SS%gl_yzel(:, pp, 1)) >= par_Rmax)) then
 					SS%M_K_Moment(:, :, i, 1) = 0.0
 					SS%M_K_Moment(1, 4, i, 1) = 1.0
-					SS%M_K_Moment(5, 4, i, 1) = 1.0
+					SS%M_K_Moment(4, 4, i, 1) = 0.5
 					SS%M_K_Moment(10, 4, i, 1) = 0.5
 					SS%M_K_Moment(13, 4, i, 1) = 0.5
 					SS%M_K_Moment(15, 4, i, 1) = 0.5
@@ -277,7 +282,50 @@ module Monte_Karlo
 		SS%hydrogen(3:5, :, :, 1) = SS%M_K_Moment(2:4, :, :, 1)
 		SS%hydrogen(:, :, :, 2) = SS%hydrogen(:, :, :, 1)
 
+		SS%atom_all_source = SS%M_K_Moment(5:8, :, :, 1)
+		
+		call Culc_Source(SS)
+
     end subroutine M_K_start
+
+	subroutine Culc_Source(SS)
+		! Вычисляем источники Монте-Карло
+		TYPE (Setka), intent(in out) :: SS
+		integer(4) :: i, j
+		real(8) :: source(4)
+
+		! Считаем из температуры давление
+		do j = 1, SS%n_Hidrogen
+			do i = 1, size(SS%hydrogen(1, 1, :, 1))
+				SS%hydrogen(2, j, i, 1) = SS%hydrogen(5, j, i, 1) * SS%hydrogen(1, j, i, 1)
+			end do
+		end do
+
+		SS%hydrogen(:, :, :, 2) = SS%hydrogen(:, :, :, 1)
+
+		do i = 1, size(SS%hydrogen(1, 1, :, 1))
+			call Calc_sourse_MF(SS, i, source, 1)
+
+			SS%atom_source(1, i) = sum(SS%atom_all_source(2, :, i))/source(2)
+			SS%atom_source(2, i) = sum(SS%atom_all_source(3, :, i))/source(3)
+			SS%atom_source(3, i) = sum(SS%atom_all_source(4, :, i))/source(4)
+
+			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.000000001) SS%atom_source(1, i) = 1.0
+			if(SS%atom_source(1, i) < 0.2) SS%atom_source(1, i) = 1.0
+
+			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.000000001) SS%atom_source(2, i) = 1.0
+			if(SS%atom_source(2, i) < 0.2) SS%atom_source(2, i) = 1.0
+
+			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.000000001) SS%atom_source(3, i) = 1.0
+			if(SS%atom_source(3, i) < 0.2) SS%atom_source(3, i) = 1.0
+
+			SS%atom_source(4, i) = sum(SS%atom_all_source(1, :, i))
+			SS%atom_source(5, i) = sum(SS%atom_all_source(2, :, i))
+			SS%atom_source(6, i) = sum(SS%atom_all_source(3, :, i))
+			SS%atom_source(7, i) = sum(SS%atom_all_source(4, :, i))
+		end do
+
+	end subroutine Culc_Source
 
     subroutine M_K_Fly(SS, SS_int, n_potok)
         TYPE (Setka), intent(in out) :: SS

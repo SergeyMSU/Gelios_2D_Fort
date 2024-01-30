@@ -40,7 +40,11 @@ module GEOMETRY
 
         ALLOCATE(SS%gd(SS%n_par, N1 ,2))
         ALLOCATE(SS%hydrogen(5, SS%n_Hidrogen, N1 ,2))
+        ALLOCATE(SS%atom_source(SS%n_atom_source, N1))
+        ALLOCATE(SS%atom_all_source(4, SS%n_Hidrogen, N1))
         SS%gd = 0.0
+        SS%atom_source = 0.0
+        SS%atom_all_source = 0.0
 
         allocate(SS%gl_Cell_gran(4, N1))
         allocate(SS%gl_Cell_gran_dist(4, N1, 2))
@@ -1370,12 +1374,12 @@ module GEOMETRY
 
             !print*, "t = ", t1, t2
 
-            if(t1 > 0.0000001 .and. t1 < min_t .and. dabs(A * (XX(1) + t1 * VV(1)) + B * sqrt(a1 * t1**2 + a2 * t1 + a3) + C) < 0.0001  ) then
+            if(t1 > 0.0000001 .and. t1 < min_t .and. dabs(A * (XX(1) + t1 * VV(1)) + B * sqrt(a1 * t1**2 + a2 * t1 + a3) + C) < 0.00001  ) then
                 min_t = t1
                 min_i = i
             end if
 
-            if(t2 > 0.0000001 .and. t2 < min_t .and. dabs(A * (XX(1) + t2 * VV(1)) + B * sqrt(a1 * t2**2 + a2 * t2 + a3) + C) < 0.0001  ) then
+            if(t2 > 0.0000001 .and. t2 < min_t .and. dabs(A * (XX(1) + t2 * VV(1)) + B * sqrt(a1 * t2**2 + a2 * t2 + a3) + C) < 0.00001  ) then
                 min_t = t2
                 min_i = i
             end if
@@ -1383,8 +1387,20 @@ module GEOMETRY
         end do
 
         if(min_i == -1) then
-            XX(1) = XX(1) + 0.00001
+            if(XX(1) > 0) then
+                XX(1) = XX(1) - 0.00001
+            else
+                XX(1) = XX(1) + 0.00001
+            end if
             XX(2:3) = XX(2:3) * 1.00001
+            if(norm2(XX(2:3)) < 0.000000001) then
+                XX(2) = XX(2) + 0.00001
+            end if
+
+            if(norm2(XX(2:3)) >= SS%par_R_END) then
+                XX(2:3) = XX(2:3) * 0.999
+            end if
+
             GO TO 11
             ! print*, "ERROR min_i"
             ! print*, "__________________"
@@ -1898,25 +1914,30 @@ module GEOMETRY
         TYPE (Setka), intent(in) :: SS
         integer :: i, j, node
 
+        if(SS%n_Hidrogen /= 4) then
+            print*, "Error n_Hidrogen /= 4   Print_hydrogen_1D  1906  y87wtrguwvby8bej7yt7vwc8yynu6rbv"
+        end if
+
         open(1, file = SS%name // '_Print_hydrogen_1D.txt')
         write(1,*) "TITLE = 'HP'  VARIABLES = X" 
         write(1,*)",Rho1, p1, u1, v1, T1"
         write(1,*)",Rho2, p2, u2, v2, T2"
         write(1,*)",Rho3, p3, u3, v3, T3"
         write(1,*)",Rho4, p4, u4, v4, T4"
+        write(1,*)", k1, k2, k3"
 
         do i = size(SS%gl_Cell_B(:, 1)), 1, -1
             j = SS%gl_Cell_B(i, 1)
             
             write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-                SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1)
+                SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(1:3, j)
         end do
 
         do i = 1, size(SS%gl_Cell_A(:, 1))
             j = SS%gl_Cell_A(i, 1)
 
             write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1)
+            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(1:3, j)
         end do
 
         close(1)
@@ -2536,7 +2557,14 @@ module GEOMETRY
         write(1) SS%hydrogen
 
 
-        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 1;
+        write(1) size(SS%atom_all_source(:, 1, 1)), size(SS%atom_all_source(1, :, 1)), size(SS%atom_all_source(1, 1, :))
+        write(1) SS%atom_all_source
+        write(1) size(SS%atom_source(:, 1)), size(SS%atom_source(1, :))
+        write(1) SS%atom_source
+        
+        
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0

@@ -24,7 +24,7 @@ module STORAGE
 
     ! „исло частиц у каждого потока!
 	! „исло должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 3 !3 * 18!6 * 11! 17   ! 1 = 10 минут счЄта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_multiply = 6 * 4 !3 * 18!6 * 11! 17   ! 6 = 10 минут счЄта (с пикапами 18 минут)
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
 	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 60 „исло исходных частиц первого типа (с полусферы)
@@ -209,6 +209,7 @@ module STORAGE
 
         !! ‘»«» ј
         integer(4) :: n_Hidrogen = par_n_sort  ! „исло сортов атомов водорода
+        integer(4) :: n_atom_source = 7  ! „исло сортов атомов водорода
         integer(4) :: n_par = 5  !! „исло физических параметров в задаче
         ! 5 газодинамических
         ! 4 * n_Hidrogen - ¬одород
@@ -217,6 +218,12 @@ module STORAGE
         ! (rho p u v Q)
         real(8), allocatable :: hydrogen(:, :, :, :)  ! (5, n_Hidrogen, :, 2 временной слой)
         ! rho p u v T
+
+        real(8), allocatable :: atom_all_source(:, :, :)  ! (4, n_Hidrogen, : число €чеек)
+        ! (In, Iu, Iv, IT)
+
+        real(8), allocatable :: atom_source(:, :)  ! (7, : число €чеек)
+        ! (k_u, k_v, k_T, In, Iu, Iv, IT)
 
     END TYPE Setka
 
