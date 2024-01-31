@@ -98,6 +98,71 @@ module Algoritm
         !pause
     end subroutine Gas_dynamic_algoritm
 
+    subroutine Gas_dynamic_algoritm2(SS)
+        ! Это временно, чтобы не удалять предыдущую функцию
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: num, i, i_max
+        real(8) :: par(5), parH(5, 4)
+
+        call Read_setka_bin(gl_S3, "B0034")   ! ДЛЯ ВОДОРОДА
+        call Int_Init(gl_I1, gl_S3)
+
+        call Dell_Setka(gl_S3)
+        call Int_Print_Cell(gl_I1)
+
+        call Read_setka_bin(SS, "00034")      ! ОСНОВНАЯ СЕТКА
+        call Geo_Set_sxem(SS)
+        
+
+        !call Algoritm_Reinterpol(SS, gl_S2)
+
+        if(SS%init_geo == .False.) STOP "Gas_dynamic_algoritm  error init_geo erty67543"  
+
+
+        !call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
+        !call Geo_get_request(SS)
+        call Algoritm_Bound_condition(SS)    ! Зададим граничные условия на внутренней сфере
+
+        ! call Int_Init(gl_S2, SS)
+        ! call Int_Print_Cell(gl_S2)
+        
+        !call Int_Get_Parameter(gl_S2, 260.0_8, 19.5_8, num, PAR_gd = par, PAR_hydrogen = parH)
+
+        ! call Calc_move_velosity(SS, 1)
+        ! call Move_all(SS, 2, 1.0_8)
+
+
+
+        i_max = 100!200!350
+        do i = 1, i_max
+            if (mod(i, 5) == 0) then
+                print*, "Global step = ", i, "from ", i_max
+            end if
+            call Start_GD_algoritm(SS, 5000, 2) !5000
+
+            call Culc_Cell_Centr(SS, 1)
+            call Geo_Culc_normal(SS, 1) 
+            call Geo_Culc_length_area(SS, 1)
+            call Culc_Cell_Centr(SS, 2)
+            call Geo_Culc_normal(SS, 2) 
+            call Geo_Culc_length_area(SS, 2)
+
+            call Start_GD_algoritm(SS, 500, 1) !500
+
+            call Algoritm_Reinterpol(SS, gl_S2)
+        end do
+
+        call Print_GD(SS)
+        call Geo_Print_Surface(SS)
+        call Save_setka_bin(SS, "A0035")
+        call Print_Grans(SS)
+        ! call Print_Cell_Centr(SS)
+        call Print_GD_1D(SS)
+        ! call Print_TVD_Sosed(SS)
+
+        !pause
+    end subroutine Gas_dynamic_algoritm2
+
     subroutine MK_algoritm(SS)
         TYPE (Setka), intent(in out) :: SS
 

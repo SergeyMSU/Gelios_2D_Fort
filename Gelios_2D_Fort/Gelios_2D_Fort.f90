@@ -94,8 +94,8 @@ program Gelios_2D_Fort
     
     ! call Geo_request(gl_S1)
 
-    !call Gas_dynamic_algoritm(gl_S1)
-    call MK_algoritm(gl_S1)
+    call Gas_dynamic_algoritm2(gl_S1)
+    !call MK_algoritm(gl_S1)
 
     !call Print_Cell(gl_S1)
 

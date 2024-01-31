@@ -1201,6 +1201,29 @@ module GEOMETRY
 
     end subroutine Geo_Find_Cell
 
+    subroutine Geo_Belong_Cell(SS, x, y, num, inzone)
+        ! ѕринадлежит ли точка €чейке
+        ! num = предположительный изначальный номер (если не знаем пусть будет равен 1)
+        TYPE (Setka), intent(in) :: SS
+        real(8), intent(in) :: x, y
+        integer(4), intent(in) :: num
+        integer(4) :: j, gran, sosed, max_num
+        logical, intent(out) :: inzone
+
+        inzone = .True.
+
+        do j = 1, 4
+            gran = SS%gl_Cell_gran(j, num)
+            if(gran == 0) CYCLE
+
+            if(SS%gl_Cell_belong(1, j, num) * x + SS%gl_Cell_belong(2, j, num) * y + SS%gl_Cell_belong(3, j, num) > 0) then
+                inzone = .False.
+            end if
+        end do
+
+
+    end subroutine Geo_Belong_Cell
+
     subroutine Culc_Cell_Centr(SS, step)
         ! —читаем центры всех €чеек в массив
         ! step - 1 или 2  показывает какой массив координат мы мен€ем
@@ -1332,10 +1355,13 @@ module GEOMETRY
         integer(4), intent(out) :: next
 
         real(8) :: A, B, C, a1, a2, a3
-        real(8) :: b1, b2, b3, b4, b5, b6, b7, t1, t2, min_t, b33
-        integer(4) :: i, gr, min_i
+        real(8) :: b1, b2, b3, b4, b5, b6, b7, t1, t2, min_t, b33, r(2), rr(2)
+        integer(4) :: i, gr, min_i, iter
+        LOGICAL :: inzone
 
+        iter = 0
         11   continue 
+        iter = iter + 1
 
         min_t = 100000000000.0
         min_i = -1
@@ -1374,32 +1400,42 @@ module GEOMETRY
 
             !print*, "t = ", t1, t2
 
-            if(t1 > 0.0000001 .and. t1 < min_t .and. dabs(A * (XX(1) + t1 * VV(1)) + B * sqrt(a1 * t1**2 + a2 * t1 + a3) + C) < 0.00001  ) then
+            if(t1 > 0.0 .and. t1 < min_t .and. dabs(A * (XX(1) + t1 * VV(1)) + B * sqrt(a1 * t1**2 + a2 * t1 + a3) + C) < 0.00001  ) then
                 min_t = t1
                 min_i = i
             end if
 
-            if(t2 > 0.0000001 .and. t2 < min_t .and. dabs(A * (XX(1) + t2 * VV(1)) + B * sqrt(a1 * t2**2 + a2 * t2 + a3) + C) < 0.00001  ) then
+            if(t2 > 0.0 .and. t2 < min_t .and. dabs(A * (XX(1) + t2 * VV(1)) + B * sqrt(a1 * t2**2 + a2 * t2 + a3) + C) < 0.00001  ) then
                 min_t = t2
                 min_i = i
             end if
 
         end do
 
-        if(min_i == -1) then
-            if(XX(1) > 0) then
-                XX(1) = XX(1) - 0.00001
-            else
-                XX(1) = XX(1) + 0.00001
-            end if
-            XX(2:3) = XX(2:3) * 1.00001
-            if(norm2(XX(2:3)) < 0.000000001) then
-                XX(2) = XX(2) + 0.00001
-            end if
+        
+        if(iter > 1000) then
+            print*, "ERROR iter > 1000 345uimmnbvcw3rfbyunnrbv"
+            print*, "_________________________"
+            print*, XX
+            print*, "_________________________ 1"
+            print*, XX(1), norm2(XX(2:3))
+            print*, "_________________________ 2"
+            print*, SS%gl_Cell_Centr(:, cell, 1)
+            print*, "_________________________"
+            print*, VV
+            STOP
+        end if
 
-            if(norm2(XX(2:3)) >= SS%par_R_END) then
-                XX(2:3) = XX(2:3) * 0.999
-            end if
+        if(min_i == -1) then
+            12 continue 
+            r = SS%gl_Cell_Centr(:, cell, 1)
+            rr(1) = XX(1)
+            rr(2) = norm2(XX(2:3))
+
+            r = 0.995 * rr + 0.005 * r
+
+            XX(1) = r(1)
+            XX(2:3) = XX(2:3) * (r(2)/rr(2))
 
             GO TO 11
             ! print*, "ERROR min_i"
@@ -1411,11 +1447,19 @@ module GEOMETRY
             ! STOP
         end if
 
+        t1 = min_t * 0.999
+        t2 = min_t * 1.001
+
+        call Geo_Belong_Cell(SS, XX(1) + t1 * VV(1), sqrt((XX(2) + t1 * VV(2))**2 + (XX(3) + t1 * VV(3))**2), cell, inzone)
+        if(inzone /= .True.) GO TO 12
+
+        call Geo_Belong_Cell(SS, XX(1) + t2 * VV(1), sqrt((XX(2) + t2 * VV(2))**2 + (XX(3) + t2 * VV(3))**2), cell, inzone)
+        if(inzone /= .False.) GO TO 12
+
+
         
         next = SS%gl_Cell_neighbour(min_i, cell)
-        time = min_t
-
-
+        time = t2
 
         !print*, XX(1) + time * VV(1), norm2(XX(2:3) + time * VV(2:3))
         !pause
@@ -2592,7 +2636,7 @@ module GEOMETRY
         TYPE (Setka), intent(in out) :: SS
         CHARACTER(len = 5), intent(in) :: name
         logical :: exists
-        integer(4) :: i, j, k
+        integer(4) :: i, j, k, n, n1, n2, n3
 
         inquire(file= "Save_all_" // name // ".bin", exist=exists)
     
@@ -2701,6 +2745,24 @@ module GEOMETRY
         read(1) SS%gd
         read(1) SS%hydrogen
 
+        read(1) n
+        if(n == 1) then
+            read(1) n1
+            if(n1 /= size(SS%atom_all_source(:, 1, 1))) STOP "ERROR 2751 Geometry 87843y7t8uhihcw4uquiojyre5hgqwc4 "
+            read(1) n2
+            if(n2 /= size(SS%atom_all_source(1, :, 1))) STOP "ERROR 2752 Geometry 97087867jklpkjertvefervfgbytryhgf5 "
+            read(1) n3
+            if(n3 /= size(SS%atom_all_source(1, 1, :))) STOP "ERROR 2753 Geometry jytyjtyudreretsadeswcfewrcfrfeergege "
+            read(1) SS%atom_all_source
+
+            read(1) n1
+            if(n1 /= size(SS%atom_source(:, 1))) STOP "ERROR 2754 Geometry ,imntbrtvecwxqervtyn7i6ue6y "
+            read(1) n2
+            if(n2 /= size(SS%atom_source(1, :))) STOP "ERROR 2755 Geometry cew3tyukb6vcx3e3eftegr6437iol9ek6i7u "
+            read(1) SS%atom_source
+        end if
+
+
         call Geo_Culc_normal(SS, 1) 
         call Geo_Culc_length_area(SS, 1)
         call Culc_Cell_Centr(SS, 2)
@@ -2720,6 +2782,21 @@ module GEOMETRY
                     if(SS%hydrogen(2, j, i, k) <= 0.0) SS%hydrogen(2, j, i, k) = 0.00000001
                 end do
             end do
+        end do
+
+
+        do i = 1, size(SS%atom_source(1, :))
+            if(ieee_is_nan(SS%atom_source(1, i))) then
+                SS%atom_source(1, i) = 0.0
+            end if
+
+            if(ieee_is_nan(SS%atom_source(2, i))) then
+                SS%atom_source(2, i) = 0.0
+            end if
+
+            if(ieee_is_nan(SS%atom_source(3, i))) then
+                SS%atom_source(3, i) = 0.0
+            end if
         end do
 
     end subroutine Read_setka_bin

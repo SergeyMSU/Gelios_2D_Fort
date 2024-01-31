@@ -59,12 +59,17 @@ module Interpol
         allocate(SS_int%gd(SS_int%n_par, n_yzel))
         allocate(SS_int%hydrogen(5, SS_int%n_Hidrogen, n_yzel))
 
+        allocate(SS_int%atom_all_source, mold = SS%atom_all_source)
+        allocate(SS_int%atom_source, mold = SS%atom_source)
+
 		
         ! Заполняем координаты узлов --------------------------------------------------------------------------
 		do i = 1, N1
 			SS_int%gl_yzel(:, i) = SS%gl_Cell_Centr(:, i, 1)
 			SS_int%gd(:, i) = SS%gd(:, i, 1)
 			SS_int%hydrogen(:, :, i) = SS%hydrogen(:, :, i, 1)
+			SS_int%atom_all_source(:, :, i) = SS%atom_all_source(:, :, i)
+			SS_int%atom_source(:, i) = SS%atom_source(:, i)
 		end do
 
         N2 = size(SS%gl_Cell_A(:, 1))
@@ -78,8 +83,12 @@ module Interpol
 
             SS_int%gd(:, N1 + i) = SS%gd(:, cell, 1)
 			SS_int%hydrogen(:, :, N1 + i) = SS%hydrogen(:, :, cell, 1)
+			SS_int%atom_all_source(:, :, N1 + i) = SS%atom_all_source(:, :, cell)
+			SS_int%atom_source(:, N1 + i) = SS%atom_source(:, cell)
+
             SS_int%gd(4, N1 + i) = 0.0
             SS_int%hydrogen(4, :, N1 + i) = 0.0
+            SS_int%atom_source(2, N1 + i) = 0.0
 		end do
 		
 		N3 = size(SS%gl_Cell_B(:, 1))
@@ -93,8 +102,12 @@ module Interpol
 
             SS_int%gd(:,N1 + N2 + i) = SS%gd(:, cell, 1)
 			SS_int%hydrogen(:, :, N1 + N2 + i) = SS%hydrogen(:, :, cell, 1)
+            SS_int%atom_all_source(:, :, N1 + N2 + i) = SS%atom_all_source(:, :, cell)
+			SS_int%atom_source(:, N1 + N2 + i) = SS%atom_source(:, cell)
+
             SS_int%gd(4, N1 + N2 + i) = 0.0
             SS_int%hydrogen(4, :, N1 + N2 + i) = 0.0
+            SS_int%atom_source(2, N1 + N2 + i) = 0.0
 		end do
 		
 		! Заполняем A - ячейки --------------------------------------------------------------------------
@@ -823,16 +836,21 @@ module Interpol
         end do loop1
     end subroutine Int_Find_Cell
 
-    subroutine Int_Get_Parameter(SS, x, y, num, PAR_gd, PAR_hydrogen)
+    subroutine Int_Get_Parameter(SS, x, y, num, PAR_gd, PAR_hydrogen, PAR_atom_source)
         TYPE (Inter_Setka), intent(in) :: SS
         real(8), intent(in) :: x, y
         integer(4), intent(in out) :: num
         real(8), intent(out), optional :: PAR_gd(:)
         real(8), intent(out), optional :: PAR_hydrogen(:, :)
+        real(8), intent(out), optional :: PAR_atom_source(:)
 
         LOGICAL :: outer
         real(8) :: dist, r(2), dist_min, yzel_min, M(4, 4), v(4), MM(4), ccc
         integer(4) :: i, yzel, j
+
+        if(present(PAR_atom_source)) then
+            if(size(PAR_atom_source) /= 4) STOP "ERROR Int 851 y2w0S3KFz4v7npnDl9rgziYnZNfNSc"
+        end if
 
         call Int_Find_Cell(SS, x, y, num, outer)  ! Находим ячейку, которой принадлежит точка
 
@@ -851,6 +869,10 @@ module Interpol
             if(present(PAR_gd)) then
                 if(size(PAR_gd) /= SS%n_par) STOP "Error Int_Get_Parameter size(PAR_gd) /= SS%n_par   09876tyuinewufhugferafrgnmiutr"
                 PAR_gd = SS%gd(:, yzel_min)
+            end if
+
+            if(present(PAR_atom_source)) then
+                PAR_atom_source = SS%atom_source(1:4, yzel_min)
             end if
 
             if(present(PAR_hydrogen)) then
@@ -888,6 +910,14 @@ module Interpol
                     !     pause
                     !     STOP
                     ! end if
+                end if
+
+                if(present(PAR_atom_source)) then
+                    PAR_atom_source = 0.0
+                    do i = 1, 3
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_atom_source(:) = PAR_atom_source(:) + MM(i) * SS%atom_source(1:4, yzel)
+                    end do
                 end if
 
                 if(present(PAR_hydrogen)) then
@@ -939,6 +969,14 @@ module Interpol
                     !     STOP
                     ! end if
 
+                end if
+
+                if(present(PAR_atom_source)) then
+                    PAR_atom_source = 0.0
+                    do i = 1, 4
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_atom_source(:) = PAR_atom_source(:) + MM(i) * SS%atom_source(1:4, yzel)
+                    end do
                 end if
 
                 if(present(PAR_hydrogen)) then

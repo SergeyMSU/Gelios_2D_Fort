@@ -310,13 +310,13 @@ module Monte_Karlo
 			SS%atom_source(2, i) = sum(SS%atom_all_source(3, :, i))/source(3)
 			SS%atom_source(3, i) = sum(SS%atom_all_source(4, :, i))/source(4)
 
-			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.000000001) SS%atom_source(1, i) = 1.0
+			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.00000001) SS%atom_source(1, i) = 1.0
 			if(SS%atom_source(1, i) < 0.2) SS%atom_source(1, i) = 1.0
 
-			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.000000001) SS%atom_source(2, i) = 1.0
+			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.00000001) SS%atom_source(2, i) = 1.0
 			if(SS%atom_source(2, i) < 0.2) SS%atom_source(2, i) = 1.0
 
-			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.000000001) SS%atom_source(3, i) = 1.0
+			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.00000001) SS%atom_source(3, i) = 1.0
 			if(SS%atom_source(3, i) < 0.2) SS%atom_source(3, i) = 1.0
 
 			SS%atom_source(4, i) = sum(SS%atom_all_source(1, :, i))
@@ -392,24 +392,25 @@ module Monte_Karlo
 				!print*, "AA"
 				call Geo_Time_fly(SS, particle(1:3), particle(4:6), time, cell, next)  ! Находим время time до вылета из ячейки
 				!print*, "BB"
-				time = max(0.0000001_8, time * 1.0001) ! Увеличим время, чтобы частица точно вышла из ячейки
+				!time = max(0.0000001_8, time * 1.0001) ! Увеличим время, чтобы частица точно вышла из ячейки
 
 				r_exit = particle(1:3) + time * particle(4:6)
 				next2 = cell
 				call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
-				do while(next2 == cell .and. inzone == .True.) 
-					! print*, "Error 171 next2 == cell  time = ", time
-					! print*, particle(1), norm2(particle(2:3))
-					! print*, "----------------------"
-					! print*, particle(4:6)
-					! print*, "----------------------"
-					! print*, r_exit(1), norm2(r_exit(2:3))
-					! print*, "----------------------"
-					! STOP
-					time = time * 1.05
-					r_exit = particle(1:3) + time * particle(4:6)
-					call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
-				end do
+				
+				! do while(next2 == cell .and. inzone == .True.) 
+				! 	! print*, "Error 171 next2 == cell  time = ", time
+				! 	! print*, particle(1), norm2(particle(2:3))
+				! 	! print*, "----------------------"
+				! 	! print*, particle(4:6)
+				! 	! print*, "----------------------"
+				! 	! print*, r_exit(1), norm2(r_exit(2:3))
+				! 	! print*, "----------------------"
+				! 	! STOP
+				! 	time = time * 1.05
+				! 	r_exit = particle(1:3) + time * particle(4:6)
+				! 	call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
+				! end do
 				!print*, "CC"
 				
 				kappa = 0.0
@@ -438,18 +439,18 @@ module Monte_Karlo
 					ro = PAR(1)
 
 					if(ieee_is_nan(cp)) then
-                    print*, "error cp nan bntjumki,lo;.piuyntbvtcrwrwfv"
-                    print*, "cell = ", cell
-                    print*, "______________ 0"
-                    print*, PAR
-                    print*, "______________ 1"
-                    print*, particle
-                    print*, "______________ 2"
-                    print*, ddt, time
-                    print*, "______________ 3"
-					pause
-                    STOP
-                end if
+						print*, "error cp nan bntjumki,lo;.piuyntbvtcrwrwfv"
+						print*, "cell = ", cell
+						print*, "______________ 0"
+						print*, PAR
+						print*, "______________ 1"
+						print*, particle
+						print*, "______________ 2"
+						print*, ddt, time
+						print*, "______________ 3"
+						pause
+						STOP
+                	end if
 				
 					if(ro <= 0.0 .or. ro > 1000.0) then
 						print*, PAR
@@ -515,6 +516,19 @@ module Monte_Karlo
 					t_ex = time * 0.998
 					t2 = time - t_ex
 					r_ex = particle(1:3) + t_ex * particle(4:6)  
+
+					!? Можно будет потом убрать проверку
+					call Geo_Find_Cell(SS, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2), next2) 
+					if (cell /= next2) then 
+						print*, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2)
+						print*, "______________________"
+						print*, SS%gl_Cell_Centr(:, cell, 1)
+						print*, "______________________"
+						print*, particle(1), norm2(particle(2:3))
+						print*, "______________________"
+						STOP "ERROR cell /= next2  oijfriugv75ty8984u9t78y3v34r"
+					end if
+
 				end if
 				
 				r = norm2(r_ex)  ! Расстояние от точки перезарядки до Солнца
@@ -642,10 +656,11 @@ module Monte_Karlo
 				if(particle(1) > 0.00001 .and. norm2(particle(1:3)) > par_Rmax + 0.001) then
 					EXIT loop1  ! частица долетела до края области
 				end if
+
+				if(particle(1)  <= SS%par_R_LEFT + 0.00001  .or. norm2(particle(2:3)) >= SS%par_R_END - 0.00001) then
+					EXIT loop1  ! частица долетела до края области
+				end if
 				
-			
-				
-			
 			end do loop1
 			
 			
