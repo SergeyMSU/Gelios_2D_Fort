@@ -59,8 +59,9 @@ module Interpol
         allocate(SS_int%gd(SS_int%n_par, n_yzel))
         allocate(SS_int%hydrogen(5, SS_int%n_Hidrogen, n_yzel))
 
-        allocate(SS_int%atom_all_source, mold = SS%atom_all_source)
-        allocate(SS_int%atom_source, mold = SS%atom_source)
+        allocate(SS_int%atom_all_source(4, SS_int%n_Hidrogen, n_yzel))
+        allocate(SS_int%atom_source(7, n_yzel))
+
 
 		
         ! Çàïîëíÿåì êîîðäèíàòû óçëîâ --------------------------------------------------------------------------
@@ -836,6 +837,27 @@ module Interpol
         end do loop1
     end subroutine Int_Find_Cell
 
+    subroutine Int_Belong_Cell(SS, xx, yy, num, outer)
+        TYPE (Inter_Setka), intent(in) :: SS
+        real(8), intent(in) :: xx, yy
+        integer(4), intent(in out) :: num
+        integer(4) :: j, gran, sosed
+        LOGICAL, intent(out) :: outer
+        real(8) :: x, y
+
+        x = xx
+        y = yy
+        outer = .True.
+
+        loop2:do j = 1, 4
+            if(SS%gl_Cell_Belong(1, j, num) * x + SS%gl_Cell_Belong(2, j, num) * y + SS%gl_Cell_Belong(3, j, num) > 0) then
+                outer = .False.
+                EXIT loop2
+            end if
+        end do loop2
+
+    end subroutine Int_Belong_Cell
+
     subroutine Int_Get_Parameter(SS, x, y, num, PAR_gd, PAR_hydrogen, PAR_atom_source)
         TYPE (Inter_Setka), intent(in) :: SS
         real(8), intent(in) :: x, y
@@ -844,8 +866,8 @@ module Interpol
         real(8), intent(out), optional :: PAR_hydrogen(:, :)
         real(8), intent(out), optional :: PAR_atom_source(:)
 
-        LOGICAL :: outer
-        real(8) :: dist, r(2), dist_min, yzel_min, M(4, 4), v(4), MM(4), ccc
+        LOGICAL :: outer, outer2
+        real(8) :: dist, r(2), dist_min, yzel_min, M(4, 4), v(4), MM(4), ccc, kk(4), kkk
         integer(4) :: i, yzel, j
 
         if(present(PAR_atom_source)) then
@@ -928,7 +950,7 @@ module Interpol
                         PAR_hydrogen = PAR_hydrogen + MM(i) * SS%hydrogen(:, :, yzel)
                     end do
 
-                    ! if(PAR_hydrogen(1, 3) <= 0.0 .or. PAR_hydrogen(2, 3) <= 0.0) then
+                    ! if(PAR_hydrogen(1, 4) > 3.0) then
                     !     Print*, "ERROR 887 <0 y54b6unewvbyerev5e"
                     !     pause
                     !     STOP
@@ -939,6 +961,45 @@ module Interpol
 
 			else   ! ÏÐßÌÎÓÃÎËÜÍÈÊ
 				
+                do i = 1, 4
+                    yzel = SS%gl_all_Cell(i, num)
+                    r = SS%gl_yzel(:, yzel)
+                    kk(i) = 1.0/(max(0.01, sqrt( (x - r(1))**2 + (y - r(2))**2)))
+                end do
+                kkk = sum(kk)
+
+                if(present(PAR_gd)) then
+                    if(size(PAR_gd) /= SS%n_par) STOP "Error Int_Get_Parameter size(PAR_gd) /= SS%n_par   09876tyuinewufhugferafrgnmiutr"
+                    PAR_gd = 0.0
+                    do i = 1, 4
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_gd(:) = PAR_gd(:) + kk(i) * SS%gd(:, yzel)
+                    end do
+                    PAR_gd = PAR_gd/kkk
+                end if
+
+                if(present(PAR_atom_source)) then
+                    PAR_atom_source = 0.0
+                    do i = 1, 4
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_atom_source(:) = PAR_atom_source(:) + kk(i) * SS%atom_source(1:4, yzel)
+                    end do
+                    PAR_atom_source = PAR_atom_source/kkk
+                end if
+
+                if(present(PAR_hydrogen)) then
+                    if(size(PAR_hydrogen(1, :)) /= SS%n_Hidrogen) STOP "Error Int_Get_Parameter size(PAR_hydrogen) /= SS%n_par   oehwjfiehurgegvve"
+                    PAR_hydrogen = 0.0
+                    do i = 1, 4
+                        yzel = SS%gl_all_Cell(i, num)
+                        PAR_hydrogen = PAR_hydrogen + kk(i) * SS%hydrogen(:, :, yzel)
+                    end do
+                    PAR_hydrogen = PAR_hydrogen/kkk
+                end if
+
+
+                return
+
                 M = SS%gl_Cell_interpol_matrix(:, :, num)
 
                 MM = 0.0
@@ -986,6 +1047,21 @@ module Interpol
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_hydrogen = PAR_hydrogen + MM(i) * SS%hydrogen(:, :, yzel)
                     end do
+
+                    ! if(PAR_hydrogen(1, 4) > 3.0) then
+                    !     Print*, "ERROR 887 <0 y54b6unewvbyerev5e"
+					! 	print*, x, y
+                    !     do i = 1, 4
+                    !         yzel = SS%gl_all_Cell(i, num)
+					! 		print*, "------"
+                    !         print*, SS%hydrogen(1, 4, yzel)
+					! 		print*, SS%gl_yzel(:, yzel)
+					! 		print*, "------"
+					! 	end do
+					! 	call Print_matrix_real(M)
+                    !     pause
+                    !     STOP
+                    ! end if
 
                     ! if(PAR_hydrogen(1, 3) <= 0.0 .or. PAR_hydrogen(2, 3) <= 0.0) then
                     !     Print*, "ERROR 887 <0 veete4vt545vt43t"

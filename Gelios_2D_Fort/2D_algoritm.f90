@@ -102,16 +102,26 @@ module Algoritm
         ! Это временно, чтобы не удалять предыдущую функцию
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: num, i, i_max
-        real(8) :: par(5), parH(5, 4)
+        real(8) :: par(5), parH(5, 4), r(2)
 
+        print*, "A"
         call Read_setka_bin(gl_S3, "B0034")   ! ДЛЯ ВОДОРОДА
+        print*, "B"
         call Int_Init(gl_I1, gl_S3)
+        print*, "C"
 
-        call Dell_Setka(gl_S3)
+        
+        print*, "D"
         call Int_Print_Cell(gl_I1)
+        print*, "E"
 
         call Read_setka_bin(SS, "00034")      ! ОСНОВНАЯ СЕТКА
+        print*, "F"
         call Geo_Set_sxem(SS)
+        print*, "G"
+
+        ! call Print_hydrogen(gl_S3)
+        call Dell_Setka(gl_S3)
         
 
         !call Algoritm_Reinterpol(SS, gl_S2)
@@ -131,11 +141,28 @@ module Algoritm
         ! call Calc_move_velosity(SS, 1)
         ! call Move_all(SS, 2, 1.0_8)
 
+        do i = 1, size(SS%gl_Cell_Centr(1, :, 1))  !! УДАЛИТЬ
+            if(SS%gl_Cell_Centr(1, i, 1) > 120.0) then
+                SS%gd(1, i, 1) = 1.0
+                SS%gd(2, i, 1) = 1.0
+                SS%gd(3, i, 1) = SS%par_Velosity_inf
+                SS%gd(4, i, 1) = 0.0
+                SS%gd(:, i, 2) = SS%gd(:, i, 1)
+            end if
+        end do
 
+        call Print_GD(SS)
+        call Geo_Print_Surface(SS)
+        call Print_Grans(SS)
+        call Print_GD_1D(SS)
+        call Algoritm_Reinterpol(SS, gl_I1)
 
-        i_max = 100!200!350
+        call Print_hydrogen(SS)
+
+        print*, "H"
+        i_max = 200!200!350
         do i = 1, i_max
-            if (mod(i, 5) == 0) then
+            if (mod(i, 25) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
             call Start_GD_algoritm(SS, 5000, 2) !5000
@@ -149,7 +176,7 @@ module Algoritm
 
             call Start_GD_algoritm(SS, 500, 1) !500
 
-            call Algoritm_Reinterpol(SS, gl_S2)
+            call Algoritm_Reinterpol(SS, gl_I1)
         end do
 
         call Print_GD(SS)
@@ -160,13 +187,33 @@ module Algoritm
         call Print_GD_1D(SS)
         ! call Print_TVD_Sosed(SS)
 
+        call Print_hydrogen(SS)
+        call Print_hydrogen_1D(SS)
+
         !pause
     end subroutine Gas_dynamic_algoritm2
 
     subroutine MK_algoritm(SS)
         TYPE (Setka), intent(in out) :: SS
+        integer(4) :: i, j, cell
 
         call Read_setka_bin(SS, "00034")      ! ОСНОВНАЯ СЕТКА
+
+        do i = SS%par_n_BS + 1, size(SS%gl_Cell_A(:, 1))  !! УДАЛИТЬ
+            do j = 1, size(SS%gl_Cell_A(1, :))
+                cell = SS%gl_Cell_A(i, j)
+                SS%gd(1, cell, 1) = 1.0
+                SS%gd(2, cell, 1) = 1.0
+                SS%gd(3, cell, 1) = SS%par_Velosity_inf
+                SS%gd(4, cell, 1) = 0.0
+                SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
+            end do
+        end do
+        call Print_GD(SS)
+        call Geo_Print_Surface(SS)
+        call Print_Grans(SS)
+        call Print_GD_1D(SS)
+
 		print*, "A1"
         call SUR_init(gl_surf1, SS)
 		print*, "A2"
@@ -198,9 +245,7 @@ module Algoritm
         print*, "A7"
 
         call Algoritm_Reinterpol(gl_S3, gl_S2)
-		print*, gl_S3%gd(:, 1, 1)
-        print*, gl_S3%gd(:, 2, 1)
-        print*, gl_S3%gd(:, 3, 1)
+        
 		print*, "A8"
 
         call Print_Cell(gl_S3)
@@ -210,10 +255,9 @@ module Algoritm
         call Print_hydrogen(gl_S3)
         call Print_hydrogen_1D(gl_S3)
 
-        call Save_setka_bin(gl_S3, "B0034")
+        call Save_setka_bin(gl_S3, "B0035")
 
         print*, "END"
-        pause 
 
     end subroutine MK_algoritm
 
@@ -307,78 +351,6 @@ module Algoritm
                     if(sosed == 0) CYCLE
                     gran_center = SS%gl_Gran_Center(:, gran, now)
 
-
-                    ! r2 = norm2(gran_center)
-					! phi2 = polar_angle(gran_center(1), gran_center(2))
-
-                    ! ! Определяем TVD-соседей (они не понадобятся в гиперзвуке)
-                    ! TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(1, gran)
-                    ! if(SS%gl_Gran_neighbour(1, gran) /= cell) then
-                    !     TVD_sosed_2 = TVD_sosed_1
-                    !     TVD_sosed_1 = SS%gl_Gran_neighbour_TVD(2, gran)
-                    ! else
-                    !     TVD_sosed_2 = SS%gl_Gran_neighbour_TVD(2, gran)
-                    ! end if
-
-                    ! !! Условия в гиперзвуке
-                    ! if(r < 60 .and. center(1) < 30.0 .and. norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5 ) then
-                    !     par1_TVD = par1
-                    !     call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
-                    !     call dekard_polyar_skorost(phi2, Vr, Vphi, par1_TVD(3), par1_TVD(4))
-                    !     par1_TVD(1) = par1(1) * r**2 / r2**2
-                    !     par1_TVD(5) = par1(5) * r**2 / r2**2
-                    !     par1_TVD(2) = par1(2) * r**(2.0 * SS%par_ggg) / r2**(2.0 * SS%par_ggg)
-                    !     tvd1 = .False.
-                    ! else
-                    !     par1_TVD = par1
-                    ! end if
-
-                    ! ! Задаём параметры соседа для распада разрыва
-                    ! if(sosed == 0) then
-                    !     CYCLE
-                    ! else if(sosed == -1) then
-                    !     call Phys_input_flow(SS, par2)
-                    ! else if(sosed == -2) then
-                    !     par2 = par1
-                    !     if(par2(3) > SS%par_Velosity_inf/2.0) par2(3) = SS%par_Velosity_inf
-                    ! else if(sosed == -3) then
-                    !     par2 = par1
-                    ! else if(sosed == -4) then
-                    !     par2 = par1_TVD
-                    !     par2(4) = -par1_TVD(4)
-                    ! else
-                    !     par2 = SS%gd(1:5, sosed, now)    ! Получили газодинамические параметры
-                    !     if(r < 60 .and. center(1) < 30.0 .and. norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5 ) then
-                    !         tvd2 = .False.
-                    !         sosed_center = SS%gl_Cell_Centr(:, sosed, now)
-                    !         r3 = norm2(sosed_center)
-                    !         phi3 = polar_angle(sosed_center(1), sosed_center(2))
-                    !         call polyar_skorost(phi3, par2(3), par2(4), Vr, Vphi)
-                    !         call dekard_polyar_skorost(phi2, Vr, Vphi, par2(3), par2(4))
-                    !         par2(1) = par2(1) * r3**2 / r2**2
-                    !         par2(5) = par2(5) * r3**2 / r2**2
-                    !         par2(2) = par2(2) * r3**(2 * SS%par_ggg) / r2**(2 * SS%par_ggg)
-                    !     else
-                    !         !! Здесь надо делать ТВД
-
-                    !     end if
-                    ! end if
-
-                    ! if(par2(1) <= 0.000000001) then
-                    !     print*, "Error rho2 89 45465u76jhgrefrwcwdf4c, ", par2(1) 
-                    !     print*, "num = ", cell, sosed
-                    !     print*, "center = ", center
-                    !     print*, "_______________"
-                    !     print*, par2
-                    !     print*, "_______________"
-                    !     print*, par1
-                    !     print*, "_______massiv________"
-                    !     print*, SS%gd(1:5, sosed, 1)
-                    !     print*, "_______________"
-                    !     print*, SS%gd(1:5, sosed, 2)
-                    !     pause
-                    ! end if
-
                     normal = SS%gl_Gran_normal(:, gran, now)
                     Sqv = SS%gl_Gran_length(gran, now)
                     lenght = SS%gl_Cell_gran_dist(gr, cell, now)
@@ -388,7 +360,7 @@ module Algoritm
                     ! Нужно вычислить скорость движения грани
                     wc = DOT_PRODUCT((SS%gl_Gran_Center(:, gran, now2) -  gran_center)/TT, normal)
 
-                    call Get_gran_parameter(SS, gran, cell, par1_TVD, par2, now)
+                    call Get_gran_parameter(SS, gran, cell, par1_TVD, par2, now)  !! Основная функция получения параметров
 
                     qqq1(1) = par1_TVD(1)
                     qqq1(5) = par1_TVD(2)
@@ -458,9 +430,11 @@ module Algoritm
                 Vol = SS%gl_Cell_square(cell, now)
                 Vol2 = SS%gl_Cell_square(cell, now2)
 
-                call Calc_sourse_MF(SS, cell, source, now)
+                call Calc_sourse_MF(SS, cell, source, now, .True.)
 
-                if(ieee_is_nan(source(2))) then
+                if(center(1) > 110) source = 0.0  !! УБРАТЬ
+
+                if(ieee_is_nan(source(2)) .or. ieee_is_nan(source(1)) .or. ieee_is_nan(source(4))) then
                     print*, "error source nan 186 tyujhwgeftywfwf"
                     print*, "centr = ", center
                     print*, "______________ 0"
@@ -485,7 +459,7 @@ module Algoritm
                 Q = par1(5)
 
                 ! Законы сохранения в ячейке
-                ro2 = ro * Vol/Vol2 - TT * (POTOK(1) / Vol2 + ro * v/center(2))
+                ro2 = ro * Vol/Vol2 - TT * (POTOK(1) / Vol2 + ro * v/center(2) - source(1))
                 if(ro2 <= 0.0) then
                     print*, "Ro < 0", ro2, ro, TT, Vol, cell
                     print*, "centr = ", center
@@ -496,7 +470,7 @@ module Algoritm
                     print*, "_____________"
                     stop
                 end if
-                Q2 = Q * Vol/Vol2 - TT * (POTOK(5) / Vol2 + Q * v/center(2))
+                Q2 = Q * Vol/Vol2 - TT * (POTOK(5) / Vol2 + Q * v/center(2) - (Q/ro) * source(1))
                 u2 = (ro * u * Vol/Vol2 - TT * ( POTOK(3) / Vol2 + ro * v * u/center(2) - source(2) )) / ro2
                 v2 = (ro * v * Vol/Vol2 - TT * ( POTOK(4) / Vol2 + ro * v * v/center(2) - source(3) )) / ro2
 
@@ -1362,10 +1336,11 @@ module Algoritm
 	    ! Передвигает поверхности сетки согласно поверхностям в SURF
 	    TYPE (Setka), intent(in out) :: SS
 		TYPE (Inter_Setka), intent(in out) :: XX
-        integer(4) :: N, i, num
+        integer(4) :: N, i, num, j
         real(8) :: center(2)
         real(8) :: parH(5, 4)
         real(8) :: par(5)
+        real(8) :: source(4)
 
         if(size(SS%hydrogen(:, 1, 1, 2)) /= size(parH(:, 1))) STOP "ERROR 1 size Algoritm_Reinterpol 5y65gw4fervsgf "
         if(size(SS%hydrogen(1, :, 1, 2)) /= size(parH(1, :))) STOP "ERROR 2 size Algoritm_Reinterpol 98y8t4uhvtiewvgtssfvgs "
@@ -1376,13 +1351,28 @@ module Algoritm
 
         do i = 1, N
             center = SS%gl_Cell_Centr(:, i, 1)
-            call Int_Get_Parameter(XX, center(1), center(2), num, PAR_hydrogen = parH, PAR_gd = par)
+            call Int_Get_Parameter(XX, center(1), center(2), num, PAR_hydrogen = parH, PAR_gd = par, PAR_atom_source = source)
+            do j = 1, 4
+                if(parH(1, j) <= 0.0) parH(1, j) = 0.0000001
+                if(parH(2, j) <= 0.0) parH(2, j) = 0.0000001
+            end do
+
+            if(parH(1, 4) > 3.0) then
+                print*, "ERROR  roh4"
+                print*, center
+                pause
+            end if
+
+
             SS%hydrogen(:, :, i, 1) = parH
             SS%hydrogen(:, :, i, 2) = parH
-            if(par(1) <= 0.0) par(1) = 0.0000001
-            if(par(2) <= 0.0) par(2) = 0.000001
-            SS%gd(:, i, 1) = par
-            SS%gd(:, i, 2) = par
+            ! if(par(1) <= 0.0) par(1) = 0.0000001
+            ! if(par(2) <= 0.0) par(2) = 0.000001
+            ! SS%gd(:, i, 1) = par
+            ! SS%gd(:, i, 2) = par
+
+            if(center(1) > 110) source = 0.0  !! УБРАТЬ
+            SS%atom_source(1:4, i) = source
         end do
     end subroutine Algoritm_Reinterpol
 

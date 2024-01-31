@@ -5,6 +5,7 @@ module Monte_Karlo
     USE My_func
 	USE OMP_LIB
 	USE Phys_parameter
+	USE Interpol
     implicit none 
 
 
@@ -52,9 +53,12 @@ module Monte_Karlo
 			cell = 1
 
             !$omp critical
-                print*, "Start potok = ", potok, " iter = ", iter, "   step = ", step, "from = ", par_n_potok * par_n_parallel
-                step = step + 1
+				if(mod(step, 10) == 0) then
+					print*, "Start potok = ", potok, " iter = ", iter, "   step = ", step, "from = ", par_n_potok * par_n_parallel
+				end if
+				step = step + 1
 			!$omp end critical
+			
 
 
             ! Запускаем частицы первого типа (с полусферы)
@@ -92,6 +96,7 @@ module Monte_Karlo
 						SS%M_K_particle(8, SS%stek(potok), potok) = r_peregel
 						SS%M_K_particle_2(3, SS%stek(potok), potok) = to_i  ! Зона назначения
 						SS%M_K_particle_2(4, SS%stek(potok), potok) = to_j  ! Зона назначения
+						SS%M_K_particle_2(5, SS%stek(potok), potok) = 1  ! В какой примерно интерполяционной ячейке атом
 					end if
 
                     call M_K_Fly(SS, SS_int, potok)
@@ -139,6 +144,7 @@ module Monte_Karlo
 				SS%M_K_particle(8, SS%stek(potok), potok) = r_peregel
 				SS%M_K_particle_2(3, SS%stek(potok), potok) = to_i  ! Зона назначения
 				SS%M_K_particle_2(4, SS%stek(potok), potok) = to_j  ! Зона назначения
+				SS%M_K_particle_2(5, SS%stek(potok), potok) = 1  ! В какой примерно интерполяционной ячейке атом
 
 				call M_K_Fly(SS, SS_int, potok)
 
@@ -170,6 +176,7 @@ module Monte_Karlo
 				SS%M_K_particle(8, SS%stek(potok), potok) = r_peregel
 				SS%M_K_particle_2(3, SS%stek(potok), potok) = to_i  ! Зона назначения
 				SS%M_K_particle_2(4, SS%stek(potok), potok) = to_j  ! Зона назначения
+				SS%M_K_particle_2(5, SS%stek(potok), potok) = 1  ! В какой примерно интерполяционной ячейке атом
 
 				call M_K_Fly(SS, SS_int, potok)
 			end do
@@ -200,13 +207,16 @@ module Monte_Karlo
 				SS%M_K_particle(8, SS%stek(potok), potok) = r_peregel
 				SS%M_K_particle_2(3, SS%stek(potok), potok) = to_i  ! Зона назначения
 				SS%M_K_particle_2(4, SS%stek(potok), potok) = to_j  ! Зона назначения
+				SS%M_K_particle_2(5, SS%stek(potok), potok) = 1  ! В какой примерно интерполяционной ячейке атом
 
 				call M_K_Fly(SS, SS_int, potok)
 			end do
 
-			!$omp critical
-                print*, "END potok = ", potok, " iter = ", iter
-			!$omp end critical
+			if(.False.) then
+				!$omp critical
+					print*, "END potok = ", potok, " iter = ", iter
+				!$omp end critical
+			end if
 
         end do
 		!$omp end do
@@ -259,7 +269,7 @@ module Monte_Karlo
 				pp = SS%gl_all_Cell(j, i)
 				if(pp < 1) CYCLE
 				
-				if((SS%gl_yzel(1, pp, 1) >= 0.0 .and. norm2(SS%gl_yzel(:, pp, 1)) >= par_Rmax)) then
+				if((SS%gl_yzel(1, pp, 1) >= 0.0 .and. norm2(SS%gl_yzel(:, pp, 1)) >= 0.9999 * par_Rmax)) then
 					SS%M_K_Moment(:, :, i, 1) = 0.0
 					SS%M_K_Moment(1, 4, i, 1) = 1.0
 					SS%M_K_Moment(4, 4, i, 1) = 0.5
@@ -319,6 +329,28 @@ module Monte_Karlo
 			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.00000001) SS%atom_source(3, i) = 1.0
 			if(SS%atom_source(3, i) < 0.2) SS%atom_source(3, i) = 1.0
 
+			if(ieee_is_nan(SS%atom_source(1, i))) then
+                print*, "ERROR HLXV6vl0W7FK1NUDTcqDRMxYnHSEcz"
+				print*, source
+				print*, "__________________"
+				print*, SS%hydrogen(:, :, i, 1)
+				STOP
+            end if
+			if(ieee_is_nan(SS%atom_source(2, i))) then
+                print*, "ERROR bpwNmZ48RJKG0nuLbVxRhrpSqg9U8K"
+				print*, source
+				print*, "__________________"
+				print*, SS%hydrogen(:, :, i, 1)
+				STOP
+            end if
+			if(ieee_is_nan(SS%atom_source(3, i))) then
+                print*, "ERROR ngKnlHn7aUAFi6xdoLRJH4jZr8l8Bl"
+				print*, source
+				print*, "__________________"
+				print*, SS%hydrogen(:, :, i, 1)
+				STOP
+            end if
+
 			SS%atom_source(4, i) = sum(SS%atom_all_source(1, :, i))
 			SS%atom_source(5, i) = sum(SS%atom_all_source(2, :, i))
 			SS%atom_source(6, i) = sum(SS%atom_all_source(3, :, i))
@@ -338,11 +370,12 @@ module Monte_Karlo
 		
 		integer(4) :: num  ! Номер частицы, верхняя в стеке
 		integer(4) :: cell ! Номер ячейки, в которой находится частица
+		integer(4) :: cell2 ! Номер ячейки для интерполяции
 		integer(4) :: next ! Номер ячейки, в которую попадёт частица в следующий раз
 		integer(4) :: next2 ! Номер ячейки, в которую попадёт частица в следующий раз
 		integer(4) :: area2  ! Зона, в которой сейчас находится ячейка
 		integer(4) :: II  ! На сколько атомов расщепляется атом при перезарядке
-		integer(4) :: to_i, to_j, from_i, from_j
+		integer(4) :: to_i, to_j, from_i, from_j, drob
 		logical :: bb, bb2, inzone
 		
 		real(8) :: time ! Оценочное время до вылета частицы из ячейки
@@ -380,8 +413,6 @@ module Monte_Karlo
 			if(MK_Mu_stat) particle_3 = SS%M_K_particle_3(:, :, num, n_potok)
 
 			
-			
-			
 			loop1: do  ! пока частица не вылетит из области или не обрежется рулеткой
 				!print*, particle(1), norm2(particle(2:3))
 				!print*, particle
@@ -390,47 +421,37 @@ module Monte_Karlo
 				mu = particle(7)                                ! Вес частицы
 			
 				!print*, "AA"
+				call Geo_Belong_Cell(SS, particle(1), sqrt(particle(2)**2 + particle(3)**2), cell, inzone)
+				if(inzone == .False.) then
+					print*, "ERROR EmIxrzHCn4z5lV0sheAzTLgq2JLTJx"
+					STOP
+				end if
+
 				call Geo_Time_fly(SS, particle(1:3), particle(4:6), time, cell, next)  ! Находим время time до вылета из ячейки
 				!print*, "BB"
 				!time = max(0.0000001_8, time * 1.0001) ! Увеличим время, чтобы частица точно вышла из ячейки
 
-				r_exit = particle(1:3) + time * particle(4:6)
-				next2 = cell
-				call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
+				! r_exit = particle(1:3) + time * particle(4:6)
+				! next2 = cell
+				! call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
 				
-				! do while(next2 == cell .and. inzone == .True.) 
-				! 	! print*, "Error 171 next2 == cell  time = ", time
-				! 	! print*, particle(1), norm2(particle(2:3))
-				! 	! print*, "----------------------"
-				! 	! print*, particle(4:6)
-				! 	! print*, "----------------------"
-				! 	! print*, r_exit(1), norm2(r_exit(2:3))
-				! 	! print*, "----------------------"
-				! 	! STOP
-				! 	time = time * 1.05
-				! 	r_exit = particle(1:3) + time * particle(4:6)
-				! 	call Geo_Find_Cell(SS, r_exit(1), sqrt(r_exit(2)**2 + r_exit(3)**2), next2, inzone)
-				! end do
-				!print*, "CC"
-				
+				cell2 = particle_2(5)
+
 				kappa = 0.0
-				do ijk = 1, 3
-					
-					select case (ijk)
-						case(1)
-							ddt = 1.0/6.0                                      
-						case(2)
-							ddt = 1.0/2.0                                    
-						case(3)
-							ddt = 5.0/6.0                                  
-						case default
-							print*, "Error uijkhjgfbnbnn hbuhuefw"
-							STOP
-					end select
+				drob = 3
+
+				if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
+					if(SS%gl_Cell_number(2, cell) == 1) drob = 10
+				end if
+
+				do ijk = 1, drob
+					ddt = ijk * 1.0/drob - 0.5/drob
 
 					phi = polar_angle(particle(2) + ddt * time * particle(5), particle(3) + ddt * time * particle(6))
 					
-					PAR = SS%gd(:, cell, 1)  !! Пока без интерполяции
+					call Int_Get_Parameter(SS_int, particle(1) + ddt * time * particle(5), &
+						norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
+					!PAR = SS%gd(:, cell, 1)  !! Пока без интерполяции
 				
 					cp = sqrt(PAR(2)/PAR(1))
 					vx = PAR(3)
@@ -473,10 +494,11 @@ module Monte_Karlo
 						nu_ex = (ro * MK_int_1(u, cp)) / SS%par_Kn        ! Пробуем вычислять интеграллы численно
 					end if
 			
-					kappa = kappa + (nu_ex * time/3.0)  ! по перезарядке
+					kappa = kappa + (nu_ex * time/drob)  ! по перезарядке
 				end do
 				!print*, "DD"
 				area2 = SS%gl_all_Cell_zone(cell) ! Зона рождения
+				particle_2(5) = cell2
 				
 				r = norm2(particle(1:3) + time/2.0 * particle(4:6))
 				
@@ -509,17 +531,19 @@ module Monte_Karlo
 				
 				!! проверка, если перезарядка произошла за пределами ячейки (нужно немного сдвигать её в этом случае)
 
-				next2 = cell
-				call Geo_Find_Cell(SS, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2), next2) 
+				! next2 = cell
+				! call Geo_Find_Cell(SS, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2), next2) 
+				call Geo_Belong_Cell(SS, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2), cell, inzone)
+        
 
-				if (cell /= next2) then
+				if (inzone == .False.) then
 					t_ex = time * 0.998
 					t2 = time - t_ex
 					r_ex = particle(1:3) + t_ex * particle(4:6)  
 
 					!? Можно будет потом убрать проверку
-					call Geo_Find_Cell(SS, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2), next2) 
-					if (cell /= next2) then 
+					call Geo_Belong_Cell(SS, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2), cell, inzone)
+					if (inzone == .False.) then 
 						print*, r_ex(1), sqrt(r_ex(2)**2 + r_ex(3)**2)
 						print*, "______________________"
 						print*, SS%gl_Cell_Centr(:, cell, 1)
@@ -593,7 +617,7 @@ module Monte_Karlo
 					SS%M_K_particle(7, SS%stek(n_potok), n_potok) = mu3
 					SS%M_K_particle(8, SS%stek(n_potok), n_potok) = r_peregel
 
-					SS%M_K_particle_2(:,SS%stek(n_potok), n_potok) = (/ cell, area2, to_i, to_j /)
+					SS%M_K_particle_2(:, SS%stek(n_potok), n_potok) = (/ cell, area2, to_i, to_j, cell2 /)
 					
 					if(MK_Mu_stat == .True.) then
 						if(particle_2(2) == area2) then
@@ -614,6 +638,9 @@ module Monte_Karlo
 				! Находим следующую ячейку
 				
 				particle(1:3) = particle(1:3) + time * particle(4:6)
+
+				call Geo_Find_Cell(SS, particle(1), sqrt(particle(2)**2 + particle(3)**2), next, inzone = inzone) ! Находим точно следующий тетраэдр 
+
 				if(next <= 0 .or. inzone == .False.) then
 					if (norm2(particle(1:3)) <= 100.0) then
 						print*, "Error 23e2323 ", particle(1:3)
@@ -623,10 +650,6 @@ module Monte_Karlo
 				end if
 				
 				11	continue 
-				
-				!print*, "C"
-				call Geo_Find_Cell(SS, particle(1), sqrt(particle(2)**2 + particle(3)**2), next, inzone = inzone) ! Находим точно следующий тетраэдр 
-				!print*, "D"
 				
 				if(inzone == .False.) then
 					print*, particle
@@ -645,7 +668,7 @@ module Monte_Karlo
 				
 				particle_2(1) = next
 				if(next == 0) then
-					if (norm2(particle(1:3)) <= 100.0) then
+					if (norm2(particle(1:3)) <= 150.0) then
 						print*, "Error wqer2r42  ", particle(1:3)
 						pause
 					end if
@@ -653,7 +676,7 @@ module Monte_Karlo
 					EXIT loop1  ! частица долетела до края области
 				end if
 				
-				if(particle(1) > 0.00001 .and. norm2(particle(1:3)) > par_Rmax + 0.001) then
+				if(particle(1) > -0.000001 .and. norm2(particle(1:3)) > par_Rmax - 0.000001) then
 					EXIT loop1  ! частица долетела до края области
 				end if
 
@@ -724,7 +747,6 @@ module Monte_Karlo
 
 	end subroutine MK_ADD_MOMENT
 
-
     subroutine M_K_Set(SS)
 		TYPE (Setka), intent(in out) :: SS
 		integer(4) :: i, j, n, k
@@ -794,7 +816,7 @@ module Monte_Karlo
 		
 		close(2)
 		
-		SS%MK_Mu(:, :, 1) = SS%MK_Mu(:, :, 1) * 1.5
+		SS%MK_Mu(:, :, 1) = SS%MK_Mu(:, :, 1) * 1.0 ! 1.5
 		SS%MK_Mu(:, :, 2) = SS%MK_Mu(:, :, 2) * 0.2
 		SS%MK_Mu(:, :, 3) = SS%MK_Mu(:, :, 3) * 0.5
 		SS%MK_Mu(:, :, 4) = SS%MK_Mu(:, :, 4) * 0.5
@@ -816,7 +838,6 @@ module Monte_Karlo
 		SS%MK_A0_ = (Yr + 1.0 / (2.0 * Yr)) * erf(Yr) + exp(-(Yr**2)) / par_sqrtpi + Yr
 		SS%MK_A1_ = 1.0 + (1.0 + 1.0 / (2.0 * (Yr)**2 )) * erf(Yr) + exp(-(Yr**2) ) / (par_sqrtpi * Yr)
 	end subroutine M_K_Set
-
 
     subroutine M_K_init(SS)
 		TYPE (Setka), intent(in out) :: SS
@@ -850,7 +871,6 @@ module Monte_Karlo
 		! Body of M_K_init
 		SS%MK_N = SS%MK_N * par_n_potok * par_n_parallel
 	end subroutine M_K_init
-
 
     subroutine Get_sensor_sdvig(SS, sdvig)
 		! Считываем датчики случайных чисел из файла

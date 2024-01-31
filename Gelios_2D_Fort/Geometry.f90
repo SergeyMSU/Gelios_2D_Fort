@@ -1,6 +1,7 @@
 module GEOMETRY
     use STORAGE 
     use My_func
+    USE ieee_arithmetic
     implicit none 
 
     contains
@@ -1413,8 +1414,8 @@ module GEOMETRY
         end do
 
         
-        if(iter > 1000) then
-            print*, "ERROR iter > 1000 345uimmnbvcw3rfbyunnrbv"
+        if(iter > 5) then
+            print*, "ERROR iter > 5 345uimmnbvcw3rfbyunnrbv"
             print*, "_________________________"
             print*, XX
             print*, "_________________________ 1"
@@ -1423,11 +1424,41 @@ module GEOMETRY
             print*, SS%gl_Cell_Centr(:, cell, 1)
             print*, "_________________________"
             print*, VV
-            STOP
+            print*, "_________________________"
+
+            call Geo_Belong_Cell(SS, XX(1), sqrt(XX(2)**2 + XX(3)**2), cell, inzone)
+            if(inzone == .False.) STOP "ERROR fhjgc2QFPcHioEkAowzgpxgP72Dfkf"
+
+            ! Находим это время вручную
+            b2 = 100.0/norm2(VV)
+            b1 = 0.0
+
+            call Geo_Belong_Cell(SS, XX(1) + b2 * VV(1), sqrt((XX(2) + b2 * VV(2))**2 + (XX(3) + b2 * VV(3))**2), cell, inzone)
+            if(inzone == .True.) STOP "ERROR jmMxQH4OdkLjnuQXxVaetoqt2iX51f"
+
+            do while( dabs(b1 - b2) > 0.00001)
+                b3 = 0.5 * (b1 + b2)
+                call Geo_Belong_Cell(SS, XX(1) + b3 * VV(1), sqrt((XX(2) + b3 * VV(2))**2 + (XX(3) + b3 * VV(3))**2), cell, inzone)
+                if(inzone == .False.) then
+                    b2 = b3
+                else
+                    b1 = b3
+                end if
+            end do
+
+            time = b3
+            next = cell
+            print*, "YSPEX", b3
+            return
+
         end if
 
+        12 continue 
+
         if(min_i == -1) then
-            12 continue 
+            
+            !print*, "______________________________________"
+            !print*, XX
             r = SS%gl_Cell_Centr(:, cell, 1)
             rr(1) = XX(1)
             rr(2) = norm2(XX(2:3))
@@ -1436,25 +1467,35 @@ module GEOMETRY
 
             XX(1) = r(1)
             XX(2:3) = XX(2:3) * (r(2)/rr(2))
+            !print*, XX
+            !print*, "______________________________________"
 
+            if(iter > 3) XX(2) = XX(2) + 0.0001
             GO TO 11
-            ! print*, "ERROR min_i"
-            ! print*, "__________________"
-            ! print*, XX
-            ! print*, "__________________"
-            ! print*, VV
-            ! print*, "__________________"
-            ! STOP
         end if
 
         t1 = min_t * 0.999
         t2 = min_t * 1.001
 
         call Geo_Belong_Cell(SS, XX(1) + t1 * VV(1), sqrt((XX(2) + t1 * VV(2))**2 + (XX(3) + t1 * VV(3))**2), cell, inzone)
-        if(inzone /= .True.) GO TO 12
+        if(inzone /= .True.) then
+            min_i = -1
+            GO TO 12
+        end if
 
         call Geo_Belong_Cell(SS, XX(1) + t2 * VV(1), sqrt((XX(2) + t2 * VV(2))**2 + (XX(3) + t2 * VV(3))**2), cell, inzone)
-        if(inzone /= .False.) GO TO 12
+        if(inzone /= .False.) then
+            min_i = -1
+            GO TO 12
+        end if
+
+        call Geo_Belong_Cell(SS, XX(1) + 0.5 * min_t * VV(1), sqrt((XX(2) + 0.5 * min_t * VV(2))**2 + (XX(3) + 0.5 * min_t * VV(3))**2), cell, inzone)
+        if(inzone /= .True.) then
+            print*, "ERROR IwKfCrJlphvbfa5nXjye7CcDuiR7kT"
+            min_i = -1
+            GO TO 12
+        end if
+
 
 
         
@@ -1913,14 +1954,15 @@ module GEOMETRY
 
         open(1, file = SS%name // '_Print_hydrogen.txt')
         write(1,*) "TITLE = 'HP'  VARIABLES = X, Y" 
-        write(1,*)",Rho1, p1, u1, v1, T1"
-        write(1,*)",Rho2, p2, u2, v2, T2"
-        write(1,*)",Rho3, p3, u3, v3, T3"
-        write(1,*)",Rho4, p4, u4, v4, T4"
+        write(1,*)", Rho1, p1, u1, v1, T1"
+        write(1,*)", Rho2, p2, u2, v2, T2"
+        write(1,*)", Rho3, p3, u3, v3, T3"
+        write(1,*)", Rho4, p4, u4, v4, T4"
+        write(1,*)", k_u, k_v, k_T, In"
 
         do j = 1, size(SS%gl_all_Cell(1, :))
             write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1)
+            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(1:4, j)
         end do
 
         close(1)
@@ -2736,7 +2778,7 @@ module GEOMETRY
         read(1) SS%gl_TS
         read(1) SS%gl_BS
 
-        read(1) SS%gl_Gran_type     
+        read(1) SS%gl_Gran_type   
 
         !! ФИЗИКА
         read(1) SS%n_Hidrogen
@@ -2745,6 +2787,7 @@ module GEOMETRY
         read(1) SS%gd
         read(1) SS%hydrogen
 
+        !if(name == "B0034") then
         read(1) n
         if(n == 1) then
             read(1) n1
@@ -2761,7 +2804,7 @@ module GEOMETRY
             if(n2 /= size(SS%atom_source(1, :))) STOP "ERROR 2755 Geometry cew3tyukb6vcx3e3eftegr6437iol9ek6i7u "
             read(1) SS%atom_source
         end if
-
+        !end if
 
         call Geo_Culc_normal(SS, 1) 
         call Geo_Culc_length_area(SS, 1)

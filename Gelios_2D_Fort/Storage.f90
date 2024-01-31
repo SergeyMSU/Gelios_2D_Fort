@@ -24,7 +24,7 @@ module STORAGE
 
     ! „исло частиц у каждого потока!
 	! „исло должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 6 * 6 * 10 !3 * 18!6 * 11! 17   ! 6 = 10 минут счЄта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_multiply = 6 * 6 * 3  !   ! 6 = 10 минут счЄта (с пикапами 18 минут)
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
 	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 60 „исло исходных частиц первого типа (с полусферы)
@@ -258,6 +258,7 @@ module STORAGE
         ! Ax + By + C
         ! 
         ! интерпол€ционна€ матрица дл€ каждой €чейки
+        ! Ёта интерпол€ци€ не работает дл€ кривых областей! “очнее работает не правильно (интерполируемое значени€ бывает больше, чем значени€ в узлах)
 
         !! ‘»«» ј
         integer(4) :: n_Hidrogen = 4  ! „исло сортов атомов водорода

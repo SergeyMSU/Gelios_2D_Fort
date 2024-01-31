@@ -234,14 +234,18 @@ module Phys_parameter
 
     end subroutine Get_gran_parameter
 
-    subroutine Calc_sourse_MF(SS, cell, sourse, step)  ! Считаются мультифлюидные источники
+    subroutine Calc_sourse_MF(SS, cell, sourse, step, use_koeff_)  ! Считаются мультифлюидные источники
         TYPE (Setka), intent(in) :: SS
         real(8), intent(out) :: sourse(:)  ! (масса, два импульса и энергия)
         integer(4), intent(in) :: cell, step
-        
+        logical, intent(in), optional :: use_koeff_     ! Оспользовать ли умножение источников на коэффециенты, посчитанные Монте-Карло
+        logical :: use_koeff
         integer(4) :: i
         real(8) :: U_M_H(SS%n_Hidrogen), UU_H(SS%n_Hidrogen), sigma(SS%n_Hidrogen), nu(SS%n_Hidrogen)
         real(8) ro, p, u, v, ro_H, p_H, u_H, v_H
+
+        use_koeff = .False.
+        if(PRESENT(use_koeff_))  use_koeff = use_koeff_
         
         sourse = 0.0
 
@@ -249,6 +253,14 @@ module Phys_parameter
         p = SS%gd(2, cell, step)
         u = SS%gd(3, cell, step)
         v = SS%gd(4, cell, step)
+
+        if(ro <= 0.0000001) then
+            ro = 0.0000001
+        end if
+
+        if(p <= 0.0000001) then
+            p = 0.0000001
+        end if
         
         ! Body of Calc_sourse_MF
         do i = 1, SS%n_Hidrogen
@@ -257,11 +269,11 @@ module Phys_parameter
             u_H = SS%hydrogen(3, i, cell, step)
             v_H = SS%hydrogen(4, i, cell, step)
 
-            if(ro_H <= 0.0) then
+            if(ro_H <= 0.0000001) then
                 ro_H = 0.0000001
             end if
 
-            if(p_H <= 0.0) then
+            if(p_H <= 0.0000001) then
                 p_H = 0.0000001
             end if
 
@@ -278,6 +290,15 @@ module Phys_parameter
             p_H = SS%hydrogen(2, i, cell, step)
             u_H = SS%hydrogen(3, i, cell, step)
             v_H = SS%hydrogen(4, i, cell, step)
+
+            if(ro_H <= 0.0000001) then
+                ro_H = 0.0000001
+            end if
+
+            if(p_H <= 0.0000001) then
+                p_H = 0.0000001
+            end if
+
             sourse(1) = 0.0
             sourse(2) =  sourse(2) + nu(i) * (u_H - u)
             sourse(3) =  sourse(3) + nu(i) * (v_H - v)
@@ -285,27 +306,12 @@ module Phys_parameter
                 u**2 - v**2)/2.0 + (UU_H(i)/U_M_H(i)) * (2.0 * p_H/ro_H - p/ro ) )
         end do
         
-        sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)
-
-
-        ! if(ieee_is_nan(sourse(2))) then
-        !     print*, "error source nan re5brtnmujtymuntr"
-		! 	ro_H = SS%hydrogen(1, 3, cell, step)
-        !     p_H = SS%hydrogen(2, 3, cell, step)
-        !     u_H = SS%hydrogen(3, 3, cell, step)
-        !     v_H = SS%hydrogen(4, 3, cell, step)
-        !     print*, ro, p, u, v
-        !     print*, ro_H, p_H, u_H, v_H
-        !     print*, "______________"
-        !     print*, nu
-		! 	print*, "______________"
-        !     print*, sigma
-		! 	print*, "______________"
-        !     print*, U_M_H
-        !     print*, "______________"
-        !     print*, sourse
-        !     STOP
-        ! end if
+        if (use_koeff == .False.) then
+            sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)
+        else
+            sourse(1) = SS%atom_source(4, cell)
+            sourse(2:4) = sourse(2:4) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(1:3, cell)
+        end if
         
 	end subroutine Calc_sourse_MF
 
