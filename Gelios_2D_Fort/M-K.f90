@@ -320,14 +320,20 @@ module Monte_Karlo
 			SS%atom_source(2, i) = sum(SS%atom_all_source(3, :, i))/source(3)
 			SS%atom_source(3, i) = sum(SS%atom_all_source(4, :, i))/source(4)
 
-			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.00000001) SS%atom_source(1, i) = 1.0
+			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.000001) SS%atom_source(1, i) = 1.0
 			if(SS%atom_source(1, i) < 0.2) SS%atom_source(1, i) = 1.0
 
-			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.00000001) SS%atom_source(2, i) = 1.0
+			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.000001) SS%atom_source(2, i) = 1.0
 			if(SS%atom_source(2, i) < 0.2) SS%atom_source(2, i) = 1.0
 
-			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.00000001) SS%atom_source(3, i) = 1.0
+			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.000001) SS%atom_source(3, i) = 1.0
 			if(SS%atom_source(3, i) < 0.2) SS%atom_source(3, i) = 1.0
+
+			print*, sum(SS%atom_all_source(2, :, i)), source(2)
+			print*, sum(SS%atom_all_source(3, :, i)), source(3)
+			print*, sum(SS%atom_all_source(4, :, i)), source(4)
+			print*, "_______________________"
+			pause
 
 			if(ieee_is_nan(SS%atom_source(1, i))) then
                 print*, "ERROR HLXV6vl0W7FK1NUDTcqDRMxYnHSEcz"
@@ -348,6 +354,8 @@ module Monte_Karlo
 				print*, source
 				print*, "__________________"
 				print*, SS%hydrogen(:, :, i, 1)
+				print*, "__________________"
+				print*, SS%atom_source(:, i)
 				STOP
             end if
 
@@ -428,6 +436,11 @@ module Monte_Karlo
 				end if
 
 				call Geo_Time_fly(SS, particle(1:3), particle(4:6), time, cell, next)  ! Находим время time до вылета из ячейки
+
+				if(next < 1) then
+					print*, "ERROR 0i904ut98yh4f8ohwiojhioywhhfpw9jpfe"
+					pause
+				end if
 				!print*, "BB"
 				!time = max(0.0000001_8, time * 1.0001) ! Увеличим время, чтобы частица точно вышла из ячейки
 
@@ -440,9 +453,9 @@ module Monte_Karlo
 				kappa = 0.0
 				drob = 3
 
-				if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
-					if(SS%gl_Cell_number(2, cell) == 1) drob = 10
-				end if
+				! if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
+				! 	if(SS%gl_Cell_number(2, cell) == 1) drob = 10
+				! end if
 
 				do ijk = 1, drob
 					ddt = ijk * 1.0/drob - 0.5/drob
@@ -574,8 +587,9 @@ module Monte_Karlo
 
 				!print*, "FF"
 				! НАДО НАКОПИТЬ МОМЕНТЫ
-				call MK_ADD_MOMENT(SS, n_potok, particle_2(2), cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
-					 particle(4:6), particle(1:3), u, cp, uz, u1, u2, u3, skalar)
+				call MK_ADD_MOMENT(SS, SS_int, n_potok, particle_2(2), cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
+					 particle(4:6), particle(1:3))
+
 				!print*, "GG"
 				
 				call spherical_skorost(r_ex(1), r_ex(2), r_ex(3), vx, vy, vz, Ur, Uphi, Uthe)
@@ -691,35 +705,100 @@ module Monte_Karlo
 
 	end subroutine M_K_Fly
 
-	subroutine MK_ADD_MOMENT(SS, n_potok, sort, cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, u, cp, uz, u1, u2, u3, skalar)
+	subroutine MK_ADD_MOMENT(SS, SS_int, n_potok, sort, cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX)
 		TYPE (Setka), intent(in out) :: SS
-		integer(4), intent(in) :: n_potok, sort, cell
-		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), u, cp, uz, u1, u2, u3, mu_ex, mu_ph, skalar
+		TYPE (Inter_Setka), intent(in) :: SS_int
+		integer(4), intent(in) :: n_potok, sort, cell, cell2
+		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), mu_ex, mu_ph
 
-		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3
+		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3, vx, vy, vz
 
-		alpha = polar_angle(XX(2), XX(3))
-		v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
+		integer(4) :: drob, ik, cell3
+		real(8) :: rr, r(3), time, PAR(5), u, cp, uz, u1, u2, u3, skalar
 
-
+		cell3 = cell2
+		!! Находим то, что можно найти сразу -------------------------------------------------------------
 		SS%M_K_Moment(1, sort, cell, n_potok) = SS%M_K_Moment(1, sort, cell, n_potok) + t_ex * mu + t2 * mu2
 		SS%M_K_Moment(2, sort, cell, n_potok) = SS%M_K_Moment(2, sort, cell, n_potok) + (t_ex * mu + t2 * mu2) * VV(1)
-		SS%M_K_Moment(3, sort, cell, n_potok) = SS%M_K_Moment(3, sort, cell, n_potok) + (t_ex * mu + t2 * mu2) * v
 		SS%M_K_Moment(4, sort, cell, n_potok) = SS%M_K_Moment(4, sort, cell, n_potok) + &
 			(t_ex * mu + t2 * mu2) * kvv(VV(1), VV(2), VV(3))
-
 		SS%M_K_Moment(9, sort, cell, n_potok) = SS%M_K_Moment(9, sort, cell, n_potok) + &
 			(t_ex * mu + t2 * mu2) * VV(1)**2
-		SS%M_K_Moment(10, sort, cell, n_potok) = SS%M_K_Moment(10, sort, cell, n_potok) + &
-			(t_ex * mu + t2 * mu2) * VV(1) * v
-		SS%M_K_Moment(11, sort, cell, n_potok) = SS%M_K_Moment(11, sort, cell, n_potok) + &
-			(t_ex * mu + t2 * mu2) * v * v
 		SS%M_K_Moment(12, sort, cell, n_potok) = SS%M_K_Moment(12, sort, cell, n_potok) + &
 			(t_ex * mu + t2 * mu2) * VV(1)**3
-		SS%M_K_Moment(13, sort, cell, n_potok) = SS%M_K_Moment(13, sort, cell, n_potok) + &
-			(t_ex * mu + t2 * mu2) * v**3
+		! Добавим интеграллы по фотоионизации  
+		SS%M_K_Moment(5, sort, cell, n_potok) = SS%M_K_Moment(5, sort, cell, n_potok) + mu_ph 
+		SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ph * VV(1)
+		SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+			mu_ph * (0.5 * norm2(VV) + SS%par_E_ph)
+		!! ----------------------------------------------------------------------------------------------------------
+		
+
+		! Следующие нужно интегрировать вдоль пути
+		drob = 3
+		rr = norm2(XX(2:3))
+		if(rr < 10.0) then
+			drob = 7
+		else if(rr < 30.0) then
+			drob = 5
+		end if
+
+		do ik = 1, drob
+			time = t_ex/drob - t_ex/(2.0 * drob)
+			r = XX + time * VV
+			alpha = polar_angle(r(2), r(3))
+			v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
+
+			SS%M_K_Moment(3, sort, cell, n_potok) = SS%M_K_Moment(3, sort, cell, n_potok) + (t_ex/drob * mu) * v
+			SS%M_K_Moment(10, sort, cell, n_potok) = SS%M_K_Moment(10, sort, cell, n_potok) + &
+				(t_ex/drob * mu) * VV(1) * v
+			SS%M_K_Moment(11, sort, cell, n_potok) = SS%M_K_Moment(11, sort, cell, n_potok) + &
+				(t_ex/drob * mu) * v * v
+			SS%M_K_Moment(13, sort, cell, n_potok) = SS%M_K_Moment(13, sort, cell, n_potok) + &
+				(t_ex/drob * mu) * v**3
+		end do
+
+		do ik = 1, drob
+			time = t_ex + t2/drob - t2/(2.0 * drob)
+			r = XX + time * VV
+			alpha = polar_angle(r(2), r(3))
+			v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
+
+			SS%M_K_Moment(3, sort, cell, n_potok) = SS%M_K_Moment(3, sort, cell, n_potok) + (t2/drob * mu2) * v
+			SS%M_K_Moment(10, sort, cell, n_potok) = SS%M_K_Moment(10, sort, cell, n_potok) + &
+				(t2/drob * mu2) * VV(1) * v
+			SS%M_K_Moment(11, sort, cell, n_potok) = SS%M_K_Moment(11, sort, cell, n_potok) + &
+				(t2/drob * mu2) * v * v
+			SS%M_K_Moment(13, sort, cell, n_potok) = SS%M_K_Moment(13, sort, cell, n_potok) + &
+				(t2/drob * mu2) * v**3
+		end do
+
+
+
+		! Следующие находим только в точке перезарядки
+		r = XX + t_ex * VV
+		alpha = polar_angle(r(2), r(3))
+		v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
+		if(cell3 < 1) then
+			print*, 'ERROR 98437y8og30j3f4j9h3, ', cell3
+			pause
+		end if
+		call Int_Get_Parameter(SS_int, r(1), norm2(r(2:3)), cell3, PAR_gd = PAR)
+		!PAR = SS%gd(:, cell, 1)
+		cp = sqrt(PAR(2)/PAR(1))
+		vx = PAR(3)
+		vy = PAR(4) * cos(alpha)
+		vz = PAR(4) * sin(alpha)
+
+		u = sqrt(kvv(VV(1) - vx, VV(2) - vy, VV(3) - vz))
+		u1 =  vx - VV(1)
+		u2 =  vy - VV(2)
+		u3 =  vz - VV(3)
+		skalar = VV(1) * u1 + VV(2) * u2 + VV(3) * u3
+
 
 		if (u / cp > 7.0) then
+			uz = MK_Velosity_1(u, cp)
 			uz_M = MK_Velosity_2(u, cp)/ (uz * (cp**2) * cp * par_pi * par_sqrtpi)
 			uz_E = MK_Velosity_3(u, cp)
 			
@@ -739,11 +818,8 @@ module Monte_Karlo
 		end if
 
 		! Добавим интеграллы по фотоионизации  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		SS%M_K_Moment(5, sort, cell, n_potok) = SS%M_K_Moment(5, sort, cell, n_potok) + mu_ph 
-		SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ph * VV(1)
 		SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ph * v
-		SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
-			mu_ph * (0.5 * norm2(VV) + SS%par_E_ph)
+		
 
 	end subroutine MK_ADD_MOMENT
 

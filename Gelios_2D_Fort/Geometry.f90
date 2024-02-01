@@ -1169,6 +1169,12 @@ module GEOMETRY
 
         max_num = 0
 
+        if(num < 1) then
+            print*, "ERROR 987y843gobiufhwiuhluhfygoiwhf"
+            pause
+        end if
+
+
         loop1:do while(.TRUE.)
             max_num = max_num + 1
 			if(present(inzone)) inzone = .True.
@@ -1501,6 +1507,10 @@ module GEOMETRY
         
         next = SS%gl_Cell_neighbour(min_i, cell)
         time = t2
+
+        if(next < 1) then  !! Значит не было соседа в этом направлении
+            next = cell
+        end if
 
         !print*, XX(1) + time * VV(1), norm2(XX(2:3) + time * VV(2:3))
         !pause

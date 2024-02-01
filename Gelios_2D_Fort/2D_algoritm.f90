@@ -105,7 +105,7 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "B0034")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿
+        call Read_setka_bin(gl_S3, "B0037")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -115,7 +115,7 @@ module Algoritm
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "00034")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
+        call Read_setka_bin(SS, "A0037")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -141,15 +141,15 @@ module Algoritm
         ! call Calc_move_velosity(SS, 1)
         ! call Move_all(SS, 2, 1.0_8)
 
-        do i = 1, size(SS%gl_Cell_Centr(1, :, 1))  !! ”ƒ¿À»“‹
-            if(SS%gl_Cell_Centr(1, i, 1) > 120.0) then
-                SS%gd(1, i, 1) = 1.0
-                SS%gd(2, i, 1) = 1.0
-                SS%gd(3, i, 1) = SS%par_Velosity_inf
-                SS%gd(4, i, 1) = 0.0
-                SS%gd(:, i, 2) = SS%gd(:, i, 1)
-            end if
-        end do
+        ! do i = 1, size(SS%gl_Cell_Centr(1, :, 1))  !! ”ƒ¿À»“‹
+        !     if(SS%gl_Cell_Centr(1, i, 1) > 120.0) then
+        !         SS%gd(1, i, 1) = 1.0
+        !         SS%gd(2, i, 1) = 1.0
+        !         SS%gd(3, i, 1) = SS%par_Velosity_inf
+        !         SS%gd(4, i, 1) = 0.0
+        !         SS%gd(:, i, 2) = SS%gd(:, i, 1)
+        !     end if
+        ! end do
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
@@ -160,9 +160,9 @@ module Algoritm
         call Print_hydrogen(SS)
 
         print*, "H"
-        i_max = 200!200!350
+        i_max = 300!200!350   100 - 7 ÏËÌÛÚ
         do i = 1, i_max
-            if (mod(i, 25) == 0) then
+            if (mod(i, 20) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
             call Start_GD_algoritm(SS, 5000, 2) !5000
@@ -181,7 +181,7 @@ module Algoritm
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "A0035")
+        call Save_setka_bin(SS, "A0038")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -197,18 +197,19 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: i, j, cell
 
-        call Read_setka_bin(SS, "00034")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
+        call Read_setka_bin(SS, "A0038")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
 
-        do i = SS%par_n_BS + 1, size(SS%gl_Cell_A(:, 1))  !! ”ƒ¿À»“‹
-            do j = 1, size(SS%gl_Cell_A(1, :))
-                cell = SS%gl_Cell_A(i, j)
-                SS%gd(1, cell, 1) = 1.0
-                SS%gd(2, cell, 1) = 1.0
-                SS%gd(3, cell, 1) = SS%par_Velosity_inf
-                SS%gd(4, cell, 1) = 0.0
-                SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
-            end do
-        end do
+        ! do i = SS%par_n_BS + 1, size(SS%gl_Cell_A(:, 1))  !! ”ƒ¿À»“‹
+        !     do j = 1, size(SS%gl_Cell_A(1, :))
+        !         cell = SS%gl_Cell_A(i, j)
+        !         SS%gd(1, cell, 1) = 1.0
+        !         SS%gd(2, cell, 1) = 1.0
+        !         SS%gd(3, cell, 1) = SS%par_Velosity_inf
+        !         SS%gd(4, cell, 1) = 0.0
+        !         SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
+        !     end do
+        ! end do
+
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
         call Print_Grans(SS)
@@ -255,7 +256,7 @@ module Algoritm
         call Print_hydrogen(gl_S3)
         call Print_hydrogen_1D(gl_S3)
 
-        call Save_setka_bin(gl_S3, "B0035")
+        call Save_setka_bin(gl_S3, "B0038")
 
         print*, "END"
 
@@ -457,6 +458,10 @@ module Algoritm
                 u = par1(3)
                 v = par1(4)
                 Q = par1(5)
+
+                if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! ”ƒ¿À»“‹
+                    source(3) = 0.0
+                end if
 
                 ! «‡ÍÓÌ˚ ÒÓı‡ÌÂÌËˇ ‚ ˇ˜ÂÈÍÂ
                 ro2 = ro * Vol/Vol2 - TT * (POTOK(1) / Vol2 + ro * v/center(2) - source(1))
