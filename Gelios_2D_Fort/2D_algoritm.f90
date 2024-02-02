@@ -186,7 +186,7 @@ module Algoritm
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "A0048")
+        call Save_setka_bin(SS, "A0049")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -209,17 +209,17 @@ module Algoritm
         call Int_Init(gl_S2, SS)
 		print*, "A3"
         !! Задаём параметры мини-сетки
-        gl_S3%par_m_A = 30! 30      ! Количество лучей A в плоскости
+        gl_S3%par_m_A = 20! 30      ! Количество лучей A в плоскости
         gl_S3%par_m_BC = 10! 18      ! Количество лучей B/C в плоскости
         gl_S3%par_m_O = 10! 17      ! Количество лучей O в плоскости
         gl_S3%par_m_K = 8! 7      ! Количество лучей K в плоскости
         gl_S3%par_n_TS =  33! 26                    ! Количество точек до TS (TS включается)
         gl_S3%par_n_HP =  63! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
         gl_S3%par_n_BS =  89! 60! 5                 ! Количество точек BS (BS включается)
-        gl_S3%par_n_END = 100! 72! 6                ! Количество точек до конца сетки (конец включается)
+        gl_S3%par_n_END = 101! 72! 6                ! Количество точек до конца сетки (конец включается)
         gl_S3%par_n_IA =  20! 12                   ! Количество точек, которые входят во внутреннюю область
         gl_S3%par_n_IB =  22! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
-        gl_S3%par_kk2 = 1.7
+        gl_S3%par_kk2 = 2.08
         call Init_Setka(gl_S3)
 		print*, "A4"
         call Build_Setka_start(gl_S3)
@@ -242,7 +242,7 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: i, j, cell
 
-        call Read_setka_bin(SS, "A0038")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0049")      ! ОСНОВНАЯ СЕТКА
 
         ! do i = SS%par_n_BS + 1, size(SS%gl_Cell_A(:, 1))  !! УДАЛИТЬ
         !     do j = 1, size(SS%gl_Cell_A(1, :))
@@ -274,7 +274,7 @@ module Algoritm
         gl_S3%par_n_TS =  27! 26                    ! Количество точек до TS (TS включается)
         gl_S3%par_n_HP =  37! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
         gl_S3%par_n_BS =  57! 60! 5                 ! Количество точек BS (BS включается)
-        gl_S3%par_n_END = 65! 72! 6                ! Количество точек до конца сетки (конец включается)
+        gl_S3%par_n_END = 68! 72! 6                ! Количество точек до конца сетки (конец включается)
         gl_S3%par_n_IA =  12! 12                   ! Количество точек, которые входят во внутреннюю область
         gl_S3%par_n_IB =  14! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
         call Init_Setka(gl_S3)
@@ -301,7 +301,7 @@ module Algoritm
         call Print_hydrogen(gl_S3)
         call Print_hydrogen_1D(gl_S3)
 
-        call Save_setka_bin(gl_S3, "B0038")
+        call Save_setka_bin(gl_S3, "B0049")
 
         print*, "END"
 
@@ -555,7 +555,7 @@ module Algoritm
                 Q = par1(5)
 
                 if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! УБРАТЬ
-                    !source(3) = 0.0
+                    source(3) = 0.0
                 end if
 
                 ! Законы сохранения в ячейке

@@ -930,7 +930,7 @@ module GEOMETRY
         real(8), INTENT(IN) :: R_TS, R_HP, R_BS
 
         integer(4) :: node, N2
-        real(8) :: the, r
+        real(8) :: the, r, rr, dd
 
         node = SS%gl_RAY_A(i, j)
         N2 = size(SS%gl_RAY_A(1, :))
@@ -951,8 +951,14 @@ module GEOMETRY
 			r = R_TS + (R_HP - R_TS) * sgushenie_2(DBLE(i - SS%par_n_TS)/(SS%par_n_HP - SS%par_n_TS), SS%par_kk14)
 		else if (i <= SS%par_n_BS) then 
 			r = R_HP + (R_BS - R_HP) * (DBLE(i - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**1.6
+		else if (i <= SS%par_n_BS + 4) then 
+            dd = (R_BS - R_HP) * ( 1.0 - (DBLE(SS%par_n_BS - 1 - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+            r = R_BS + (i - SS%par_n_BS) * dd
 		else
-			r = R_BS + (SS%par_R_END - R_BS) * (DBLE(i- SS%par_n_BS)/(SS%par_n_END - SS%par_n_BS))**(SS%par_kk2 * (0.55 + 0.45 * cos(the)) )
+            dd = (R_BS - R_HP) * ( 1.0 - (DBLE(SS%par_n_BS - 1 - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+            rr = R_BS + (4) * dd
+			r = rr + (SS%par_R_END - rr) * (DBLE(i - SS%par_n_BS - 4)/(SS%par_n_END - SS%par_n_BS - 4))**(SS%par_kk2 * (0.55 + 0.45 * cos(the)) )
+			!r = R_BS + (SS%par_R_END - R_BS) * (DBLE(i- SS%par_n_BS)/(SS%par_n_END - SS%par_n_BS))**(SS%par_kk2 * (0.55 + 0.45 * cos(the)) )
 		end if
 
         SS%gl_yzel(1, node, step) = r * cos(the)
@@ -1009,7 +1015,7 @@ module GEOMETRY
         integer(4), INTENT(IN) :: i, j, step
 
         integer(4) :: node, N2, N1
-        real(8) :: the, r, rr, xx, R_BS
+        real(8) :: the, r, rr, xx, R_BS, dd, rrr
 
         node = SS%gl_RAY_C(i, j)
         N2 = size(SS%gl_RAY_C(1, :))
@@ -1027,8 +1033,13 @@ module GEOMETRY
 
         if (i <= SS%par_n_BS - SS%par_n_HP + 1) then
 			r = rr + (R_BS - rr) * (DBLE(i)/(SS%par_n_BS - SS%par_n_HP + 1))**1.6
+        else if (i <= SS%par_n_BS - SS%par_n_HP + 5) then
+            dd = 1.07 * (R_BS - rr) * ( 1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP + 1))**1.6 )
+			r = R_BS + dd * (i - (SS%par_n_BS - SS%par_n_HP + 1))
 		else
-			r = R_BS + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 1))/(N1 - (SS%par_n_BS - SS%par_n_HP + 1) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - R_BS)
+            dd = 1.07 * (R_BS - rr) * ( 1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP + 1))**1.6 )
+            rrr = R_BS + dd * 4
+			r = rrr + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 5))/(N1 - (SS%par_n_BS - SS%par_n_HP + 5) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - rrr)
 		end if
 
         SS%gl_yzel(1, node, step) = xx
@@ -1046,7 +1057,7 @@ module GEOMETRY
         real(8), INTENT(IN) :: R_HP
 
         integer(4) :: node, N2, N1
-        real(8) :: the, r, rr, xx, R_BS, x
+        real(8) :: the, r, rr, xx, R_BS, x, rrr, dd
 
         node = SS%gl_RAY_O(i, j)
         N2 = size(SS%gl_RAY_O(1, :))
@@ -1060,8 +1071,15 @@ module GEOMETRY
 
         if (i <= SS%par_n_BS - SS%par_n_HP + 1) then
 			r = R_HP + (R_BS - R_HP) * (DBLE(i - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6
+		else if (i <= SS%par_n_BS - SS%par_n_HP + 5) then
+            dd = 1.07 * (R_BS - R_HP) * (1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+			!r = R_HP + (R_BS - R_HP) * (DBLE(i - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6
+            r = R_BS + dd * (i - (SS%par_n_BS - SS%par_n_HP + 1))
 		else
-			r = R_BS + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 1))/(N1 - (SS%par_n_BS - SS%par_n_HP + 1) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - R_BS)
+            dd = 1.07 * (R_BS - R_HP) * (1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+			rrr = R_BS + 4 * dd
+            r = rrr + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 5))/(N1 - (SS%par_n_BS - SS%par_n_HP + 5) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - rrr)
+            !r = R_BS + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 1))/(N1 - (SS%par_n_BS - SS%par_n_HP + 1) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - R_BS)
 		end if
 
         SS%gl_yzel(1, node, step) = x
@@ -1566,7 +1584,8 @@ module GEOMETRY
             SS%gl_Cell_square(i, step) = S
             if(S <= 0.0) then
                 print*, "S = ", S
-                STOP "ERROR Geo_Culc_length_area 1178  ioyefdvenmlgp9yrtgb"
+                print*, "ERROR Geo_Culc_length_area 1178  ioyefdvenmlgp9yrtgb"
+                !STOP
             end if
 
             p2 = SS%gl_Cell_Centr(:, i, step)

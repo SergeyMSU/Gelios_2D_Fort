@@ -405,12 +405,12 @@ module Phys_parameter
             sourse(2) = sourse(2) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(1, cell)
             sourse(4) = sourse(4) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(3, cell)
 
-            if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) <= 2) then !! ÓÁÐÀÒÜ
-                sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn)
-            else
-                sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
-            end if
-            !sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
+            ! if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) <= 2) then !! ÓÁÐÀÒÜ
+            !     sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn)
+            ! else
+            !     sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
+            ! end if
+            sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
         end if
         
 	end subroutine Calc_sourse_MF

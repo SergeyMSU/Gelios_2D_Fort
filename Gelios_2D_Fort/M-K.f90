@@ -803,8 +803,8 @@ module Monte_Karlo
 		! Следующие нужно интегрировать вдоль пути
 		drob = 3
 		rr = norm2(XX(2:3))
-		if(rr < 10.0) then
-			drob = 7
+		if(rr < 6.0) then
+			drob = 15
 		else if(rr < 30.0) then
 			drob = 5
 		end if
