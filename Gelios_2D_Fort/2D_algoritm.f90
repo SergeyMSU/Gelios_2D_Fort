@@ -105,7 +105,7 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "B0037")   ! ДЛЯ ВОДОРОДА
+        call Read_setka_bin(gl_S3, "B0038")   ! ДЛЯ ВОДОРОДА
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -115,7 +115,7 @@ module Algoritm
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "A0037")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0048")      ! ОСНОВНАЯ СЕТКА
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -155,14 +155,19 @@ module Algoritm
         call Geo_Print_Surface(SS)
         call Print_Grans(SS)
         call Print_GD_1D(SS)
-        call Algoritm_Reinterpol(SS, gl_I1)
+        call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
 
         call Print_hydrogen(SS)
 
+        ALLOCATE(SS%gl_Gran_POTOK(size(SS%gl_all_Gran(1, :))))
+
+        SS%gl_Gran_POTOK = -100000.0
+
         print*, "H"
-        i_max = 300!200!350   100 - 7 минут
+        i_max = 100!200!350   100 - 7 минут
         do i = 1, i_max
-            if (mod(i, 20) == 0) then
+            !SS%par_kk2 = SS%par_kk2 + 0.2/300
+            if (mod(i, 2) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
             call Start_GD_algoritm(SS, 5000, 2) !5000
@@ -176,12 +181,12 @@ module Algoritm
 
             call Start_GD_algoritm(SS, 500, 1) !500
 
-            call Algoritm_Reinterpol(SS, gl_I1)
+            call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
         end do
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "A0038")
+        call Save_setka_bin(SS, "A0048")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -192,6 +197,46 @@ module Algoritm
 
         !pause
     end subroutine Gas_dynamic_algoritm2
+
+    subroutine Perestroika_algoritm(SS)
+        ! Пересетройка основной сетки
+        TYPE (Setka), intent(in out) :: SS
+
+        call Read_setka_bin(SS, "A0047")      ! ОСНОВНАЯ СЕТКА
+        print*, "A1"
+        call SUR_init(gl_surf1, SS)
+		print*, "A2"
+        call Int_Init(gl_S2, SS)
+		print*, "A3"
+        !! Задаём параметры мини-сетки
+        gl_S3%par_m_A = 30! 30      ! Количество лучей A в плоскости
+        gl_S3%par_m_BC = 10! 18      ! Количество лучей B/C в плоскости
+        gl_S3%par_m_O = 10! 17      ! Количество лучей O в плоскости
+        gl_S3%par_m_K = 8! 7      ! Количество лучей K в плоскости
+        gl_S3%par_n_TS =  33! 26                    ! Количество точек до TS (TS включается)
+        gl_S3%par_n_HP =  63! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
+        gl_S3%par_n_BS =  89! 60! 5                 ! Количество точек BS (BS включается)
+        gl_S3%par_n_END = 100! 72! 6                ! Количество точек до конца сетки (конец включается)
+        gl_S3%par_n_IA =  20! 12                   ! Количество точек, которые входят во внутреннюю область
+        gl_S3%par_n_IB =  22! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
+        gl_S3%par_kk2 = 1.7
+        call Init_Setka(gl_S3)
+		print*, "A4"
+        call Build_Setka_start(gl_S3)
+		print*, "A5"
+	    call Algoritm_ReMove_Surface(gl_S3, gl_surf1)
+		print*, "A6"
+        call Algoritm_Reinterpol(gl_S3, gl_S2)
+
+        call Print_Cell(gl_S3)
+        call Print_GD(gl_S3)
+        call Geo_Print_Surface(gl_S3)
+        call Print_Grans(gl_S3)
+        call Print_GD_1D(gl_S3)
+
+        call Save_setka_bin(gl_S3, "A0048")
+
+    end subroutine Perestroika_algoritm
 
     subroutine MK_algoritm(SS)
         TYPE (Setka), intent(in out) :: SS
@@ -274,7 +319,7 @@ module Algoritm
         real(8) :: ro2, p2, u2, v2, Q2, pp, par1_TVD(5), r, phi1, phi2, Vr, Vphi, phi3
         real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(5), source(4), r2, r3, par3(5), par4(5)
         real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME, lenght, wc, gran_center(2), sosed_center(2)
-        logical :: tvd1, tvd2
+        logical :: tvd1, tvd2, null_un
         integer(4) :: kdir, idgod, KOBL
 
 		all_step = all_step_
@@ -314,7 +359,7 @@ module Algoritm
             !$omp parallel
 
 
-            !$omp do private(KOBL, kdir, idgod, sosed_center, phi3, gran_center, Vr, Vphi, phi1, phi2, r, par1_TVD, wc, &
+            !$omp do private(null_un, KOBL, kdir, idgod, sosed_center, phi3, gran_center, Vr, Vphi, phi1, phi2, r, par1_TVD, wc, &
             !$omp r3, r2, loc_time, gr, gran, sosed, center, par1, TVD_sosed_1, TVD_sosed_2, &
             !$omp par2, ro, p, u, v, Q, normal, Sqv, Vol, Vol2, ro2, p2, u2, v2, Q2, pp, qqq1, &
             !$omp qqq2, POTOK2, POTOK, source, dsl, dsc, dsp, lenght, par3, par4, tvd1, tvd2)
@@ -343,6 +388,7 @@ module Algoritm
                 do gr = 1, 4
                     ! tvd1 = .True.
                     ! tvd2 = .True.
+                    null_un = .False.
 					POTOK2 = 0.0
                     KOBL = 0
                     kdir = 0
@@ -363,6 +409,18 @@ module Algoritm
 
                     call Get_gran_parameter(SS, gran, cell, par1_TVD, par2, now)  !! Основная функция получения параметров
 
+                    ! if(center(1) > 25 .and. center(1) < 30 .and. center(2) < 4 .and. &
+                    ! ( SS%gl_Gran_neighbour(2, gran) == -4 .or. SS%gl_Gran_neighbour(1, gran) == -4) ) then
+                    !     print*, "EEEEEE"
+                    !     print*, par1_TVD
+                    !     print*, "EEEEEE"
+                    !     print*, par2
+                    !     print*, "EEEEEE"
+                    !     print*, par1
+                    !     print*, "EEEEEE"
+                    !     pause
+                    ! end if
+
                     qqq1(1) = par1_TVD(1)
                     qqq1(5) = par1_TVD(2)
                     qqq1(2) = par1_TVD(3)
@@ -379,9 +437,12 @@ module Algoritm
                     qqq2(6:8) = 0.0
                     qqq2(9) = par2(5)
 
+                    
+
                     !if(.False.) then
                     !if(.True.) then
                     if(SS%gl_Gran_shem(gran) == 3) then
+                        123 continue
                         call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                         normal(1), normal(2), 0.0_8, 1.0_8, &
                         wc, qqq1(1:8), qqq2(1:8), &
@@ -399,10 +460,35 @@ module Algoritm
                                 POTOK2(9) = POTOK2(1) / qqq2(1) * qqq2(9)
                             end if
                         end if
+
+                        ! if(SS%gl_Gran_type(gran) == 2 .and. null_un == .False.) then
+                        !     !print*, "POTOK = 0"
+                        !     !pause
+                        !     null_un = .True.
+                        !     POTOK2 = 0.0
+                        !     wc = dsc
+                        !     go to 123
+                        ! end if
                     else
                         call chlld_Q(SS%gl_Gran_shem(gran), normal(1), normal(2), 0.0_8, &
                         wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
                     end if
+
+                    ! if(gran == 77) then
+                    !     print*, qqq1
+                    !     print*, "__________________"
+                    !     print*, qqq2
+                    !     print*, "__________________"
+                    !     print*, SS%gl_Gran_shem(gran), wc
+                    !     print*, "__________________"
+                    !     print*, POTOK2
+                    !     print*, "__________________"
+                    !     print*, dsl, dsp, dsc
+                    !     print*, "__________________"
+                    !     print*, normal
+                    !     print*, "__________________"
+                    !     pause
+                    ! end if
 
                     loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )
 
@@ -418,12 +504,21 @@ module Algoritm
                         !$omp end critical
                     end if
 
-                    ! if(cell == 2807) then
-                    !    print*, "Gran = ", gr, sosed
-                    !    print*, "sosed = ", SS%gl_Gran_neighbour(1, gran), SS%gl_Gran_neighbour(2, gran), cell
-                    !    print*, "normal = ", normal
-                    !    print*, "Sqv = ", Sqv
-                    !    print*, "POTOK2 = ", POTOK2
+
+                    ! if(SS%gl_Gran_POTOK(gran) < -99000) then
+                    !     SS%gl_Gran_POTOK(gran) = POTOK2(1)
+                    ! else if(dabs(dabs(POTOK2(1)) - dabs(SS%gl_Gran_POTOK(gran))) > 0.00001) then
+                    !     print*, "________________"
+                    !     print*, POTOK2(1)
+                    !     print*, "________________"
+                    !     print*, SS%gl_Gran_POTOK(gran)
+                    !     print*, "________________"
+                    !     print*, gran_center
+                    !     print*, "________________"
+                    !     print*, gran
+                    !     print*, "________________"
+						
+                    !     pause
                     ! end if
 
                 end do
@@ -433,7 +528,7 @@ module Algoritm
 
                 call Calc_sourse_MF(SS, cell, source, now, .True.)
 
-                if(center(1) > 110) source = 0.0  !! УБРАТЬ
+                if(center(1) > 120) source = 0.0  !! УБРАТЬ
 
                 if(ieee_is_nan(source(2)) .or. ieee_is_nan(source(1)) .or. ieee_is_nan(source(4))) then
                     print*, "error source nan 186 tyujhwgeftywfwf"
@@ -459,8 +554,8 @@ module Algoritm
                 v = par1(4)
                 Q = par1(5)
 
-                if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! УДАЛИТЬ
-                    source(3) = 0.0
+                if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! УБРАТЬ
+                    !source(3) = 0.0
                 end if
 
                 ! Законы сохранения в ячейке
@@ -497,7 +592,11 @@ module Algoritm
 			!$omp end do
             !$omp end parallel
 
+
         end do
+
+
+        
 
         ! print*, "ALL_TIME = ", ALL_TIME
 
@@ -1336,16 +1435,22 @@ module Algoritm
 		
 	end subroutine Algoritm_ReMove_Surface
 
-    subroutine Algoritm_Reinterpol(SS, XX)
+    subroutine Algoritm_Reinterpol(SS, XX, gd_)
         !! Переинтерполирует значения атомарного водорода из сетки интерполяции в центры ячеек новой сетки
+        !! Нужно ли переинтерполировать газовую динамику, или только водород
 	    ! Передвигает поверхности сетки согласно поверхностям в SURF
 	    TYPE (Setka), intent(in out) :: SS
 		TYPE (Inter_Setka), intent(in out) :: XX
+        logical, intent(in), OPTIONAL :: gd_
         integer(4) :: N, i, num, j
         real(8) :: center(2)
         real(8) :: parH(5, 4)
         real(8) :: par(5)
         real(8) :: source(4)
+        logical :: gd
+
+        gd = .True.
+        if(present(gd_)) gd = gd_
 
         if(size(SS%hydrogen(:, 1, 1, 2)) /= size(parH(:, 1))) STOP "ERROR 1 size Algoritm_Reinterpol 5y65gw4fervsgf "
         if(size(SS%hydrogen(1, :, 1, 2)) /= size(parH(1, :))) STOP "ERROR 2 size Algoritm_Reinterpol 98y8t4uhvtiewvgtssfvgs "
@@ -1371,12 +1476,15 @@ module Algoritm
 
             SS%hydrogen(:, :, i, 1) = parH
             SS%hydrogen(:, :, i, 2) = parH
-            ! if(par(1) <= 0.0) par(1) = 0.0000001
-            ! if(par(2) <= 0.0) par(2) = 0.000001
-            ! SS%gd(:, i, 1) = par
-            ! SS%gd(:, i, 2) = par
 
-            if(center(1) > 110) source = 0.0  !! УБРАТЬ
+            if(gd == .True.) then
+                if(par(1) <= 0.0) par(1) = 0.0000001
+                if(par(2) <= 0.0) par(2) = 0.000001
+                SS%gd(:, i, 1) = par
+                SS%gd(:, i, 2) = par
+            end if
+
+            !if(center(1) > 110) source = 0.0  !! УБРАТЬ
             SS%atom_source(1:4, i) = source
         end do
     end subroutine Algoritm_Reinterpol

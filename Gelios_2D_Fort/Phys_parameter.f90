@@ -102,6 +102,10 @@ module Phys_parameter
         integer(4) :: s1, s2, s3, s4, s5, i
         logical :: istoch1, istoch2
 
+        ! if(gran == 77) then
+        !     continue
+        ! end if
+
         s1 = SS%gl_Gran_neighbour(1, gran)
         s2 = SS%gl_Gran_neighbour(2, gran)
         s3 = SS%gl_Gran_neighbour_TVD(1, gran)
@@ -149,9 +153,23 @@ module Phys_parameter
                 par1_(1) = par1_(1) * r1**2 / r5**2
                 par1_(5) = par1_(5) * r1**2 / r5**2
                 par1_(2) = par1_(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+                par2_ = par1_
+                par2_(4) = -par1_(4)
+                return
             end if
             par2_ = par1_
+
+            c1 = SS%gl_Cell_Centr(:, s1, now)
+            c5 = SS%gl_Gran_Center(:, gran, now)
+            c3 = SS%gl_Cell_Centr(:, s3, now)
+            d1 = -norm2(c5 - c1)
+            d2 = -norm2(c5 - c3)
+            par3 = SS%gd(1:5, s3, now)
+            do i = 4, 4 
+                par1_(i) = linear(d2, par3(i), d1, par1_(i), -d1, -par1_(i), 0.0_8)
+            end do
             par2_(4) = -par1_(4)
+
             return
         end if
 
@@ -218,16 +236,90 @@ module Phys_parameter
                     d2 = -d1
                     d1 = -d3
                     d3 = d2
-                    d2 = -norm2(c4 - c3)
+                    d2 = -norm2(c4 - c5)
 
                     do i = 1, 5 
                         par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
                     end do
                     
                     return
+                else if(SS%gl_Cell_type(s1) == "A" .and. SS%gl_Cell_number(2, s1) == 1 .and. SS%gl_Cell_number(2, s2) == 2 .and. s4 > 0) then
+                    !! Äëÿ ÿ÷ååê ğÿäîì ñ îñüş ñèììåòğèè (ïğîåêöèÿ ââåğõ)
+                    !print*, ")))))))))))))))))))"
+                    !pause
+                    par1_ = par1
+                    !par1_(4) = par1_(4) * c5(2)/c1(2)
+                    c4 = SS%gl_Cell_Centr(:, s4, now)
+                    d1 = -norm2(c5 - c1)
+                    d3 = norm2(c5 - c2)
+                    d2 = -norm2(c5 - (/c1(1), -c1(2)/) )
+                    par4 = SS%gd(1:5, s4, now)
+
+                    do i = 4, 4 
+                        par1_(i) = linear(d2, -par1(i), d1, par1(i), d3, par2(i), 0.0_8)
+                    end do
+
+                    c4 = SS%gl_Cell_Centr(:, s4, now)
+                    d1 = -norm2(c5 - c1)
+                    d3 = norm2(c5 - c2)
+                    !par4 = SS%gd(1:5, s4, now)
+
+                    d2 = -d1
+                    d1 = -d3
+                    d3 = d2
+                    d2 = -norm2(c4 - c5)
+
+                    do i = 1, 5 
+                        par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
+                    end do
+                    
+                    return
+                else if(SS%gl_Cell_type(s2) == "A" .and. SS%gl_Cell_number(2, s2) == 1 .and. SS%gl_Cell_number(2, s1) == 2 .and. s3 > 0) then
+                    !! Äëÿ ÿ÷ååê ğÿäîì ñ îñüş ñèììåòğèè (ïğîåêöèÿ ââåğõ)
+                    !print*, ")))))))))))))))))))"
+                    !pause
+                    par2_ = par2
+                    !par2_(4) = par2_(4) * c5(2)/c2(2)
+
+                    c3 = SS%gl_Cell_Centr(:, s3, now)
+                    d1 = -norm2(c5 - c2)
+                    d2 = -norm2(c5 - (/c2(1), -c2(2)/) )
+                    d3 = norm2(c5 - c1)
+                    !par4 = SS%gd(1:5, s4, now)
+
+                    do i = 4, 4 
+                        par2_(i) = linear(d2, -par2(i), d1, par2(i), d3, par1(i), 0.0_8)
+                    end do
+
+
+                    !c3 = SS%gl_Cell_Centr(:, s3, now)
+                    d1 = -norm2(c5 - c1)
+                    d2 = -norm2(c5 - c3)
+                    d3 = norm2(c5 - c2)
+                    par3 = SS%gd(1:5, s3, now)
+
+                    do i = 1, 5 
+                        par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
+                    end do
+                    
+                    return
+
                 end if
             end if
         end if
+
+        ! if(c5(1) > 22 .and. c5(1) < 200 .and. c5(2) < 100 .and. SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2)) then
+        !     print*, "Center = "
+        !     print*, c5
+        !     print*, "_____________________________"
+        !     print*, "Center = "
+        !     print*, c1
+        !     print*, "_____________________________"
+        !     print*, "Center = "
+        !     print*, c2
+        !     print*, "_____________________________"
+        !     pause
+        ! end if
 
         par1_ = par1
         par2_ = par2
@@ -310,7 +402,15 @@ module Phys_parameter
             sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)
         else
             sourse(1) = SS%atom_source(4, cell)
-            sourse(2:4) = sourse(2:4) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(1:3, cell)
+            sourse(2) = sourse(2) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(1, cell)
+            sourse(4) = sourse(4) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(3, cell)
+
+            if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) <= 2) then !! ÓÁĞÀÒÜ
+                sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn)
+            else
+                sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
+            end if
+            !sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
         end if
         
 	end subroutine Calc_sourse_MF

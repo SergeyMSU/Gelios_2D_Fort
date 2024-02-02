@@ -320,34 +320,34 @@ module Monte_Karlo
 			SS%atom_source(2, i) = sum(SS%atom_all_source(3, :, i))/source(3)
 			SS%atom_source(3, i) = sum(SS%atom_all_source(4, :, i))/source(4)
 
-			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.000001) SS%atom_source(1, i) = 1.0
+			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.0000001) SS%atom_source(1, i) = 1.0
 			if(SS%atom_source(1, i) < 0.2) SS%atom_source(1, i) = 1.0
 
-			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.000001) SS%atom_source(2, i) = 1.0
+			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.0000001) SS%atom_source(2, i) = 1.0
 			if(SS%atom_source(2, i) < 0.2) SS%atom_source(2, i) = 1.0
 
-			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.000001) SS%atom_source(3, i) = 1.0
+			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.0000001) SS%atom_source(3, i) = 1.0
 			if(SS%atom_source(3, i) < 0.2) SS%atom_source(3, i) = 1.0
 
-			print*, sum(SS%atom_all_source(2, :, i)), source(2)
-			print*, sum(SS%atom_all_source(3, :, i)), source(3)
-			print*, sum(SS%atom_all_source(4, :, i)), source(4)
-			print*, "_______________________"
-			pause
+			! print*, sum(SS%atom_all_source(2, :, i)), source(2)
+			! print*, sum(SS%atom_all_source(3, :, i)), source(3)
+			! print*, sum(SS%atom_all_source(4, :, i)), source(4)
+			! print*, "_______________________"
+			! pause
 
 			if(ieee_is_nan(SS%atom_source(1, i))) then
                 print*, "ERROR HLXV6vl0W7FK1NUDTcqDRMxYnHSEcz"
 				print*, source
 				print*, "__________________"
 				print*, SS%hydrogen(:, :, i, 1)
-				STOP
+				!STOP
             end if
 			if(ieee_is_nan(SS%atom_source(2, i))) then
                 print*, "ERROR bpwNmZ48RJKG0nuLbVxRhrpSqg9U8K"
 				print*, source
 				print*, "__________________"
 				print*, SS%hydrogen(:, :, i, 1)
-				STOP
+				!STOP
             end if
 			if(ieee_is_nan(SS%atom_source(3, i))) then
                 print*, "ERROR ngKnlHn7aUAFi6xdoLRJH4jZr8l8Bl"
@@ -356,7 +356,7 @@ module Monte_Karlo
 				print*, SS%hydrogen(:, :, i, 1)
 				print*, "__________________"
 				print*, SS%atom_source(:, i)
-				STOP
+				!STOP
             end if
 
 			SS%atom_source(4, i) = sum(SS%atom_all_source(1, :, i))
@@ -453,9 +453,9 @@ module Monte_Karlo
 				kappa = 0.0
 				drob = 3
 
-				! if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
-				! 	if(SS%gl_Cell_number(2, cell) == 1) drob = 10
-				! end if
+				if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
+					if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
+				end if
 
 				do ijk = 1, drob
 					ddt = ijk * 1.0/drob - 0.5/drob
@@ -465,6 +465,13 @@ module Monte_Karlo
 					call Int_Get_Parameter(SS_int, particle(1) + ddt * time * particle(5), &
 						norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
 					!PAR = SS%gd(:, cell, 1)  !! Ïîêà áåç èíòåðïîëÿöèè
+
+					if(PAR(2) <= 0.0 .or. PAR(2) > 1000000.0) then
+						print*, PAR
+						print*, "___"
+						print*, cell
+						pause "ERROR p MK 15634557 y676k876jh645g3f2t43g5g543"
+					end if
 				
 					cp = sqrt(PAR(2)/PAR(1))
 					vx = PAR(3)
@@ -587,8 +594,11 @@ module Monte_Karlo
 
 				!print*, "FF"
 				! ÍÀÄÎ ÍÀÊÎÏÈÒÜ ÌÎÌÅÍÒÛ
-				call MK_ADD_MOMENT(SS, SS_int, n_potok, particle_2(2), cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
-					 particle(4:6), particle(1:3))
+				call MK_ADD_MOMENT2(SS, SS_int, n_potok, particle_2(2), cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
+				 	particle(4:6), particle(1:3))
+
+				! call MK_ADD_MOMENT(SS, n_potok, particle_2(2), cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
+				! 	particle(4:6), particle(1:3), u, cp, uz, u1, u2, u3, skalar)
 
 				!print*, "GG"
 				
@@ -705,7 +715,63 @@ module Monte_Karlo
 
 	end subroutine M_K_Fly
 
-	subroutine MK_ADD_MOMENT(SS, SS_int, n_potok, sort, cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX)
+	subroutine MK_ADD_MOMENT(SS, n_potok, sort, cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, u, cp, uz, u1, u2, u3, skalar)
+		TYPE (Setka), intent(in out) :: SS
+		integer(4), intent(in) :: n_potok, sort, cell
+		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), u, cp, uz, u1, u2, u3, mu_ex, mu_ph, skalar
+
+		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3
+
+		alpha = polar_angle(XX(2), XX(3))
+		v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
+
+
+		SS%M_K_Moment(1, sort, cell, n_potok) = SS%M_K_Moment(1, sort, cell, n_potok) + t_ex * mu + t2 * mu2
+		SS%M_K_Moment(2, sort, cell, n_potok) = SS%M_K_Moment(2, sort, cell, n_potok) + (t_ex * mu + t2 * mu2) * VV(1)
+		SS%M_K_Moment(3, sort, cell, n_potok) = SS%M_K_Moment(3, sort, cell, n_potok) + (t_ex * mu + t2 * mu2) * v
+		SS%M_K_Moment(4, sort, cell, n_potok) = SS%M_K_Moment(4, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * kvv(VV(1), VV(2), VV(3))
+
+		SS%M_K_Moment(9, sort, cell, n_potok) = SS%M_K_Moment(9, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * VV(1)**2
+		SS%M_K_Moment(10, sort, cell, n_potok) = SS%M_K_Moment(10, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * VV(1) * v
+		SS%M_K_Moment(11, sort, cell, n_potok) = SS%M_K_Moment(11, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * v * v
+		SS%M_K_Moment(12, sort, cell, n_potok) = SS%M_K_Moment(12, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * VV(1)**3
+		SS%M_K_Moment(13, sort, cell, n_potok) = SS%M_K_Moment(13, sort, cell, n_potok) + &
+			(t_ex * mu + t2 * mu2) * v**3
+
+		if (u / cp > 7.0) then
+			uz_M = MK_Velosity_2(u, cp)/ (uz * (cp**2) * cp * par_pi * par_sqrtpi)
+			uz_E = MK_Velosity_3(u, cp)
+			
+			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) - mu_ex * uz_M * u1 / u
+			SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) - mu_ex * uz_M * (u2 * cos(alpha) + u3 * sin(alpha)) / u
+			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+				mu_ex * (-0.25 * (3.0 * cp**2 + 2.0 * u**2) * (uz_E / uz) - uz_M * skalar / u)
+		else
+			k1 = MK_int_1(u, cp)
+			k2 = MK_int_2(u, cp)
+			k3 = MK_int_3(u, cp)
+			
+			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ex * (k2/k1) * u1 / u
+			SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ex * (k2/k1) * (u2 * cos(alpha) + u3 * sin(alpha)) / u
+			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+				mu_ex * (-0.5 * k3/k1 + k2/k1 * skalar / u)
+		end if
+
+		! ˜˜˜˜˜˜˜ ˜˜˜˜˜˜˜˜˜˜ ˜˜ ˜˜˜˜˜˜˜˜˜˜˜˜˜  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		SS%M_K_Moment(5, sort, cell, n_potok) = SS%M_K_Moment(5, sort, cell, n_potok) + mu_ph 
+		SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ph * VV(1)
+		SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ph * v
+		SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+			mu_ph * (0.5 * norm2(VV) + SS%par_E_ph)
+
+	end subroutine MK_ADD_MOMENT
+
+	subroutine MK_ADD_MOMENT2(SS, SS_int, n_potok, sort, cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX)
 		TYPE (Setka), intent(in out) :: SS
 		TYPE (Inter_Setka), intent(in) :: SS_int
 		integer(4), intent(in) :: n_potok, sort, cell, cell2
@@ -821,7 +887,7 @@ module Monte_Karlo
 		SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ph * v
 		
 
-	end subroutine MK_ADD_MOMENT
+	end subroutine MK_ADD_MOMENT2
 
     subroutine M_K_Set(SS)
 		TYPE (Setka), intent(in out) :: SS

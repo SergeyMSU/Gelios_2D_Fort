@@ -24,7 +24,7 @@ module STORAGE
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 1!6 * 6 * 2  !   ! 6 = 10 минут счёта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_multiply = 6 * 6 * 2!6 * 6 * 2  !   ! 6 = 10 минут счёта (с пикапами 18 минут)
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
 	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 60 Число исходных частиц первого типа (с полусферы)
@@ -176,7 +176,9 @@ module STORAGE
         integer(4), allocatable :: gl_Gran_neighbour(:,:) ! Соседи каждой грани (2,:) имеют по 2 соседа, нормаль ведёт от первого ко второму
         real(8), allocatable :: gl_Gran_normal(:, :, :)       ! (2, :, 2) Нормаль грани     !! Нормаль идёт от первой ячейки ко второй обязательно!                   
         real(8), allocatable :: gl_Gran_length(:, :)       ! (:, 2) Длина грани                       
-        real(8), allocatable :: gl_Gran_Center(:, :, :)       ! (2, :, 2) Центр грани                       
+        real(8), allocatable :: gl_Gran_Center(:, :, :)       ! (2, :, 2) Центр грани       
+
+        real(8), allocatable :: gl_Gran_POTOK(:)       ! ПОТОК ГРАНИ УБРАТЬ - проверял что потоки через грани одинаковые с обеих сторон        
         
         integer(4), allocatable :: gl_Gran_neighbour_TVD(:,:) ! TVD-Соседи каждой грани (2,:) имеют по 2 соседа
         ! 0 - значит соседа нет

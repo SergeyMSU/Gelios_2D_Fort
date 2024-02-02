@@ -1299,6 +1299,11 @@ module GEOMETRY
                 CYCLE
             end if
 
+            if(t1 == 3 .or. t2 == 3) then
+                SS%gl_Gran_shem(i) = 1
+                CYCLE
+            end if
+
             
 
         end do
@@ -1314,7 +1319,17 @@ module GEOMETRY
         end do
 
         do j = 1, 1 !size(SS%gl_Cell_A(1, :))
-            do i = SS%par_n_HP,  size(SS%gl_Cell_A(:, 1))
+            do i = SS%par_n_HP,  SS%par_n_BS - 1
+                s1 = SS%gl_Cell_A(i, j)
+                s2 = SS%gl_Cell_gran(3, s1)
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+                s2 = SS%gl_Cell_gran(4, s1)
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+            end do
+        end do
+
+        do j = 1, 1 !size(SS%gl_Cell_A(1, :))
+            do i = SS%par_n_BS,  size(SS%gl_Cell_A(:, 1))
                 s1 = SS%gl_Cell_A(i, j)
                 s2 = SS%gl_Cell_gran(3, s1)
                 if(s2 > 0) SS%gl_Gran_shem(s2) = 2
