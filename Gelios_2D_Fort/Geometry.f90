@@ -37,7 +37,9 @@ module GEOMETRY
         allocate(SS%gl_Cell_type(N1))
         allocate(SS%gl_Cell_number(2, N1))
         allocate(SS%gl_all_Cell_zone(N1))
+        allocate(SS%gl_Cell_alpha_center(N1))
         SS%gl_all_Cell_zone = 0
+        SS%gl_Cell_alpha_center = 0.0
 
         ALLOCATE(SS%gd(SS%n_par, N1 ,2))
         ALLOCATE(SS%hydrogen(5, SS%n_Hidrogen, N1 ,2))
@@ -46,6 +48,11 @@ module GEOMETRY
         SS%gd = 0.0
         SS%atom_source = 0.0
         SS%atom_all_source = 0.0
+
+        if(SS%pogl_ == .True.) then
+            ALLOCATE(SS%pogloshenie(SS%n_Hidrogen, SS%pogl_iter, N1))
+            SS%pogl_ddd = (SS%pogl_v_max - SS%pogl_v_min)/SS%pogl_iter
+        end if
 
         allocate(SS%gl_Cell_gran(4, N1))
         allocate(SS%gl_Cell_gran_dist(4, N1, 2))
@@ -151,6 +158,7 @@ module GEOMETRY
         deallocate(SS%gl_all_Cell)
         deallocate(SS%gl_Cell_neighbour)
         deallocate(SS%gl_Cell_Centr)
+        deallocate(SS%gl_Cell_alpha_center)
         deallocate(SS%gl_Cell_type)
         deallocate(SS%gl_Cell_number)
 
@@ -950,12 +958,12 @@ module GEOMETRY
 		else if (i <= SS%par_n_HP) then  
 			r = R_TS + (R_HP - R_TS) * sgushenie_2(DBLE(i - SS%par_n_TS)/(SS%par_n_HP - SS%par_n_TS), SS%par_kk14)
 		else if (i <= SS%par_n_BS) then 
-			r = R_HP + (R_BS - R_HP) * (DBLE(i - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**1.6
+			r = R_HP + (R_BS - R_HP) * (DBLE(i - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**SS%par_kk113   ! 1.6
 		else if (i <= SS%par_n_BS + 4) then 
-            dd = (R_BS - R_HP) * ( 1.0 - (DBLE(SS%par_n_BS - 1 - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+            dd = (R_BS - R_HP) * ( 1.0 - (DBLE(SS%par_n_BS - 1 - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**SS%par_kk113)
             r = R_BS + (i - SS%par_n_BS) * dd
 		else
-            dd = (R_BS - R_HP) * ( 1.0 - (DBLE(SS%par_n_BS - 1 - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+            dd = (R_BS - R_HP) * ( 1.0 - (DBLE(SS%par_n_BS - 1 - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP))**SS%par_kk113)
             rr = R_BS + (4) * dd
 			r = rr + (SS%par_R_END - rr) * (DBLE(i - SS%par_n_BS - 4)/(SS%par_n_END - SS%par_n_BS - 4))**(SS%par_kk2 * (0.55 + 0.45 * cos(the)) )
 			!r = R_BS + (SS%par_R_END - R_BS) * (DBLE(i- SS%par_n_BS)/(SS%par_n_END - SS%par_n_BS))**(SS%par_kk2 * (0.55 + 0.45 * cos(the)) )
@@ -1032,12 +1040,12 @@ module GEOMETRY
 
 
         if (i <= SS%par_n_BS - SS%par_n_HP + 1) then
-			r = rr + (R_BS - rr) * (DBLE(i)/(SS%par_n_BS - SS%par_n_HP + 1))**1.6
+			r = rr + (R_BS - rr) * (DBLE(i)/(SS%par_n_BS - SS%par_n_HP + 1))**SS%par_kk113
         else if (i <= SS%par_n_BS - SS%par_n_HP + 5) then
-            dd = 1.07 * (R_BS - rr) * ( 1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP + 1))**1.6 )
+            dd = 1.07 * (R_BS - rr) * ( 1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP + 1))**SS%par_kk113 )
 			r = R_BS + dd * (i - (SS%par_n_BS - SS%par_n_HP + 1))
 		else
-            dd = 1.07 * (R_BS - rr) * ( 1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP + 1))**1.6 )
+            dd = 1.07 * (R_BS - rr) * ( 1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP)/(SS%par_n_BS - SS%par_n_HP + 1))**SS%par_kk113 )
             rrr = R_BS + dd * 4
 			r = rrr + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 5))/(N1 - (SS%par_n_BS - SS%par_n_HP + 5) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - rrr)
 		end if
@@ -1070,13 +1078,13 @@ module GEOMETRY
         x = xx - (DBLE(j)/N2)**SS%par_kk31 * (xx - SS%par_R_LEFT)
 
         if (i <= SS%par_n_BS - SS%par_n_HP + 1) then
-			r = R_HP + (R_BS - R_HP) * (DBLE(i - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6
+			r = R_HP + (R_BS - R_HP) * (DBLE(i - 1)/(SS%par_n_BS - SS%par_n_HP))**SS%par_kk113
 		else if (i <= SS%par_n_BS - SS%par_n_HP + 5) then
-            dd = 1.07 * (R_BS - R_HP) * (1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+            dd = 1.07 * (R_BS - R_HP) * (1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP - 1)/(SS%par_n_BS - SS%par_n_HP))**SS%par_kk113)
 			!r = R_HP + (R_BS - R_HP) * (DBLE(i - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6
             r = R_BS + dd * (i - (SS%par_n_BS - SS%par_n_HP + 1))
 		else
-            dd = 1.07 * (R_BS - R_HP) * (1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP - 1)/(SS%par_n_BS - SS%par_n_HP))**1.6)
+            dd = 1.07 * (R_BS - R_HP) * (1.0 - (DBLE(SS%par_n_BS - SS%par_n_HP - 1)/(SS%par_n_BS - SS%par_n_HP))**SS%par_kk113)
 			rrr = R_BS + 4 * dd
             r = rrr + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 5))/(N1 - (SS%par_n_BS - SS%par_n_HP + 5) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - rrr)
             !r = R_BS + (DBLE(i - (SS%par_n_BS - SS%par_n_HP + 1))/(N1 - (SS%par_n_BS - SS%par_n_HP + 1) ))**(0.55 * SS%par_kk2) * (SS%par_R_END - R_BS)
@@ -1179,6 +1187,7 @@ module GEOMETRY
     subroutine Geo_Find_Cell(SS, x, y, num, inzone)
         ! Поиск номера ячейки по её координатам
         ! num = предположительный изначальный номер (если не знаем пусть будет равен 1)
+        ! inzone - нахдится ли точка внутри сетки?
         TYPE (Setka), intent(in) :: SS
         real(8), intent(in) :: x, y
         integer(4), intent(in out) :: num
@@ -1271,6 +1280,8 @@ module GEOMETRY
             p4 = SS%gl_yzel(:, a4, step)
 
             SS%gl_Cell_Centr(:, i, step) = (p1 + p2 + p3 + p4)/4.0
+            SS%gl_Cell_alpha_center(i) = polar_angle(SS%gl_Cell_Centr(1, i, step), SS%gl_Cell_Centr(2, i, step))
+
         end do
     end subroutine Culc_Cell_Centr
 
@@ -1313,12 +1324,12 @@ module GEOMETRY
             end if
 
             if(t1 == 2 .or. t2 == 2) then
-                SS%gl_Gran_shem(i) = 1
+                SS%gl_Gran_shem(i) = 1!1
                 CYCLE
             end if
 
             if(t1 == 3 .or. t2 == 3) then
-                SS%gl_Gran_shem(i) = 1
+                SS%gl_Gran_shem(i) = 1!1
                 CYCLE
             end if
 
@@ -1330,9 +1341,9 @@ module GEOMETRY
             do i = SS%par_n_TS,  SS%par_n_HP - 1
                 s1 = SS%gl_Cell_A(i, j)
                 s2 = SS%gl_Cell_gran(3, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
                 s2 = SS%gl_Cell_gran(4, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
             end do
         end do
 
@@ -1340,9 +1351,9 @@ module GEOMETRY
             do i = SS%par_n_HP,  SS%par_n_BS - 1
                 s1 = SS%gl_Cell_A(i, j)
                 s2 = SS%gl_Cell_gran(3, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
                 s2 = SS%gl_Cell_gran(4, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
             end do
         end do
 
@@ -2002,11 +2013,11 @@ module GEOMETRY
         write(1,*)", Rho2, p2, u2, v2, T2"
         write(1,*)", Rho3, p3, u3, v3, T3"
         write(1,*)", Rho4, p4, u4, v4, T4"
-        write(1,*)", k_u, k_v, k_T, In"
+        write(1,*)", k_u, k_v, k_T, In, Iu, Iv, IT"
 
         do j = 1, size(SS%gl_all_Cell(1, :))
             write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(1:4, j)
+            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(:, j)
         end do
 
         close(1)
@@ -2054,20 +2065,20 @@ module GEOMETRY
         write(1,*)",Rho2, p2, u2, v2, T2"
         write(1,*)",Rho3, p3, u3, v3, T3"
         write(1,*)",Rho4, p4, u4, v4, T4"
-        write(1,*)", k1, k2, k3"
+        write(1,*)", k1, k2, k3, In, Iu, Iv, IT"
 
         do i = size(SS%gl_Cell_B(:, 1)), 1, -1
             j = SS%gl_Cell_B(i, 1)
             
             write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-                SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(1:3, j)
+                SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(:, j)
         end do
 
         do i = 1, size(SS%gl_Cell_A(:, 1))
             j = SS%gl_Cell_A(i, 1)
 
             write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(1:3, j)
+            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(:, j)
         end do
 
         close(1)
@@ -2686,15 +2697,18 @@ module GEOMETRY
         write(1) SS%gd
         write(1) SS%hydrogen
 
-
-        write(1) 1;
+        write(1) 1
         write(1) size(SS%atom_all_source(:, 1, 1)), size(SS%atom_all_source(1, :, 1)), size(SS%atom_all_source(1, 1, :))
         write(1) SS%atom_all_source
         write(1) size(SS%atom_source(:, 1)), size(SS%atom_source(1, :))
         write(1) SS%atom_source
         
+        write(1) 1
+        write(1) SS%pogl_, SS%pogl_v_min, SS%pogl_v_max, SS%pogl_iter, SS%pogl_ddd
+        write(1) size(SS%pogloshenie(:, 1, 1)), size(SS%pogloshenie(1, :, 1)), size(SS%pogloshenie(1, 1, :))
+        write(1) SS%pogloshenie
         
-        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
@@ -2728,6 +2742,7 @@ module GEOMETRY
     
         if (exists == .False.) then
             print*, "net faila 1898 tfgdhfwy4rfetrgfw4rwter!!!"
+            pause
             STOP "net faila!!!"
         end if
 
@@ -2848,7 +2863,21 @@ module GEOMETRY
             if(n2 /= size(SS%atom_source(1, :))) STOP "ERROR 2755 Geometry cew3tyukb6vcx3e3eftegr6437iol9ek6i7u "
             read(1) SS%atom_source
         end if
-        !end if
+        
+        
+        read(1) n
+        if(n == 1) then
+            read(1) SS%pogl_, SS%pogl_v_min, SS%pogl_v_max, SS%pogl_iter, SS%pogl_ddd
+            read(1) n1, n2, n3
+            ! if(size(SS%pogloshenie) /= n1 * n2 * n3) then
+            !     print*, size(SS%pogloshenie)
+            !     print*, n1, n2, n3
+            !     pause "ERROR 9iu8yo8437rtt5eurbo6nutb6y5evtcrw4vt5ey"
+            !     STOP "ERROR 09807ety59gug5h65h5gf432g54h67g3fg"
+            ! end if
+            read(1) SS%pogloshenie
+        end if
+
 
         call Geo_Culc_normal(SS, 1) 
         call Geo_Culc_length_area(SS, 1)

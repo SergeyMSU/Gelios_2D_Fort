@@ -105,7 +105,7 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "B0038")   ! ДЛЯ ВОДОРОДА
+        call Read_setka_bin(gl_S3, "B0054")   ! ДЛЯ ВОДОРОДА
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -115,7 +115,7 @@ module Algoritm
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "A0048")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0059")      ! ОСНОВНАЯ СЕТКА
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -164,10 +164,10 @@ module Algoritm
         SS%gl_Gran_POTOK = -100000.0
 
         print*, "H"
-        i_max = 100!200!350   100 - 7 минут
+        i_max = 300!200!350   100 - 7 минут
         do i = 1, i_max
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
-            if (mod(i, 2) == 0) then
+            if (mod(i, 20) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
             call Start_GD_algoritm(SS, 5000, 2) !5000
@@ -179,14 +179,14 @@ module Algoritm
             call Geo_Culc_normal(SS, 2) 
             call Geo_Culc_length_area(SS, 2)
 
-            call Start_GD_algoritm(SS, 500, 1) !500
+            call Start_GD_algoritm(SS, 300, 1) !500
 
             call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
         end do
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "A0049")
+        call Save_setka_bin(SS, "A0060")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -242,23 +242,12 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: i, j, cell
 
-        call Read_setka_bin(SS, "A0049")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0059")      ! ОСНОВНАЯ СЕТКА
 
-        ! do i = SS%par_n_BS + 1, size(SS%gl_Cell_A(:, 1))  !! УДАЛИТЬ
-        !     do j = 1, size(SS%gl_Cell_A(1, :))
-        !         cell = SS%gl_Cell_A(i, j)
-        !         SS%gd(1, cell, 1) = 1.0
-        !         SS%gd(2, cell, 1) = 1.0
-        !         SS%gd(3, cell, 1) = SS%par_Velosity_inf
-        !         SS%gd(4, cell, 1) = 0.0
-        !         SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
-        !     end do
-        ! end do
-
-        call Print_GD(SS)
-        call Geo_Print_Surface(SS)
-        call Print_Grans(SS)
-        call Print_GD_1D(SS)
+        ! call Print_GD(SS)
+        ! call Geo_Print_Surface(SS)
+        ! call Print_Grans(SS)
+        ! call Print_GD_1D(SS)
 
 		print*, "A1"
         call SUR_init(gl_surf1, SS)
@@ -277,6 +266,9 @@ module Algoritm
         gl_S3%par_n_END = 68! 72! 6                ! Количество точек до конца сетки (конец включается)
         gl_S3%par_n_IA =  12! 12                   ! Количество точек, которые входят во внутреннюю область
         gl_S3%par_n_IB =  14! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
+        gl_S3%par_kk13 =  1.6!
+        gl_S3%par_kk14 =  0.8!
+        gl_S3%par_kk113 = 1.2
         call Init_Setka(gl_S3)
 		print*, "A4"
         call Build_Setka_start(gl_S3)
@@ -295,13 +287,20 @@ module Algoritm
 		print*, "A8"
 
         call Print_Cell(gl_S3)
+        call Print_GD(gl_S3)
+        call Geo_Print_Surface(gl_S3)
+        call Print_Grans(gl_S3)
+        call Print_GD_1D(gl_S3)
+
+        !return
 
         call M_K_start(gl_S3, gl_S2)
 
         call Print_hydrogen(gl_S3)
         call Print_hydrogen_1D(gl_S3)
+        call Calc_Pogloshenie(gl_S3)
 
-        call Save_setka_bin(gl_S3, "B0049")
+        call Save_setka_bin(gl_S3, "B0059")
 
         print*, "END"
 
@@ -526,9 +525,9 @@ module Algoritm
                 Vol = SS%gl_Cell_square(cell, now)
                 Vol2 = SS%gl_Cell_square(cell, now2)
 
-                call Calc_sourse_MF(SS, cell, source, now, .True.)
+                call Calc_sourse_MF(SS, cell, source, now, use_koeff_ = .True.)
 
-                if(center(1) > 120) source = 0.0  !! УБРАТЬ
+                !if(center(1) > 120) source = 0.0  !! УБРАТЬ
 
                 if(ieee_is_nan(source(2)) .or. ieee_is_nan(source(1)) .or. ieee_is_nan(source(4))) then
                     print*, "error source nan 186 tyujhwgeftywfwf"
@@ -554,9 +553,9 @@ module Algoritm
                 v = par1(4)
                 Q = par1(5)
 
-                if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! УБРАТЬ
-                    source(3) = 0.0
-                end if
+                ! if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! УБРАТЬ
+                !     source(3) = 0.0
+                ! end if
 
                 ! Законы сохранения в ячейке
                 ro2 = ro * Vol/Vol2 - TT * (POTOK(1) / Vol2 + ro * v/center(2) - source(1))
@@ -913,6 +912,29 @@ module Algoritm
                     CYCLE
                 end if
 
+                call Set_Ray_A(SS, i, j, R_TS, R_HP, R_BS, step2)
+            end do
+        end do
+
+        do j = 2, 2
+            the = (j - 1) * par_pi/2.0/(N2 - 1)
+
+            node = SS%gl_RAY_A(SS%par_n_TS, 2)
+            coord = SS%gl_yzel(:, node, step)
+            norma = norm2(coord)
+            R_TS = norma
+
+            node = SS%gl_RAY_A(SS%par_n_HP, 3)
+            coord = SS%gl_yzel(:, node, step)
+            norma = norm2(coord)
+            R_HP = norma
+
+            node = SS%gl_RAY_A(SS%par_n_BS, 2)
+            coord = SS%gl_yzel(:, node, step)
+            norma = norm2(coord)
+            R_BS = norma
+
+            do i = 1, N1
                 call Set_Ray_A(SS, i, j, R_TS, R_HP, R_BS, step2)
             end do
         end do

@@ -230,6 +230,7 @@ module Monte_Karlo
 
 		no = SS%MK_Mu_mult * SS%MK_N * par_n_claster
 		SS%M_K_Moment(:, :, :, :) = SS%M_K_Moment(:, :, :, :) / no  ! Вынес сюда для избежания потери точности при сложении
+		SS%pogloshenie(:, :, :) = SS%pogloshenie(:, :, :) / no
 
 		do i = 2, par_n_potok
 			SS%M_K_Moment(:, :, :, 1) = SS%M_K_Moment(:, :, :, 1) + SS%M_K_Moment(:, :, :, i)
@@ -241,6 +242,10 @@ module Monte_Karlo
 			no = Geo_Get_Volume_Rotate(SS, i, 360.0_8)
 			
 			SS%M_K_Moment(:, :, i, 1) = SS%sqv * SS%M_K_Moment(:, :, i, 1) / no
+
+			if(SS%pogl_ == .True.) then
+				SS%pogloshenie(:, :, i) = SS%pogloshenie(:, :, i) * SS%sqv / no
+			end if
 
 			do j = 1, par_n_sort
 				if(SS%M_K_Moment(1, j, i, 1) > 0.000001) then
@@ -453,18 +458,18 @@ module Monte_Karlo
 				kappa = 0.0
 				drob = 3
 
-				if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
-					if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
-				end if
+				! if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
+				! 	if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
+				! end if
 
 				do ijk = 1, drob
 					ddt = ijk * 1.0/drob - 0.5/drob
 
 					phi = polar_angle(particle(2) + ddt * time * particle(5), particle(3) + ddt * time * particle(6))
 					
-					call Int_Get_Parameter(SS_int, particle(1) + ddt * time * particle(5), &
-						norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
-					!PAR = SS%gd(:, cell, 1)  !! Пока без интерполяции
+					! call Int_Get_Parameter(SS_int, particle(1) + ddt * time * particle(5), &
+					! 	norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
+					PAR = SS%gd(:, cell, 1)  !! Пока без интерполяции
 
 					if(PAR(2) <= 0.0 .or. PAR(2) > 1000000.0) then
 						print*, PAR
@@ -716,6 +721,7 @@ module Monte_Karlo
 	end subroutine M_K_Fly
 
 	subroutine MK_ADD_MOMENT(SS, n_potok, sort, cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, u, cp, uz, u1, u2, u3, skalar)
+		!! СТАРАЯ ФУНКЦИЯ, ПОТОМ МОЖНО УБРАТЬ
 		TYPE (Setka), intent(in out) :: SS
 		integer(4), intent(in) :: n_potok, sort, cell
 		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), u, cp, uz, u1, u2, u3, mu_ex, mu_ph, skalar
@@ -777,7 +783,7 @@ module Monte_Karlo
 		integer(4), intent(in) :: n_potok, sort, cell, cell2
 		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), mu_ex, mu_ph
 
-		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3, vx, vy, vz
+		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3, vx, vy, vz, phi
 
 		integer(4) :: drob, ik, cell3
 		real(8) :: rr, r(3), time, PAR(5), u, cp, uz, u1, u2, u3, skalar
@@ -799,15 +805,25 @@ module Monte_Karlo
 			mu_ph * (0.5 * norm2(VV) + SS%par_E_ph)
 		!! ----------------------------------------------------------------------------------------------------------
 		
+		!! Для поглощения -------------------------------------------------------------------------------------
+		alpha = polar_angle(XX(2), XX(3))
+		v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
+		phi = SS%gl_Cell_alpha_center(cell)
+		v = VV(1) * cos(phi) + v * sin(phi)
+		if(v > SS%pogl_v_min .and. v < SS%pogl_v_max) then
+			drob = MK_poglosh_nomer(SS, v)
+			SS%pogloshenie(sort, drob, cell) = SS%pogloshenie(sort, drob, cell) + t_ex * mu + t2 * mu2
+		end if
+		!! ----------------------------------------------------------------------------------------------------------
 
 		! Следующие нужно интегрировать вдоль пути
 		drob = 3
-		rr = norm2(XX(2:3))
-		if(rr < 6.0) then
-			drob = 15
-		else if(rr < 30.0) then
-			drob = 5
-		end if
+		! rr = norm2(XX(2:3))
+		! if(rr < 6.0) then
+		! 	drob = 15
+		! else if(rr < 30.0) then
+		! 	drob = 5
+		! end if
 
 		do ik = 1, drob
 			time = t_ex/drob - t_ex/(2.0 * drob)
@@ -849,8 +865,8 @@ module Monte_Karlo
 			print*, 'ERROR 98437y8og30j3f4j9h3, ', cell3
 			pause
 		end if
-		call Int_Get_Parameter(SS_int, r(1), norm2(r(2:3)), cell3, PAR_gd = PAR)
-		!PAR = SS%gd(:, cell, 1)
+		!call Int_Get_Parameter(SS_int, r(1), norm2(r(2:3)), cell3, PAR_gd = PAR)  !! Интерполяция
+		PAR = SS%gd(:, cell, 1)
 		cp = sqrt(PAR(2)/PAR(1))
 		vx = PAR(3)
 		vy = PAR(4) * cos(alpha)
@@ -926,6 +942,11 @@ module Monte_Karlo
 		SS%MK_R_zone(4) = 25.0
 		SS%MK_R_zone(5) = 60.0
 		SS%MK_R_zone(6) = 130.0
+
+		if(SS%pogl_ == .True.) then
+			SS%pogloshenie = 0.0
+			if(size(SS%pogloshenie(:, 1, 1)) /= SS%n_Hidrogen) STOP "ERROR i9u498yt879v5yh64jubw9v4rbrnutrrbyvtcrw"
+		end if
 
 		
 		! Задаём лучи зон
@@ -1013,6 +1034,16 @@ module Monte_Karlo
 		! Body of M_K_init
 		SS%MK_N = SS%MK_N * par_n_potok * par_n_parallel
 	end subroutine M_K_init
+
+	integer(4) pure function MK_poglosh_nomer(SS, V)
+		!! В какой номер в массиве поглощений нужно записать данную скорость
+        TYPE (Setka), intent(in) :: SS
+		real(8), intent(in) :: V
+
+		!d = (SS%pogl_v_max - SS%pogl_v_min)/SS%pogl_iter
+		MK_poglosh_nomer = max(min(INT((V - SS%pogl_v_min)/SS%pogl_ddd) + 1, SS%pogl_iter), 1)
+		return
+	end function MK_poglosh_nomer
 
     subroutine Get_sensor_sdvig(SS, sdvig)
 		! Считываем датчики случайных чисел из файла

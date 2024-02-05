@@ -159,15 +159,35 @@ module Phys_parameter
             end if
             par2_ = par1_
 
+            ! c1 = SS%gl_Cell_Centr(:, s1, now)
+            ! c5 = SS%gl_Gran_Center(:, gran, now)
+            ! c3 = SS%gl_Cell_Centr(:, s3, now)
+            ! d1 = -norm2(c5 - c1)
+            ! d2 = -norm2(c5 - c3)
+            ! par3 = SS%gd(1:5, s3, now)
+            ! do i = 4, 4 
+            !     par1_(i) = linear(d2, par3(i), d1, par1_(i), -d1, -par1_(i), 0.0_8)
+            ! end do
+            ! par2_(4) = -par1_(4)
+
+
+            ! par1_(4) = 0.0
+            ! par2_(4) = -par1_(4)
+
+
+            !! Метод сноса в одну сторону
+
             c1 = SS%gl_Cell_Centr(:, s1, now)
             c5 = SS%gl_Gran_Center(:, gran, now)
             c3 = SS%gl_Cell_Centr(:, s3, now)
             d1 = -norm2(c5 - c1)
             d2 = -norm2(c5 - c3)
             par3 = SS%gd(1:5, s3, now)
-            do i = 4, 4 
-                par1_(i) = linear(d2, par3(i), d1, par1_(i), -d1, -par1_(i), 0.0_8)
+            do i = 1, 5 
+                par1_(i) = linear1(d2, par3(i), d1, par1_(i), 0.0_8)
             end do
+
+            par2_ = par1_
             par2_(4) = -par1_(4)
 
             return
@@ -252,11 +272,12 @@ module Phys_parameter
                     c4 = SS%gl_Cell_Centr(:, s4, now)
                     d1 = -norm2(c5 - c1)
                     d3 = norm2(c5 - c2)
-                    d2 = -norm2(c5 - (/c1(1), -c1(2)/) )
+                    d2 = 2.0 * d1! -norm2(c5 - (/c1(1), -c1(2)/) )
                     par4 = SS%gd(1:5, s4, now)
 
                     do i = 4, 4 
-                        par1_(i) = linear(d2, -par1(i), d1, par1(i), d3, par2(i), 0.0_8)
+                        par1_(i) = linear(d2, 0.0_8, d1, par1(i), d3, par2(i), 0.0_8)
+                        !par1_(i) = linear(d2, -par1(i), d1, par1(i), d3, par2(i), 0.0_8)
                     end do
 
                     c4 = SS%gl_Cell_Centr(:, s4, now)
@@ -283,12 +304,13 @@ module Phys_parameter
 
                     c3 = SS%gl_Cell_Centr(:, s3, now)
                     d1 = -norm2(c5 - c2)
-                    d2 = -norm2(c5 - (/c2(1), -c2(2)/) )
+                    d2 = 2.0 * d1!-norm2(c5 - (/c2(1), -c2(2)/) )
                     d3 = norm2(c5 - c1)
                     !par4 = SS%gd(1:5, s4, now)
 
                     do i = 4, 4 
-                        par2_(i) = linear(d2, -par2(i), d1, par2(i), d3, par1(i), 0.0_8)
+                        !par2_(i) = linear(d2, -par2(i), d1, par2(i), d3, par1(i), 0.0_8)
+                        par2_(i) = linear(d2, 0.0_8, d1, par2(i), d3, par1(i), 0.0_8)
                     end do
 
 
@@ -414,5 +436,51 @@ module Phys_parameter
         end if
         
 	end subroutine Calc_sourse_MF
+
+    subroutine Calc_Pogloshenie(SS)
+        ! Печатаем поверхности, которые выделяем
+        TYPE (Setka), intent(in) :: SS
+        integer(4) :: i, j, i_luch, sort, cell
+        real(8) :: alf, dl, r(2), u
+        character(len=2) :: name
+        real(8) :: pogl(SS%n_Hidrogen, SS%pogl_iter)
+        LOGICAL :: inzone
+
+        dl = 0.01
+        
+        do i_luch = 1, 1!19
+            pogl = 0.0
+            r = 0.0
+            cell = 1
+            write(unit=name,fmt='(i2.2)') i_luch
+            open(1, file = "Pogloshenie_" // name // ".txt")
+
+            alf = (i_luch - 1) * (par_pi/18)
+
+            do while (.True.)
+                r = r + dl * (/ cos(alf), sin(alf) /)
+                call Geo_Find_Cell(SS, r(1), r(2), cell, inzone)
+                if(inzone == .False.) EXIT
+
+                do sort = 1, SS%n_Hidrogen
+                    do i = 1, SS%pogl_iter
+                        pogl(sort, i) = pogl(sort, i) + SS%par_n_H_LISM * dl * SS%pogloshenie(sort, i, cell)/SS%pogl_ddd
+                    end do
+                end do
+
+            end do
+
+            write(1,*) "TITLE = 'HP'  VARIABLES = 'u', 'f1', 'f2', 'f3', 'f4', 'ff'"
+            pogl = pogl * par_poglosh
+
+            do i = 1, SS%pogl_iter
+                u = SS%pogl_v_min + (i + 0.5) * SS%pogl_ddd;
+                write(1,*) u * 10.3804, exp(-pogl(1, i)), exp(-pogl(2, i)), exp(-pogl(3, i)), exp(-pogl(4, i)), exp(-sum(pogl(:, i)))
+                !! Здесь скорость переведена в км/с
+            end do
+
+            close(1)
+        end do
+    end subroutine Calc_Pogloshenie
 
 end module Phys_parameter

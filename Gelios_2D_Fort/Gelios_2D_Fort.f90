@@ -93,9 +93,15 @@ program Gelios_2D_Fort
     ! call Proverka_grans_sosed(gl_S1)
     
     ! call Geo_request(gl_S1)
+    
+	! pause
+    ! call Read_setka_bin(gl_S3, "B0059")   ! дкъ бнднпндю
+	! pause
+    ! call Calc_Pogloshenie(gl_S3)
+    ! pause
 
-    !call Gas_dynamic_algoritm2(gl_S1)
-    call MK_algoritm(gl_S1)
+    call Gas_dynamic_algoritm2(gl_S1)
+    !call MK_algoritm(gl_S1)
     !call Perestroika_algoritm(gl_S1)
 
     !call Print_Cell(gl_S1)

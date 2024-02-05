@@ -21,10 +21,11 @@ module STORAGE
     real(8), parameter :: par_Rmax = 220.0  !  Радиус сферы, с которой запускаем частицы
 
     real(8), parameter :: par_a_2 = 0.130738_8        !! Параметр в сечении перезарядки
+    real(8), parameter :: par_poglosh = 0.393142        !! На что обезразмериваем поглощение
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 6 * 6 * 7!6 * 6 * 2  !   ! 6 = 10 минут счёта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_multiply = 6 !* 6 * 8! * 6 * 8!6 * 6 * 2  !   ! 6 = 10 минут счёта (с пикапами 18 минут)
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
 	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 60 Число исходных частиц первого типа (с полусферы)
@@ -83,6 +84,7 @@ module STORAGE
         real(8) :: par_kk14 = 1.0_8     ! Степень сгущения точек в головной области во внутреннем ударном слое  от 0 до 1
         ! (сгущение сразу к TS и HP)  
         real(8) :: par_kk12 = 1.0_8     ! Степень сгущения точек до TS к ударной волне  >= 1
+        real(8) :: par_kk113 = 1.6_8     ! 1.6
         ! Должно делиться на 4 для удобного вывода результатов в плоскостях
 
         !! Поверхностное натяжение
@@ -154,6 +156,7 @@ module STORAGE
         integer(4), allocatable :: gl_Cell_C(:,:)   ! Набор C-ечеек размерности 3 (на этом луче, в этой плоскости)
 
         integer(4), allocatable :: gl_all_Cell(:,:)   ! Весь набор ячеек (4, :) - первая координата массива - это набор узлов ячейки
+        !? Гарантируется ли расположение точек в ячейке по кругу?
 
         integer(4), allocatable :: gl_Cell_neighbour(:,:)   ! (4, :) Набор из 4 соседей для каждой ячейки  !! соседи согласованы с соседями для граней!
         ! -1   ! Граница (набегающий поток)
@@ -170,6 +173,7 @@ module STORAGE
         real(8), allocatable :: gl_Cell_gran_dist(:, :, :)      ! (4, :, 2) Расстояния от ценра ячеек до центров граней
 
         real(8), allocatable :: gl_Cell_Centr(:, :, :)   ! (2, : число ячеек, 2) набор координат центров ячеек
+        real(8), allocatable :: gl_Cell_alpha_center(:)   ! (число ячеек) полярный угол центра ячейки  !? Не сохранять (всегда можно посчитать)
         
 
         integer(4), allocatable :: gl_all_Gran(:,:)       ! Все грани (2,:) имеют по 2 узла
@@ -211,7 +215,7 @@ module STORAGE
 
         !! ФИЗИКА
         integer(4) :: n_Hidrogen = par_n_sort  ! Число сортов атомов водорода
-        integer(4) :: n_atom_source = 7  ! Число сортов атомов водорода
+        integer(4) :: n_atom_source = 7  ! Число источников атомов
         integer(4) :: n_par = 5  !! Число физических параметров в задаче
         ! 5 газодинамических
         ! 4 * n_Hidrogen - Водород
@@ -224,8 +228,15 @@ module STORAGE
         real(8), allocatable :: atom_all_source(:, :, :)  ! (4, n_Hidrogen, : число ячеек)
         ! (In, Iu, Iv, IT)
 
-        real(8), allocatable :: atom_source(:, :)  ! (7, : число ячеек)
+        real(8), allocatable :: atom_source(:, :)  ! (n_atom_source, : число ячеек)
         ! (k_u, k_v, k_T, In, Iu, Iv, IT)
+
+        LOGICAL :: pogl_ = .True.  ! Считаем ли поглощение
+        real(8) :: pogl_v_min = -15.0
+        real(8) :: pogl_v_max = 15.0
+        integer(4) :: pogl_iter = 300
+        real(8) :: pogl_ddd
+        real(8), allocatable :: pogloshenie(:, :, :)   !  (сортов, рабиений по скорости, ячеек)
 
     END TYPE Setka
 
@@ -253,6 +264,7 @@ module STORAGE
 
         integer(4), allocatable :: gl_Cell_neighbour(:,:)   ! (4, :) Набор из 4 соседей для каждой ячейки 
         real(8), allocatable :: gl_Cell_Belong(:, :, :)       ! Все грани (3, 4, :) имеют по A B C, 4 грани в ячейке, 
+        ! Первая грань - это 1 и 2 узел, вторая - 2 и 3 и т.д.
         ! Ax + By + C = 0  (если > 0 то за пределами ячейки)
 
         real(4), allocatable :: gl_Cell_interpol_matrix(:, :, :)   ! (4, 4, :) Набор из 4 соседей для каждой ячейки

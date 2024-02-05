@@ -867,8 +867,9 @@ module Interpol
         real(8), intent(out), optional :: PAR_atom_source(:)
 
         LOGICAL :: outer, outer2
-        real(8) :: dist, r(2), dist_min, yzel_min, M(4, 4), v(4), MM(4), ccc, kk(4), kkk
-        integer(4) :: i, yzel, j
+        real(8) :: dist, r(2), dist_min, yzel_min, M(4, 4), v(4), MM(4), ccc, kk(4), kkk, p1(2), p2(2), p3(2), p4(2), n1(2), n2(2)
+        real(8) :: a, b, c, d, c1, c2, x0, y0, d1(2), d2(2), t, e1, e2, e3, e4, l1, l2, f1, f2, a2, b2
+        integer(4) :: i, yzel, j, yz1, yz2, yz3, yz4
 
         if(present(PAR_atom_source)) then
             if(size(PAR_atom_source) /= 4) STOP "ERROR Int 851 y2w0S3KFz4v7npnDl9rgziYnZNfNSc"
@@ -968,14 +969,134 @@ module Interpol
                 end do
                 kkk = sum(kk)
 
+                yzel = SS%gl_all_Cell(1, num)
+                p1 = SS%gl_yzel(:, yzel)
+
+                yzel = SS%gl_all_Cell(2, num)
+                p2 = SS%gl_yzel(:, yzel)
+
+                yzel = SS%gl_all_Cell(3, num)
+                p3 = SS%gl_yzel(:, yzel)
+
+                yzel = SS%gl_all_Cell(4, num)
+                p4 = SS%gl_yzel(:, yzel)
+
+                n1 = SS%gl_Cell_Belong(1:2, 1, num)
+                n2 = SS%gl_Cell_Belong(1:2, 3, num)
+
+                n1 = n1/norm2(n1)
+                n2 = n2/norm2(n2)
+
+                if( dabs(DOT_PRODUCT(n1, n2)) < 0.999) then  ! «начит можно находить точку пересечени€ граней
+                    a = SS%gl_Cell_Belong(1, 1, num)
+                    b = SS%gl_Cell_Belong(2, 1, num)
+                    c1 = SS%gl_Cell_Belong(3, 1, num)
+                    c = SS%gl_Cell_Belong(1, 3, num)
+                    d = SS%gl_Cell_Belong(2, 3, num)
+                    c2 = SS%gl_Cell_Belong(3, 3, num)
+                    ccc = a * d - b * c
+                    x0 = (-c1 * d + c2 * b)/ccc
+                    y0 = (c * c1 - a * c2)/ccc
+
+                    a = SS%gl_Cell_Belong(1, 4, num)
+                    b = SS%gl_Cell_Belong(2, 4, num)
+                    c = SS%gl_Cell_Belong(3, 4, num)
+                    t = (-c - a * x0 - b * y0)/(a * (x - x0) + b * (y - y0))
+                    d1(1) = x0 + t * (x - x0)
+                    d1(2) = y0 + t * (y - y0)
+
+                    a = SS%gl_Cell_Belong(1, 2, num)
+                    b = SS%gl_Cell_Belong(2, 2, num)
+                    c = SS%gl_Cell_Belong(3, 2, num)
+                    t = (-c - a * x0 - b * y0)/(a * (x - x0) + b * (y - y0))
+                    d2(1) = x0 + t * (x - x0)
+                    d2(2) = y0 + t * (y - y0)
+                else
+                    a = SS%gl_Cell_Belong(1, 1, num)
+                    b = SS%gl_Cell_Belong(2, 1, num)
+                    c = -a * x - b * y
+
+                    a2 = SS%gl_Cell_Belong(1, 4, num)
+                    b2 = SS%gl_Cell_Belong(2, 4, num)
+                    c2 = SS%gl_Cell_Belong(3, 4, num)
+
+                    x0 = (b * c2 - c * b2)/(a * b2 - a2 * b)
+                    y0 = (a * c2 - c * a2)/(b * a2 - a * b2)
+
+                    d1(1) = x0
+                    d1(2) = y0
+
+
+                    a2 = SS%gl_Cell_Belong(1, 2, num)
+                    b2 = SS%gl_Cell_Belong(2, 2, num)
+                    c2 = SS%gl_Cell_Belong(3, 2, num)
+
+                    x0 = (b * c2 - c * b2)/(a * b2 - a2 * b)
+                    y0 = (a * c2 - c * a2)/(b * a2 - a * b2)
+
+                    d2(1) = x0
+                    d2(2) = y0
+                end if
+
+                e1 = norm2(d1 - p4)
+                e2 = norm2(d1 - p1)
+                e3 = norm2(d2 - p3)
+                e4 = norm2(d2 - p2)
+
+                l1 = sqrt((x - d1(1))**2 + (y - d1(2))**2)
+                l2 = sqrt((x - d2(1))**2 + (y - d2(2))**2)
+
+                yz1 = SS%gl_all_Cell(1, num)
+                yz2 = SS%gl_all_Cell(2, num)
+                yz3 = SS%gl_all_Cell(3, num)
+                yz4 = SS%gl_all_Cell(4, num)
+
+                if(present(PAR_gd)) then
+                    if(size(PAR_gd) /= SS%n_par) STOP "Error Int_Get_Parameter size(PAR_gd) /= SS%n_par   09876tyuinewufhugferafrgnmiutr"
+                    PAR_gd = 0.0
+                    do i = 1, size(PAR_gd)
+                        f1 = (SS%gd(i, yz1) * e1 + SS%gd(i, yz4) * e2)/(e1 + e2)
+                        f2 = (SS%gd(i, yz2) * e3 + SS%gd(i, yz3) * e4)/(e3 + e4)
+                        PAR_gd(i) = (f1 * l2 + f2 * l1)/(l1 + l2)
+                    end do
+                end if
+
+                if(present(PAR_atom_source)) then
+                    PAR_atom_source = 0.0
+                    do i = 1, size(PAR_atom_source)
+                        f1 = (SS%atom_source(i, yz1) * e1 + SS%atom_source(i, yz4) * e2)/(e1 + e2)
+                        f2 = (SS%atom_source(i, yz2) * e3 + SS%atom_source(i, yz3) * e4)/(e3 + e4)
+                        PAR_atom_source(i) = (f1 * l2 + f2 * l1)/(l1 + l2)
+                    end do
+                end if
+
+                if(present(PAR_hydrogen)) then
+                    if(size(PAR_hydrogen(1, :)) /= SS%n_Hidrogen) STOP "Error Int_Get_Parameter size(PAR_hydrogen) /= SS%n_par   oehwjfiehurgegvve"
+                    PAR_hydrogen = 0.0
+                    do j = 1, size(PAR_hydrogen(1, :))
+                        do i = 1, size(PAR_hydrogen(:, 1))
+                            f1 = (SS%hydrogen(i, j, yz1) * e1 + SS%hydrogen(i, j, yz4) * e2)/(e1 + e2)
+                            f2 = (SS%hydrogen(i, j, yz2) * e3 + SS%hydrogen(i, j, yz3) * e4)/(e3 + e4)
+                            PAR_hydrogen(i, j) = (f1 * l2 + f2 * l1)/(l1 + l2)
+                        end do
+                    end do
+                end if
+                
+
+                return
+
+                ! end if
+
                 if(present(PAR_gd)) then
                     if(size(PAR_gd) /= SS%n_par) STOP "Error Int_Get_Parameter size(PAR_gd) /= SS%n_par   09876tyuinewufhugferafrgnmiutr"
                     PAR_gd = 0.0
                     do i = 1, 4
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_gd(:) = PAR_gd(:) + kk(i) * SS%gd(:, yzel)
+                        !PAR_gd(:) = PAR_gd(:) + SS%gd(:, yzel)
                     end do
                     PAR_gd = PAR_gd/kkk
+                    !PAR_gd = PAR_gd/4.0
                 end if
 
                 if(present(PAR_atom_source)) then
@@ -983,8 +1104,10 @@ module Interpol
                     do i = 1, 4
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_atom_source(:) = PAR_atom_source(:) + kk(i) * SS%atom_source(1:4, yzel)
+                        !PAR_atom_source(:) = PAR_atom_source(:) + SS%atom_source(1:4, yzel)
                     end do
                     PAR_atom_source = PAR_atom_source/kkk
+                    !PAR_atom_source = PAR_atom_source/4.0
                 end if
 
                 if(present(PAR_hydrogen)) then
@@ -993,8 +1116,10 @@ module Interpol
                     do i = 1, 4
                         yzel = SS%gl_all_Cell(i, num)
                         PAR_hydrogen = PAR_hydrogen + kk(i) * SS%hydrogen(:, :, yzel)
+                        !PAR_hydrogen = PAR_hydrogen + SS%hydrogen(:, :, yzel)
                     end do
                     PAR_hydrogen = PAR_hydrogen/kkk
+                    !PAR_hydrogen = PAR_hydrogen/4.0
                 end if
 
 
