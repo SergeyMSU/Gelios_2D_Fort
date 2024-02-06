@@ -105,7 +105,7 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "B0054")   ! ДЛЯ ВОДОРОДА
+        call Read_setka_bin(gl_S3, "B0060")   ! ДЛЯ ВОДОРОДА
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -115,7 +115,7 @@ module Algoritm
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "A0059")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0061")      ! ОСНОВНАЯ СЕТКА
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -164,7 +164,7 @@ module Algoritm
         SS%gl_Gran_POTOK = -100000.0
 
         print*, "H"
-        i_max = 300!200!350   100 - 7 минут
+        i_max = 200!200!350   100 - 7 минут
         do i = 1, i_max
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
             if (mod(i, 20) == 0) then
@@ -179,21 +179,21 @@ module Algoritm
             call Geo_Culc_normal(SS, 2) 
             call Geo_Culc_length_area(SS, 2)
 
-            call Start_GD_algoritm(SS, 300, 1) !500
+            call Start_GD_algoritm(SS, 500, 1) !500
 
             call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
         end do
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "A0060")
+        call Save_setka_bin(SS, "A0062")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
         ! call Print_TVD_Sosed(SS)
 
-        call Print_hydrogen(SS)
-        call Print_hydrogen_1D(SS)
+        ! call Print_hydrogen(SS)
+        ! call Print_hydrogen_1D(SS)
 
         !pause
     end subroutine Gas_dynamic_algoritm2
@@ -242,12 +242,13 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: i, j, cell
 
-        call Read_setka_bin(SS, "A0059")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0061")      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
-        ! call Geo_Print_Surface(SS)
-        ! call Print_Grans(SS)
+        call Geo_Print_Surface(SS)
+        call Print_Grans(SS)
         ! call Print_GD_1D(SS)
+        pause
 
 		print*, "A1"
         call SUR_init(gl_surf1, SS)
@@ -276,6 +277,11 @@ module Algoritm
 	    call Algoritm_ReMove_Surface(gl_S3, gl_surf1)
 		print*, "A6"
 
+        call Print_Cell(gl_S3)
+        call Geo_Print_Surface(gl_S3)
+        call Print_Grans(gl_S3)
+        return
+
         !print*, gl_S2%gd(:, 1)
         !print*, gl_S2%gd(:, 2)
         !print*, gl_S2%gd(:, 3)
@@ -286,13 +292,12 @@ module Algoritm
         
 		print*, "A8"
 
-        call Print_Cell(gl_S3)
-        call Print_GD(gl_S3)
-        call Geo_Print_Surface(gl_S3)
-        call Print_Grans(gl_S3)
-        call Print_GD_1D(gl_S3)
-
-        !return
+        ! call Print_Cell(gl_S3)
+        ! call Print_GD(gl_S3)
+        ! call Geo_Print_Surface(gl_S3)
+        ! call Print_Grans(gl_S3)
+        ! call Print_GD_1D(gl_S3)
+        ! return
 
         call M_K_start(gl_S3, gl_S2)
 
@@ -300,7 +305,7 @@ module Algoritm
         call Print_hydrogen_1D(gl_S3)
         call Calc_Pogloshenie(gl_S3)
 
-        call Save_setka_bin(gl_S3, "B0059")
+        call Save_setka_bin(gl_S3, "B0060")
 
         print*, "END"
 
@@ -608,12 +613,12 @@ module Algoritm
         integer(4) :: Num, i, s1, s2, gran, Num2, Num3, s3
         real(8) :: normal(2), qqq1(8), qqq2(8), POTOK(8)
         real(8) :: dsl, dsc, dsp
-        real(8) :: koeff_TS, koeff_HP, koeff_BS, c1(2), c2(2), c3(2), wc
+        real(8) :: c1(2), c2(2), c3(2), wc
         integer(4) :: kdir, idgod, KOBL
 
-        koeff_TS = 0.002
-        koeff_HP = 0.1
-        koeff_BS = 0.1
+        SS%par_koeff_TS = 0.002
+        SS%par_koeff_HP = 0.1
+        SS%par_koeff_BS = 0.1
 
         Num = size(SS%gl_TS)
 
@@ -660,7 +665,7 @@ module Algoritm
 				0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
             end if
 
-            normal = normal * dsl * koeff_TS
+            normal = normal * dsl * SS%par_koeff_TS
             s1 = SS%gl_all_Gran(1, gran)
             s2 = SS%gl_all_Gran(2, gran)
 
@@ -735,7 +740,7 @@ module Algoritm
 				0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
             end if
 
-            normal = normal * dsc * koeff_HP
+            normal = normal * dsc * SS%par_koeff_HP
             s1 = SS%gl_all_Gran(1, gran)
             s2 = SS%gl_all_Gran(2, gran)
 
@@ -818,7 +823,7 @@ module Algoritm
 				0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
             end if
 
-            normal = normal * dsp * koeff_BS
+            normal = normal * dsp * SS%par_koeff_BS
             s1 = SS%gl_all_Gran(1, gran)
             s2 = SS%gl_all_Gran(2, gran)
 
@@ -1397,6 +1402,8 @@ module Algoritm
         do j = 1, N2
             the = par_pi/2.0 + SS%par_triple_point + (N2 - j + 1) * (par_pi/2.0 - SS%par_triple_point)/(N2)  !TODO небезопасно, лучше организовать функцию, которая по номеру луча будет выдавать его угол
             R_TS = SUR_GET_TS(SURF, the)
+            ! print*, R_TS, the
+            ! pause
             do i = 1, N1
                 if (i == 1) then
                     CYCLE

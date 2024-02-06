@@ -2708,7 +2708,17 @@ module GEOMETRY
         write(1) size(SS%pogloshenie(:, 1, 1)), size(SS%pogloshenie(1, :, 1)), size(SS%pogloshenie(1, 1, :))
         write(1) SS%pogloshenie
         
-        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 1 
+        write(1) SS%par_kk113 
+        write(1) SS%par_nat_TS
+        write(1) SS%par_nat_HP 
+        write(1) SS%par_nat_BS 
+        write(1) SS%par_koeff_TS 
+        write(1) SS%par_koeff_HP 
+        write(1) SS%par_koeff_BS 
+
+        
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0

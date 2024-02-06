@@ -275,9 +275,13 @@ module Phys_parameter
                     d2 = 2.0 * d1! -norm2(c5 - (/c1(1), -c1(2)/) )
                     par4 = SS%gd(1:5, s4, now)
 
-                    do i = 4, 4 
-                        par1_(i) = linear(d2, 0.0_8, d1, par1(i), d3, par2(i), 0.0_8)
-                        !par1_(i) = linear(d2, -par1(i), d1, par1(i), d3, par2(i), 0.0_8)
+                    ! do i = 4, 4 
+                    !     par1_(i) = linear(d2, 0.0_8, d1, par1(i), d3, par2(i), 0.0_8)
+                    !     !par1_(i) = linear(d2, -par1(i), d1, par1(i), d3, par2(i), 0.0_8)
+                    ! end do
+
+                    do i = 1, 5 
+                        par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
                     end do
 
                     c4 = SS%gl_Cell_Centr(:, s4, now)
@@ -308,9 +312,13 @@ module Phys_parameter
                     d3 = norm2(c5 - c1)
                     !par4 = SS%gd(1:5, s4, now)
 
-                    do i = 4, 4 
-                        !par2_(i) = linear(d2, -par2(i), d1, par2(i), d3, par1(i), 0.0_8)
-                        par2_(i) = linear(d2, 0.0_8, d1, par2(i), d3, par1(i), 0.0_8)
+                    ! do i = 4, 4 
+                    !     !par2_(i) = linear(d2, -par2(i), d1, par2(i), d3, par1(i), 0.0_8)
+                    !     par2_(i) = linear(d2, 0.0_8, d1, par2(i), d3, par1(i), 0.0_8)
+                    ! end do
+
+                    do i = 1, 5 
+                        par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
                     end do
 
 
@@ -448,7 +456,7 @@ module Phys_parameter
 
         dl = 0.01
         
-        do i_luch = 1, 1!19
+        do i_luch = 1, 19
             pogl = 0.0
             r = 0.0
             cell = 1
