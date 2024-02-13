@@ -28,12 +28,12 @@ module Phys_parameter
         ! par(5) = 100.0
         ! return
 
-        par(1) = 150.0 * (SS%par_R0/r)**2
-        par(3) = x/r * 41.0
-        par(4) = y/r * 41.0
-        p_0 = 41.0**2 * 150.0/(SS%par_ggg * 7.0**2)
+        par(1) = SS%par_rho_e * (SS%par_R0/r)**2
+        par(3) = x/r * SS%par_chi
+        par(4) = y/r * SS%par_chi
+        p_0 = SS%par_chi**2 * SS%par_rho_e/(SS%par_ggg * SS%par_Max_e**2)
         par(2) = p_0 * (SS%par_R0/r)**(2.0 * SS%par_ggg)
-        par(5) = 150.0 * (SS%par_R0/r)**2
+        par(5) = SS%par_rho_e * (SS%par_R0/r)**2
 
     end subroutine Inner_Conditions
 
@@ -187,6 +187,9 @@ module Phys_parameter
                 par1_(i) = linear1(d2, par3(i), d1, par1_(i), 0.0_8)
             end do
 
+            if(par1_(1) <= 0.0) par1_(1) = SS%gd(1, s1, now)
+            if(par1_(2) <= 0.0) par1_(2) = SS%gd(2, s1, now)
+
             par2_ = par1_
             par2_(4) = -par1_(4)
 
@@ -284,6 +287,10 @@ module Phys_parameter
                         par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
                     end do
 
+                    if(par1_(1) <= 0.0) par1_(1) = par1(1)
+                    if(par1_(2) <= 0.0) par1_(2) = par1(2)
+
+
                     c4 = SS%gl_Cell_Centr(:, s4, now)
                     d1 = -norm2(c5 - c1)
                     d3 = norm2(c5 - c2)
@@ -320,6 +327,10 @@ module Phys_parameter
                     do i = 1, 5 
                         par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
                     end do
+
+                    if(par2_(1) <= 0.0) par2_(1) = par2(1)
+                    if(par2_(2) <= 0.0) par2_(2) = par2(2)
+
 
 
                     !c3 = SS%gl_Cell_Centr(:, s3, now)
@@ -479,7 +490,7 @@ module Phys_parameter
             end do
 
             write(1,*) "TITLE = 'HP'  VARIABLES = 'u', 'f1', 'f2', 'f3', 'f4', 'ff'"
-            pogl = pogl * par_poglosh
+            pogl = pogl * SS%par_poglosh
 
             do i = 1, SS%pogl_iter
                 u = SS%pogl_v_min + (i + 0.5) * SS%pogl_ddd;
@@ -490,5 +501,12 @@ module Phys_parameter
             close(1)
         end do
     end subroutine Calc_Pogloshenie
+
+    real(8) pure function GET_HP_nat(phi)
+        implicit none
+        real(8), intent(in) :: phi
+        GET_HP_nat = (exp(-(phi - 1.4)**2 / 0.7**2)/3.0 + 0.01)/4.0
+        return
+    end function GET_HP_nat
 
 end module Phys_parameter

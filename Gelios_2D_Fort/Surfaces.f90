@@ -154,7 +154,7 @@ module SURFACE
 
 
         n = size(SS%gl_HP)
-        allocate(SURF%HP(4, n))
+        allocate(SURF%HP(4, n + 1))  !! “”“ ”¬≈À»◊»À Õ¿ 1
 
         do i = 1, n
             gr = SS%gl_HP(i)
@@ -164,9 +164,15 @@ module SURFACE
             SURF%HP(3:4, i) = c
         end do
 
+        gr = SS%gl_HP(n)
+        c = SS%gl_yzel(:, SS%gl_all_Gran(2, gr), 1)
+        SURF%HP(1, n + 1) = polar_angle(c(1), c(2))
+        SURF%HP(2, n + 1) = norm2(c)
+        SURF%HP(3:4, n + 1) = c
+
 
         n = size(SS%gl_BS)
-        allocate(SURF%BS(4, n))
+        allocate(SURF%BS(4, n + 1))   !! “”“ ”¬≈À»◊»À Õ¿ 1
 
         do i = 1, n
             gr = SS%gl_BS(i)
@@ -175,6 +181,12 @@ module SURFACE
             SURF%BS(2, i) = norm2(c)
             SURF%BS(3:4, i) = c
         end do
+
+        gr = SS%gl_BS(n)
+        c = SS%gl_yzel(:, SS%gl_all_Gran(2, gr), 1)
+        SURF%BS(1, n + 1) = polar_angle(c(1), c(2))
+        SURF%BS(2, n + 1) = norm2(c)
+        SURF%BS(3:4, n + 1) = c
 
     end subroutine SUR_init
 

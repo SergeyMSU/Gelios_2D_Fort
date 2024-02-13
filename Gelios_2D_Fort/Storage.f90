@@ -1,5 +1,6 @@
 
 module STORAGE
+    USE OMP_LIB
     implicit none 
 
     !! Набор общепринятых констант (которые никогда не поменяются)
@@ -20,12 +21,10 @@ module STORAGE
 
     real(8), parameter :: par_Rmax = 220.0  !  Радиус сферы, с которой запускаем частицы
 
-    real(8), parameter :: par_a_2 = 0.130738_8        !! Параметр в сечении перезарядки
-    real(8), parameter :: par_poglosh = 0.393142        !! На что обезразмериваем поглощение
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 6 * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 10 минут счёта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_multiply = 6 * 3 * 5! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 18 минут)
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
 	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 60 Число исходных частиц первого типа (с полусферы)
@@ -58,19 +57,24 @@ module STORAGE
 
         ! Набор параметров, задающих размеры сетки
         real(8) :: par_R_character = 35.0         ! Характерный размер в задаче (расстояние до TS на начальном этапе построения сетки)
-        real(8) :: par_R0 = 0.197035         ! Характерный размер 1 а.е. (внутренней сферы) Там находится вторая точка на лучах от цетра (первая находится в нуле)
+        real(8) :: par_R0 = 0.198956         ! Характерный размер 1 а.е. (внутренней сферы) Там находится вторая точка на лучах от цетра (первая находится в нуле)
         real(8) :: par_R_END = 300.0         !  
         real(8) :: par_R_LEFT = -240.0 ! -390.0         !  Левая граница
         real(8) :: par_R_inner = 9.0! 5.0_8     ! До какого расстояния внутренняя сфера
 
         !! Физические параметры ---------------------------------------
-        real(8) :: par_a_2 = 0.130738_8        ! Параметр в сечении перезарядки
+        real(8) :: par_a_2 = 0.130735_8        ! Параметр в сечении перезарядки  !! ЗАДАН ТАКЖЕ ГЛОБАЛЬНО, надо переделать
         real(8) :: par_ggg = 5.0/3.0                 ! До какого расстояния внутренняя сфера
-        real(8) :: par_Velosity_inf = -2.54279_8
+        real(8) :: par_Velosity_inf = -2.54278_8
         real(8) :: par_n_H_LISM = 3.5_8
-        real(8) :: par_Kn = 49.9018   !0.4326569808         ! в перезарядке
-        real(8) :: par_nu_ph = 12.2125 
+        real(8) :: par_Kn = 50.3858   !0.4326569808         ! в перезарядке
+        real(8) :: par_nu_ph = 12.0969 
         real(8) :: par_E_ph = 0.10878
+        real(8) :: par_chi = 41.0391
+        real(8) :: par_rho_e = 150.0
+        real(8) :: par_Max_e = 5.91662
+        real(8) :: par_poglosh = 0.389274        !! На что обезразмериваем поглощение
+
         !! -------------------------------------------------------------
 
         !! Набор параметров сгущения
@@ -88,9 +92,9 @@ module STORAGE
         ! Должно делиться на 4 для удобного вывода результатов в плоскостях
 
         !! Поверхностное натяжение
-        real(8) :: par_nat_TS = 0.01_8 ! 0.003_8   ! Поверхностное натяжение
+        real(8) :: par_nat_TS = 0.02_8 ! 0.003_8   ! Поверхностное натяжение
         real(8) :: par_nat_HP = 0.005_8   ! Поверхностное натяжение
-        real(8) :: par_nat_BS = 0.002_8   ! Поверхностное натяжение
+        real(8) :: par_nat_BS = 0.003_8   ! 0.002 Поверхностное натяжение
 
         !! Скорость движения поверхностей
         real(8) :: par_koeff_TS = 0.002_8 
@@ -243,6 +247,40 @@ module STORAGE
         real(8) :: pogl_ddd
         real(8), allocatable :: pogloshenie(:, :, :)   !  (сортов, рабиений по скорости, ячеек)
 
+
+        !! PUI 
+        ! PUI - тяжёловесный блок, поэтому память выделяется не в "Geometry", а в "PUI" только при необходимости работы с пикапами
+        LOGICAL :: culc_pui = .True.   ! Считаем ли PUI ? 
+        integer :: pui_nW = 60      ! 50   !TODO СОХРАНЯЕТСЯ
+        real(8) :: pui_wR = 150.0    ! 150.0  !TODO СОХРАНЯЕТСЯ
+        integer :: pui_size            ! Сколько ячеек содержат pui
+        integer :: pui_n_par = 3            ! Сколько ячеек содержат pui    !TODO СОХРАНЯЕТСЯ
+        real(8), allocatable :: f_pui(:, :)            ! (pui_nW, : pui_size) !TODO СОХРАНЯЕТСЯ
+        integer, allocatable :: f_pui_num(:)           ! По номеру в массиве пуи, определяем номер ячейки в сетке  !TODO СОХРАНЯЕТСЯ
+        integer, allocatable :: f_pui_num2(:)		   ! По номеру ячейки в сетке, определяем номер в массиве PUI (если он есть - если область внутренняя) !TODO СОХРАНЯЕТСЯ
+        ! 0 - ячейка не содержит pui
+        
+        real(8), allocatable :: par_pui(:, :)               ! (3 pui_n_par, :)	   Параметры пикапов !TODO СОХРАНЯЕТСЯ
+        ! (n_pui, T_pui, p_pui)
+        real(8), allocatable :: pui_Sm(:, :)           ! (pui_nW, : pui_size)  !TODO СОХРАНЯЕТСЯ
+	    real(8), allocatable :: pui_Sp(:, :)           ! (pui_nW, : pui_size)  !TODO СОХРАНЯЕТСЯ
+
+        !? функция h0(U_H) - см. документацию PUI  !TODO ДАЛЕЕ НИЧЕГО НЕ СОХРАНЯЕТСЯ
+        integer :: pui_h0_n = 1000      
+        real(8) :: pui_h0_wc = 100.0    
+        real(8), allocatable :: h0_pui(:)   ! Для функции отказов при розыгрыше - её максимум для нормировки (см. документацию)
+        
+
+        !? Розыгрышь пикапов (заранее считаем функцию розыгрыша)
+        integer :: pui_F_n = 300      ! На сколько частей мы разбиваем первообразную для розыгрыша PUI 
+        ! т.е. мы будем разыгрывать ksi от 0 до 1 и брать значения скорости при этой ksi. 
+        ! интеграл посчитан для dksi = 1.0/pui_F_n а в значениях между придётся линейно интерполировать
+        real(8), allocatable :: F_integr_pui(:, :)           ! (pui_F_n, :) первообразная для розыгрыша
+        real(8), allocatable :: nu_integr_pui(:, :)           ! (pui_F_n, :)   частота перезарядки
+        real(8), allocatable :: Mz_integr_pui(:, :)           ! (pui_F_n, :)   источник импульса
+        real(8), allocatable :: E_integr_pui(:, :)           ! (pui_F_n, :)	   источник энергии
+        integer (kind=omp_lock_kind), allocatable :: pui_lock(:)  ! Для openMP
+
     END TYPE Setka
 
     TYPE Inter_Setka  ! Сетка для интерполяции
@@ -298,7 +336,6 @@ module STORAGE
 
     END TYPE Inter_Setka
 
-
     TYPE Surfaces
         ! Модуль хранения поверхностей для движения сетки к этим поверхностям
         ! Такое приём нужен, например, для перестройки текущей сетки (так как добавлять ячейки нельзя, но можно построить другую сетку)
@@ -322,15 +359,72 @@ module STORAGE
 
     contains 
 
-    real(8) pure function MK_sigma(x)
+    real(8) pure function MK_sigma(SS, x)
+	    TYPE (Setka), intent(in) :: SS
         real(8), intent (in) :: x
-        MK_sigma = (1.0 - par_a_2 * log(x))**2
+        MK_sigma = (1.0 - SS%par_a_2 * log(x))**2
     end function MK_sigma
 
-    real(8) pure function MK_sigma2(x, y)
+    real(8) pure function MK_sigma2(SS, x, y)
+	    TYPE (Setka), intent(in) :: SS
         real(8), intent (in) :: x, y
-        MK_sigma2 = (1.0 - par_a_2 * log(x * y))**2
+        MK_sigma2 = (1.0 - SS%par_a_2 * log(x * y))**2
     end function MK_sigma2
+
+    subroutine PUI_SET(SS)
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: n, i, j
+
+        if( SS%culc_pui == .False.) then
+            print*, "ERROR 9uy87tyg83h8ou9t4358y30q9pug9"
+            pause
+            STOP
+        end if
+
+        ! Проверяем выделена ли память под массивы PUI 
+        if(ALLOCATED(SS%f_pui) == .False.) then 
+            ! Посчитаем, сколько ячеек будут содержать pui
+            n = 0
+            do i = 1, size(SS%gl_all_Cell_zone(:))
+                j = SS%gl_all_Cell_zone(i)
+                if(j <= 2) n = n + 1
+            end do
+            
+            SS%pui_size = n
+            ALLOCATE(SS%f_pui(SS%pui_nW, n))
+            ALLOCATE(SS%f_pui_num(n))
+            ALLOCATE(SS%f_pui_num2, mold = SS%gl_all_Cell_zone)
+            ALLOCATE(SS%par_pui(SS%pui_n_par, n))
+            ALLOCATE(SS%pui_Sm(SS%pui_nW, n))
+            ALLOCATE(SS%pui_Sp(SS%pui_nW, n))
+            ALLOCATE(SS%pui_lock(n))
+
+            SS%f_pui = 0.0
+            SS%f_pui_num = 0.0
+            SS%f_pui_num2 = 0.0
+            SS%par_pui = 0.0
+            SS%pui_Sm = 0.0
+            SS%pui_Sp = 0.0
+
+            do i = 1, n
+                call omp_init_lock(SS%pui_lock(i))
+            end do
+
+            ! Теперь надо установить связь между номерами ячееки пуи и номерами в сетке
+            n = 1
+            do i = 1, size(SS%gl_all_Cell_zone(:))
+                j = SS%gl_all_Cell_zone(i)
+                if(j <= 2) then
+                    SS%f_pui_num(n) = i
+                    SS%f_pui_num2(i) = n
+                    n = n + 1
+                else
+                    SS%f_pui_num2(i) = 0
+                end if
+            end do
+        end if
+
+    end subroutine PUI_SET
 
 
 end module STORAGE

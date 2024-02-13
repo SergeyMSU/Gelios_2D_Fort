@@ -1739,7 +1739,7 @@ module GEOMETRY
 			node = node + 1
 		end do
 
-		do j = 1, size( SS%gl_Cell_B(SS%par_n_TS - 1, :) )
+		do j = size( SS%gl_Cell_B(SS%par_n_TS - 1, :) ), 1, -1
 			SS%gl_TS(node) = SS%gl_Cell_gran(1, SS%gl_Cell_B(SS%par_n_TS - 1, j))
 			SS%gl_Gran_type(SS%gl_TS(node)) = 1
 			node = node + 1
@@ -2718,7 +2718,35 @@ module GEOMETRY
         write(1) SS%par_koeff_BS 
 
         
-        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
+        write(1) 1
+        write(1) SS%par_nu_ph
+        write(1) SS%par_E_ph
+        write(1) SS%par_chi
+        write(1) SS%par_rho_e
+        write(1) SS%par_Max_e
+        write(1) SS%par_poglosh
+        write(1) SS%par_a_2
+        write(1) SS%par_ggg
+        write(1) SS%par_Velosity_inf
+        write(1) SS%par_Kn
+
+        if(SS%culc_pui == .True.) then
+            write(1) 1  ! ПИКАПЫ
+            write(1) SS%pui_nW, SS%pui_wR, SS%pui_n_par
+            write(1) SS%f_pui
+            write(1) SS%f_pui_num 
+            write(1) SS%f_pui_num2 
+            write(1) SS%par_pui 
+            write(1) size(SS%pui_Sm(:, 1)), size(SS%pui_Sm(1, :))
+            write(1) SS%pui_Sm 
+            write(1) size(SS%pui_Sp(:, 1)), size(SS%pui_Sp(1, :))
+            write(1) SS%pui_Sp
+        else
+            write(1) 0
+        end if
+        
+        
+        write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
         write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0; write(1) 0
@@ -2740,6 +2768,21 @@ module GEOMETRY
 
         close(1)
 
+        open(2, file = "Phys_param.txt")
+        WRITE (2, *) "par_a_2",  SS%par_a_2
+        WRITE (2, *) "par_ggg", SS%par_ggg
+        WRITE (2, *) "par_Velosity_inf", SS%par_Velosity_inf
+        WRITE (2, *) "par_n_H_LISM", SS%par_n_H_LISM
+        WRITE (2, *) "par_Kn", SS%par_Kn
+        WRITE (2, *) "par_nu_ph", SS%par_nu_ph
+        WRITE (2, *) "par_E_ph", SS%par_E_ph
+        WRITE (2, *) "par_chi", SS%par_chi
+        WRITE (2, *) "par_rho_e", SS%par_rho_e
+        WRITE (2, *) "par_Max_e", SS%par_Max_e
+        WRITE (2, *) "par_R0", SS%par_R0
+        WRITE (2, *) "par_poglosh", SS%par_poglosh
+        close(2)
+
     end subroutine Save_setka_bin
 
     subroutine Read_setka_bin(SS, name)  ! Сохранение сетки в бинарном файле
@@ -2751,7 +2794,7 @@ module GEOMETRY
         inquire(file= "Save_all_" // name // ".bin", exist=exists)
     
         if (exists == .False.) then
-            print*, "net faila 1898 tfgdhfwy4rfetrgfw4rwter!!!"
+            print*, "net faila 1898 tfgdhfwy4rfetrgfw4rwter!!! ", name
             pause
             STOP "net faila!!!"
         end if
@@ -2851,7 +2894,13 @@ module GEOMETRY
 
         !! ФИЗИКА
         read(1) SS%n_Hidrogen
-        read(1) SS%n_par
+        read(1) n
+        if(SS%n_par /= n) then ! Нужно пересоздать массив
+            n2 = size(SS%gd(1, :, 1))
+            SS%n_par = n
+            DEALLOCATE(SS%gd)
+            ALLOCATE(SS%gd(SS%n_par, n2, 2))
+        end if
 
         read(1) SS%gd
         read(1) SS%hydrogen
@@ -2879,13 +2928,61 @@ module GEOMETRY
         if(n == 1) then
             read(1) SS%pogl_, SS%pogl_v_min, SS%pogl_v_max, SS%pogl_iter, SS%pogl_ddd
             read(1) n1, n2, n3
-            ! if(size(SS%pogloshenie) /= n1 * n2 * n3) then
-            !     print*, size(SS%pogloshenie)
-            !     print*, n1, n2, n3
-            !     pause "ERROR 9iu8yo8437rtt5eurbo6nutb6y5evtcrw4vt5ey"
-            !     STOP "ERROR 09807ety59gug5h65h5gf432g54h67g3fg"
-            ! end if
+            if(size(SS%pogloshenie) /= n1 * n2 * n3) then
+                print*, size(SS%pogloshenie)
+                print*, n1, n2, n3
+                pause "ERROR 9iu8yo8437rtt5eurbo6nutb6y5evtcrw4vt5ey"
+                STOP "ERROR 09807ety59gug5h65h5gf432g54h67g3fg"
+            end if
             read(1) SS%pogloshenie
+        end if
+
+
+        read(1) n
+        if (n == 1) then
+            read(1) SS%par_kk113 
+            read(1) SS%par_nat_TS
+            read(1) SS%par_nat_HP 
+            read(1) SS%par_nat_BS 
+            read(1) SS%par_koeff_TS 
+            read(1) SS%par_koeff_HP 
+            read(1) SS%par_koeff_BS 
+        end if
+    
+
+        read(1) n
+        if (n == 1) then
+            print*, "TUT ", n
+            read(1) SS%par_nu_ph
+            read(1) SS%par_E_ph
+            read(1) SS%par_chi
+            read(1) SS%par_rho_e
+            read(1) SS%par_Max_e
+            read(1) SS%par_poglosh
+            read(1) SS%par_a_2
+            read(1) SS%par_ggg
+            read(1) SS%par_Velosity_inf
+            read(1) SS%par_Kn
+
+            print*, SS%par_nu_ph, SS%par_E_ph, SS%par_chi, SS%par_rho_e, SS%par_Max_e, SS%par_poglosh, SS%par_a_2, SS%par_ggg, &
+                SS%par_Velosity_inf, SS%par_Kn
+        end if
+
+        ! ПИКАПЫ
+        call Geo_Culc_zone(SS)  ! Для пикапов нужно знать зоны
+        read(1) n
+        if (n == 1) then
+            SS%culc_pui = .True.
+            read(1) SS%pui_nW, SS%pui_wR, SS%pui_n_par
+            call PUI_SET(SS)
+            read(1) SS%f_pui
+            read(1) SS%f_pui_num 
+            read(1) SS%f_pui_num2 
+            read(1) SS%par_pui 
+            read(1) n1, n2
+            read(1) SS%pui_Sm 
+            read(1) n1, n2
+            read(1) SS%pui_Sp
         end if
 
 
@@ -2895,9 +2992,10 @@ module GEOMETRY
         call Geo_Culc_normal(SS, 2) 
         call Geo_Culc_length_area(SS, 2)
         call Geo_culc_TVD_sosed(SS)
-        call Geo_Culc_zone(SS)
 
         call Proverka_grans_sosed(SS)
+
+        call Geo_Find_Surface(SS)
 
         close(1)
 

@@ -6,6 +6,7 @@ module Monte_Karlo
 	USE OMP_LIB
 	USE Phys_parameter
 	USE Interpol
+	USE PUI
     implicit none 
 
 
@@ -32,6 +33,12 @@ module Monte_Karlo
 
         call M_K_Set(SS)    ! Создали массивы
         call M_K_init(SS)   ! Инициализируем веса и т.д.
+ 
+		if(SS%culc_pui == .True.) then   ! СЧИТАЕМ ПИКАПЫ?
+			call PUI_SET(SS)
+			SS%pui_Sm = 0.0
+			SS%pui_Sp = 0.0
+		end if
 
         end_time = 0.0
 		start_time = 0.0
@@ -232,6 +239,15 @@ module Monte_Karlo
 		SS%M_K_Moment(:, :, :, :) = SS%M_K_Moment(:, :, :, :) / no  ! Вынес сюда для избежания потери точности при сложении
 		SS%pogloshenie(:, :, :) = SS%pogloshenie(:, :, :) / no
 
+		if(SS%culc_pui == .True.) then
+			SS%pui_Sm = SS%sqv * SS%pui_Sm / no
+			do i = 1, SS%pui_nW
+				pui_w1 = (i - 1) * SS%pui_wR/SS%pui_nW 
+				pui_w2 = i * SS%pui_wR/SS%pui_nW 
+				SS%pui_Sp(i, :) = SS%sqv * SS%pui_Sp(i, :) / (no * 4.0 * par_pi * (1.0/3.0) * (pui_w2**3 - pui_w1**3))
+			end do
+		end if
+
 		do i = 2, par_n_potok
 			SS%M_K_Moment(:, :, :, 1) = SS%M_K_Moment(:, :, :, 1) + SS%M_K_Moment(:, :, :, i)
 		end do
@@ -242,6 +258,15 @@ module Monte_Karlo
 			no = Geo_Get_Volume_Rotate(SS, i, 360.0_8)
 			
 			SS%M_K_Moment(:, :, i, 1) = SS%sqv * SS%M_K_Moment(:, :, i, 1) / no
+
+			if(SS%culc_pui == .True.) then
+				j = SS%f_pui_num2(i)
+				if(j > 0) then
+					SS%pui_Sm(:, j) = SS%pui_Sm(:, j) / no
+					SS%pui_Sp(:, j) = SS%pui_Sp(:, j) / no
+				end if
+			end if
+
 
 			if(SS%pogl_ == .True.) then
 				SS%pogloshenie(:, :, i) = SS%pogloshenie(:, :, i) * SS%sqv / no
@@ -300,6 +325,26 @@ module Monte_Karlo
 		SS%atom_all_source = SS%M_K_Moment(5:8, :, :, 1)
 		
 		call Culc_Source(SS)
+
+		if(SS%culc_pui == .True.) then
+			call PUI_calc_Sm(SS)
+		end if
+		! ******************************************************************************************************************
+		! Собираем статистику по весам
+		if(MK_Mu_stat) then
+			open(1, file = "MK_Mu_statistic_.txt")
+			
+			do k = 1, par_n_sort
+				do j = 1, par_m_zone + 1
+					do i = 1, par_n_zone + 1
+						write(1, *) i, j, k, SS%MK_Mu_statistic(i, j, k) * &
+							(par_Rmax/SS%MK_R_zone( min(i, par_n_zone) ))**2 * (par_m_zone + 1)/ SS%MK_N
+					end do
+				end do
+			end do
+			
+			close(1)
+		end if
 
     end subroutine M_K_start
 
@@ -397,9 +442,10 @@ module Monte_Karlo
 		real(8) :: uz, nu_ex, kappa, ksi, t_ex, t2, mu_ex, mu2, r_ex(3), r, mu, u, V(3), mu3, r_exit(3)
 		real(8) :: uz_M, uz_E, k1, k2, k3, u1, u2, u3, skalar
 		real(8) :: Ur, Uthe, Uphi, Vr, Vthe, Vphi, phi
-		real(8) :: v1, v2, v3, r_peregel, ddt
+		real(8) :: v1, v2, v3, r_peregel, ddt, p
 		
 		real(8) :: nu_ph, kappa_ph, kappa_all, mu_ph, mu_perez
+		real(8) :: nu_ex_pui, kappa_pui, mu_ex_pui, ro_pui, T_pui
 		
 		real(8) :: Wr(par_n_zone + 1), Wthe(par_n_zone + 1), Wphi(par_n_zone + 1), mu_(par_n_zone + 1)
 		
@@ -456,7 +502,9 @@ module Monte_Karlo
 				cell2 = particle_2(5)
 
 				kappa = 0.0
+				kappa_pui = 0.0
 				drob = 3
+				area2 = SS%gl_all_Cell_zone(cell) ! Зона рождения
 
 				! if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
 				! 	if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
@@ -470,6 +518,21 @@ module Monte_Karlo
 					! call Int_Get_Parameter(SS_int, particle(1) + ddt * time * particle(5), &
 					! 	norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
 					PAR = SS%gd(:, cell, 1)  !! Пока без интерполяции
+					if(SS%culc_pui == .True. .and. area2 <= 2) then
+						ro_pui = SS%par_pui(1, cell)
+						T_pui = SS%par_pui(2, cell)
+
+						if(ro_pui <= 0.0 .or. ro_pui > 1000000.0) then
+							print*, ro_pui, T_pui
+							print*, "___"
+							print*, cell
+							pause "ERROR ro_pUI MK 15634557 7umn98yb7tvbc56r47vt5yb86nu7vwc"
+						end if
+					else
+						ro_pui = 0.0
+						T_pui = 0.0
+					end if
+
 
 					if(PAR(2) <= 0.0 .or. PAR(2) > 1000000.0) then
 						print*, PAR
@@ -477,12 +540,24 @@ module Monte_Karlo
 						print*, cell
 						pause "ERROR p MK 15634557 y676k876jh645g3f2t43g5g543"
 					end if
+
+
 				
-					cp = sqrt(PAR(2)/PAR(1))
+					p = PAR(2)
 					vx = PAR(3)
 					vy = PAR(4) * cos(phi)
 					vz = PAR(4) * sin(phi)
 					ro = PAR(1)
+					cp = sqrt(p/ro)
+
+					if(SS%culc_pui == .True. .and. area2 <= 2) then
+						p = 4.0 * (ro - ro_pui) * (p - ro_pui * T_pui) /&
+						(8.0 * ro - 4.0 * ro_pui)
+						ro = ro - ro_pui
+						if(p < 0.0) p = 4286.72/((r/SS%par_R0)**(2.0 * SS%par_ggg))
+						if(ro <= 0.0000001) ro = 0.0000001
+						cp = sqrt(2.0 * p/ro)
+					end if
 
 					if(ieee_is_nan(cp)) then
 						print*, "error cp nan bntjumki,lo;.piuyntbvtcrwrwfv"
@@ -514,15 +589,16 @@ module Monte_Karlo
 				
 					if (u / cp > 7.0) then
 						uz = MK_Velosity_1(u, cp);
-						nu_ex = (ro * uz * MK_sigma(uz)) / SS%par_Kn
+						nu_ex = (ro * uz * MK_sigma(SS, uz)) / SS%par_Kn
 					else
-						nu_ex = (ro * MK_int_1(u, cp)) / SS%par_Kn        ! Пробуем вычислять интеграллы численно
+						nu_ex = (ro * MK_int_1(SS, u, cp)) / SS%par_Kn        ! Пробуем вычислять интеграллы численно
 					end if
+
+					if(SS%culc_pui == .True. .and. area2 <= 2) kappa_pui = kappa_pui + PUI_get_nu_integr(SS, SS%f_pui_num2(cell2), u)/ SS%par_Kn * time/drob
 			
 					kappa = kappa + (nu_ex * time/drob)  ! по перезарядке
 				end do
 				!print*, "DD"
-				area2 = SS%gl_all_Cell_zone(cell) ! Зона рождения
 				particle_2(5) = cell2
 				
 				r = norm2(particle(1:3) + time/2.0 * particle(4:6))
@@ -532,7 +608,7 @@ module Monte_Karlo
 					kappa_ph = (nu_ph * time)     ! по фотоионизации
 				end if
 				
-				kappa_all = kappa
+				kappa_all = kappa + kappa_pui
 				if(MK_photoionization) kappa_all = kappa_all + kappa_ph
 				
 				call M_K_rand(SS%sensor(1, 2, n_potok), SS%sensor(2, 2, n_potok), SS%sensor(3, 2, n_potok), ksi)
@@ -543,7 +619,8 @@ module Monte_Karlo
 				mu2 = mu * exp(-kappa_all)  ! вес оставшегося неперезаряженного атома
 				mu_ph = 0.0
 				if(MK_photoionization) mu_ph = (kappa_ph / kappa_all) * mu_perez  ! Вес ионизированного атома
-				mu_ex = mu_perez - mu_ph      ! Вес перезаряженного на протонах атома
+				mu_ex = (kappa / kappa_all) * mu_perez  !mu_perez - mu_ph      ! Вес перезаряженного на протонах атома
+				mu_ex_pui = (kappa_pui / kappa_all) * mu_perez 
 				!print*, "EE"
 				
 				if(mu2 < 0.0) then
@@ -600,7 +677,7 @@ module Monte_Karlo
 				!print*, "FF"
 				! НАДО НАКОПИТЬ МОМЕНТЫ
 				call MK_ADD_MOMENT2(SS, SS_int, n_potok, particle_2(2), cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
-				 	particle(4:6), particle(1:3))
+				 	particle(4:6), particle(1:3), kappa_all/time, mu_ex_pui)
 
 				! call MK_ADD_MOMENT(SS, n_potok, particle_2(2), cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
 				! 	particle(4:6), particle(1:3), u, cp, uz, u1, u2, u3, skalar)
@@ -758,9 +835,9 @@ module Monte_Karlo
 			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
 				mu_ex * (-0.25 * (3.0 * cp**2 + 2.0 * u**2) * (uz_E / uz) - uz_M * skalar / u)
 		else
-			k1 = MK_int_1(u, cp)
-			k2 = MK_int_2(u, cp)
-			k3 = MK_int_3(u, cp)
+			k1 = MK_int_1(SS, u, cp)
+			k2 = MK_int_2(SS, u, cp)
+			k3 = MK_int_3(SS, u, cp)
 			
 			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ex * (k2/k1) * u1 / u
 			SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ex * (k2/k1) * (u2 * cos(alpha) + u3 * sin(alpha)) / u
@@ -777,11 +854,11 @@ module Monte_Karlo
 
 	end subroutine MK_ADD_MOMENT
 
-	subroutine MK_ADD_MOMENT2(SS, SS_int, n_potok, sort, cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX)
+	subroutine MK_ADD_MOMENT2(SS, SS_int, n_potok, sort, cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, nu_all, mu_ex_pui)
 		TYPE (Setka), intent(in out) :: SS
 		TYPE (Inter_Setka), intent(in) :: SS_int
 		integer(4), intent(in) :: n_potok, sort, cell, cell2
-		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), mu_ex, mu_ph
+		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), mu_ex, mu_ph, nu_all, mu_ex_pui
 
 		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3, vx, vy, vz, phi
 
@@ -889,9 +966,9 @@ module Monte_Karlo
 			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
 				mu_ex * (-0.25 * (3.0 * cp**2 + 2.0 * u**2) * (uz_E / uz) - uz_M * skalar / u)
 		else
-			k1 = MK_int_1(u, cp)
-			k2 = MK_int_2(u, cp)
-			k3 = MK_int_3(u, cp)
+			k1 = MK_int_1(SS, u, cp)
+			k2 = MK_int_2(SS, u, cp)
+			k3 = MK_int_3(SS, u, cp)
 			
 			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ex * (k2/k1) * u1 / u
 			SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ex * (k2/k1) * (u2 * cos(alpha) + u3 * sin(alpha)) / u
@@ -901,8 +978,29 @@ module Monte_Karlo
 
 		! Добавим интеграллы по фотоионизации  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ph * v
-		
 
+		! Добавим для расчёта PUI
+		if(SS%culc_pui == .True. .and. SS%gl_all_Cell_zone(cell) <= 2) then
+
+			k1 = PUI_get_nu_integr(SS, SS%f_pui_num2(cell2), u)
+			uz_M = PUI_get_Mz_integr(SS, SS%f_pui_num2(cell2), u)/k1
+			uz_E = PUI_get_E_integr(SS, SS%f_pui_num2(cell2), u)/k1
+			uz_M = 1.0 - uz_M/u
+			k1 = (VV(1) - vx) * uz_M
+			k2 = (VV(2) - vy) * uz_M
+			k3 = (VV(3) - vz) * uz_M
+			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + k1 * mu_ex_pui
+			SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + (k2 * cos(alpha) + k3 * sin(alpha)) * mu_ex_pui  !k2 * mu_ex_pui
+			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + mu_ex_pui * (u**2 / 2.0 + &
+			(k1 * vx + k2 * vy + k3 * vz) - uz_E)
+
+
+			!if(SS%gl_all_Cell_zone(cell) <= 2) then
+			call PUI_Add(SS, cell, u, nu_all, mu, t_ex)
+			call PUI_Add(SS, cell, u, nu_all, mu2, t2)
+			!end if
+		end if
+		
 	end subroutine MK_ADD_MOMENT2
 
     subroutine M_K_Set(SS)
@@ -1218,9 +1316,9 @@ module Monte_Karlo
 			u = sqrt( (Vr - Wr_(ii))**2 + (Vthe - Wthe_(ii))**2 +(Vphi - Wphi_(ii))**2 )
 
 			if (X > 7.0) then
-				mu_(ii) = (u * MK_sigma2(u, cp) / (uu * MK_sigma2(uu, cp))) * (MK_f2(0.0_8, gam1, Ur, Uthe) - MK_f2(0.0_8, gam2, Ur, Uthe)) * exp(-(Uthe**2)) * (p) / (1.0 + (c**2))
+				mu_(ii) = (u * MK_sigma2(SS, u, cp) / (uu * MK_sigma2(SS, uu, cp))) * (MK_f2(0.0_8, gam1, Ur, Uthe) - MK_f2(0.0_8, gam2, Ur, Uthe)) * exp(-(Uthe**2)) * (p) / (1.0 + (c**2))
 			else
-				mu_(ii) = (u * MK_sigma2(u, cp) / (MK_int_1(X * cp, cp) / cp)) * (MK_f2(0.0_8, gam1, Ur, Uthe) - MK_f2(0.0_8, gam2, Ur, Uthe)) * exp(-(Uthe**2)) * (p) / (1.0 + (c**2))
+				mu_(ii) = (u * MK_sigma2(SS, u, cp) / (MK_int_1(SS, X * cp, cp) / cp)) * (MK_f2(0.0_8, gam1, Ur, Uthe) - MK_f2(0.0_8, gam2, Ur, Uthe)) * exp(-(Uthe**2)) * (p) / (1.0 + (c**2))
 			end if
 		end do
 
@@ -1266,7 +1364,7 @@ module Monte_Karlo
 			u3 = Vphi - v3
 			uuu = sqrt(kvv(u1, u2, u3))
 			yy = sqrt(kvv(y1, y2, y3))
-			h = ((uuu * MK_sigma2(uuu, cp)) / (MK_sigma2(X, cp) * (X + yy)))
+			h = ((uuu * MK_sigma2(SS, uuu, cp)) / (MK_sigma2(SS, X, cp) * (X + yy)))
 			
 			if (h >= ksi6) EXIT
 		end do
@@ -1916,13 +2014,14 @@ module Monte_Karlo
 		return
 	end function MK_int_1_f3
 	
-	real(8) pure function MK_int_1(x, cp)
+	real(8) pure function MK_int_1(SS, x, cp)
+		TYPE (Setka), intent(in) :: SS
 		real(8), intent (in) :: x, cp
 		real(8) :: b
 		
-		b = 1.0 - par_a_2 * log(cp)
+		b = 1.0 - SS%par_a_2 * log(cp)
 		MK_int_1 = (cp / (par_sqrtpi**3)) * (b * b * MK_int_1_f1(x / cp) - &
-			2.0 * par_a_2 * b * MK_int_1_f2(x / cp) + par_a_2**2 * MK_int_1_f3(x / cp))
+			2.0 * SS%par_a_2 * b * MK_int_1_f2(x / cp) + SS%par_a_2**2 * MK_int_1_f3(x / cp))
 	end function MK_int_1
 	
 	real(8) pure function MK_int_2_f1(x)
@@ -2016,21 +2115,23 @@ module Monte_Karlo
 		
 	end function MK_int_2_f3
 	
-	real(8) pure function MK_int_2(x, cp)
+	real(8) pure function MK_int_2(SS, x, cp)
+		TYPE (Setka), intent(in) :: SS
 		real(8), intent (in) :: x, cp
 		real(8) :: b
 		
-		b = 1.0 - par_a_2 * log(cp)
+		b = 1.0 - SS%par_a_2 * log(cp)
 		MK_int_2 = -(cp * cp / (par_sqrtpi * par_sqrtpi * par_sqrtpi)) * (b * b * MK_int_2_f1(x / cp) - &
-			2.0 * par_a_2 * b * MK_int_2_f2(x / cp) + (par_a_2**2) * MK_int_2_f3(x / cp))
+			2.0 * SS%par_a_2 * b * MK_int_2_f2(x / cp) + (SS%par_a_2**2) * MK_int_2_f3(x / cp))
 	end function MK_int_2
 	
-	real(8) pure function MK_int_3(x, cp)
+	real(8) pure function MK_int_3(SS, x, cp)
+		TYPE (Setka), intent(in) :: SS
 		real(8), intent (in) :: x, cp
 		real(8) :: b
 		
-		b = 1.0 - par_a_2 * log(cp)
-		MK_int_3 = (cp**3 / (par_sqrtpi**3)) * (b * b * MK_int_3_f1(x / cp) - 2.0 * par_a_2 * b * MK_int_3_f2(x / cp) + (par_a_2**2) * MK_int_3_f3(x / cp))
+		b = 1.0 - SS%par_a_2 * log(cp)
+		MK_int_3 = (cp**3 / (par_sqrtpi**3)) * (b * b * MK_int_3_f1(x / cp) - 2.0 * SS%par_a_2 * b * MK_int_3_f2(x / cp) + (SS%par_a_2**2) * MK_int_3_f3(x / cp))
 	end function MK_int_3
 
 	real(8) pure function MK_int_3_f1(x)

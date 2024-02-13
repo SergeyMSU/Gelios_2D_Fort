@@ -9,6 +9,7 @@ module Algoritm
     USE Interpol
     USE cgod
     USE Monte_Karlo
+    USE PUI
     implicit none 
 
     contains
@@ -105,17 +106,30 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "B0060")   ! ДЛЯ ВОДОРОДА
+        call Read_setka_bin(gl_S3, "DD001")   ! ДЛЯ ВОДОРОДА
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
+
+        call PUI_print_S(gl_S3, 15.0_8, 0.0001_8)
+        call PUI_print_S(gl_S3, 25.0_8, 0.0001_8)
+        
+        call Culc_f_pui(gl_S3, gl_I1)
+        call PUI_Culc_h0(gl_S3)
+        call PUI_F_integr_Set(gl_S3)
+        call PUI_F_integr_Culc(gl_S3)
+        call PUI_n_T_culc(gl_S3)
+
+        call PUI_print_pui(gl_S3, 15.0_8, 0.0001_8)
+        call PUI_print_pui(gl_S3, 25.0_8, 0.0001_8)
+        return
 
         
         print*, "D"
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "A0061")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "C0009")      ! ОСНОВНАЯ СЕТКА
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -127,6 +141,30 @@ module Algoritm
         !call Algoritm_Reinterpol(SS, gl_S2)
 
         if(SS%init_geo == .False.) STOP "Gas_dynamic_algoritm  error init_geo erty67543"  
+
+
+        ! Параметры МАЛАМЫ
+        ! SS%par_n_H_LISM = 3.0
+        ! SS%par_Velosity_inf = -2.54385
+        ! SS%par_Kn = 34.516
+        ! SS%par_nu_ph = 11.7745 
+        ! SS%par_E_ph = 0.0725533
+        ! SS%par_R0 = 0.20445
+        ! SS%par_chi = 43.1202
+        ! SS%par_rho_e = 128.667
+        ! SS%par_Max_e = 6.21523
+
+        ! Параметры Модели, которые сейчас строим
+        SS%par_n_H_LISM = 3.0
+        SS%par_Velosity_inf = -2.54278_8
+        SS%par_Kn = 50.3858
+        SS%par_nu_ph = 12.0969 
+        SS%par_E_ph = 0.10878
+        SS%par_R0 = 0.198956
+        SS%par_chi = 41.0391
+        SS%par_rho_e = 150.0
+        SS%par_Max_e = 5.91662
+        SS%par_a_2 = 0.130735_8
 
 
         !call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
@@ -157,17 +195,33 @@ module Algoritm
         call Print_GD_1D(SS)
         call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
 
-        call Print_hydrogen(SS)
+        !call Print_hydrogen(SS)
 
         ALLOCATE(SS%gl_Gran_POTOK(size(SS%gl_all_Gran(1, :))))
 
         SS%gl_Gran_POTOK = -100000.0
 
+        SS%par_nat_TS = 0.04_8 ! 0.03_8
+        SS%par_nat_HP = 0.003_8  ! 0.04  0.06
+        SS%par_nat_BS = 0.006_8 !0.004_8
+
+        SS%par_koeff_HP = 0.03_8  
+
+    
+
+        print*, "Proverim parametry"
+        print*, SS%par_n_H_LISM
+        print*, SS%par_Kn
+        print*, SS%par_a_2
+        print*, SS%par_nu_ph
+        print*, "________________________"
+
+
         print*, "H"
-        i_max = 200!200!350   100 - 7 минут
+        i_max = 500!200!350   100 - 7 минут
         do i = 1, i_max
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
-            if (mod(i, 20) == 0) then
+            if (mod(i, 5) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
             call Start_GD_algoritm(SS, 5000, 2) !5000
@@ -184,9 +238,11 @@ module Algoritm
             call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
         end do
 
+
+
         call Print_GD(SS)
-        call Geo_Print_Surface(SS)
-        call Save_setka_bin(SS, "A0062")
+        call Geo_Print_Surface(SS, 5)
+        call Save_setka_bin(SS, "J0005")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -242,13 +298,13 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: i, j, cell
 
-        call Read_setka_bin(SS, "A0061")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "C0009")      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
-        call Geo_Print_Surface(SS)
-        call Print_Grans(SS)
+        !call Geo_Print_Surface(SS)
+        !call Print_Grans(SS)
         ! call Print_GD_1D(SS)
-        pause
+        !pause
 
 		print*, "A1"
         call SUR_init(gl_surf1, SS)
@@ -270,6 +326,20 @@ module Algoritm
         gl_S3%par_kk13 =  1.6!
         gl_S3%par_kk14 =  0.8!
         gl_S3%par_kk113 = 1.2
+
+        !! Физические параметры модели
+        gl_S3%par_n_H_LISM = 3.0
+        gl_S3%par_Velosity_inf = -2.54278_8
+        gl_S3%par_Kn = 50.3858
+        gl_S3%par_nu_ph = 12.0969 
+        gl_S3%par_E_ph = 0.10878
+        gl_S3%par_R0 = 0.198956
+        gl_S3%par_chi = 41.0391
+        gl_S3%par_rho_e = 150.0
+        gl_S3%par_Max_e = 5.91662
+        gl_S3%par_a_2 = 0.130735_8
+        gl_S3%par_poglosh = 0.389274
+
         call Init_Setka(gl_S3)
 		print*, "A4"
         call Build_Setka_start(gl_S3)
@@ -277,10 +347,10 @@ module Algoritm
 	    call Algoritm_ReMove_Surface(gl_S3, gl_surf1)
 		print*, "A6"
 
-        call Print_Cell(gl_S3)
-        call Geo_Print_Surface(gl_S3)
-        call Print_Grans(gl_S3)
-        return
+        ! call Print_Cell(gl_S3)
+        ! call Geo_Print_Surface(gl_S3)
+        ! call Print_Grans(gl_S3)
+        ! return
 
         !print*, gl_S2%gd(:, 1)
         !print*, gl_S2%gd(:, 2)
@@ -299,13 +369,23 @@ module Algoritm
         ! call Print_GD_1D(gl_S3)
         ! return
 
+        print*, "Proverim parametry"
+        print*, gl_S3%par_n_H_LISM
+        print*, gl_S3%par_Kn
+        print*, gl_S3%par_a_2
+        print*, gl_S3%par_nu_ph
+        print*, "________________________"
+
+
         call M_K_start(gl_S3, gl_S2)
 
         call Print_hydrogen(gl_S3)
         call Print_hydrogen_1D(gl_S3)
         call Calc_Pogloshenie(gl_S3)
 
-        call Save_setka_bin(gl_S3, "B0060")
+        call PUI_print_S(gl_S3, 15.0_8, 0.0001_8)
+        call PUI_print_S(gl_S3, 25.0_8, 0.0001_8)
+        call Save_setka_bin(gl_S3, "DD001")
 
         print*, "END"
 
@@ -446,37 +526,70 @@ module Algoritm
                     !if(.False.) then
                     !if(.True.) then
                     if(SS%gl_Gran_shem(gran) == 3) then
-                        123 continue
-                        call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
-                        normal(1), normal(2), 0.0_8, 1.0_8, &
-                        wc, qqq1(1:8), qqq2(1:8), &
-                        dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
-                        POTOK2)
 
-                        if (idgod == 2) then
-                            POTOK2 = 0.0
-                            call chlld_Q(1, normal(1), normal(2), 0.0_8, &
-                                wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
+                        if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 5) then  ! Контакт
+                            wc = 0.0
+                            qqq2 = qqq1
+                            wc = DOT_PRODUCT(qqq1(2:3), normal)
+                            qqq2(2:3) = qqq2(2:3) - 2.0 * wc * normal
+                            wc = 0.0
+
+                            call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
+                            normal(1), normal(2), 0.0_8, 1.0_8, &
+                            wc, qqq1(1:8), qqq2(1:8), &
+                            dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                            POTOK2)
+
+                            POTOK2(1) = 0.0
+                            POTOK2(4) = 0.0
+                            POTOK2(5) = 0.0
+                            POTOK2(6) = 0.0
+                            POTOK2(7) = 0.0
+                            POTOK2(8) = 0.0
+                            POTOK2(9) = 0.0
+
+                            ! print*, "____________________"
+                            ! print*, qqq1
+                            ! print*, "____________________"
+                            ! print*, qqq2
+                            ! print*, "____________________"
+                            ! print*, POTOK2
+                            ! print*, "____________________"
+                            ! pause
+
+                            if (idgod == 2) STOP "ERROR okrfi9uhebrtomeevjoerhbbvecwwvertbhyrvgf"
+
                         else
-                            if(dsc >= wc) then  !! Правильно считаем конвективный перенос
-                                POTOK2(9) = POTOK2(1) / qqq1(1) * qqq1(9)
+                            call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
+                            normal(1), normal(2), 0.0_8, 1.0_8, &
+                            wc, qqq1(1:8), qqq2(1:8), &
+                            dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                            POTOK2)
+                        
+
+                            if (idgod == 2) then
+                                POTOK2 = 0.0
+                                call chlld_Q(1, normal(1), normal(2), 0.0_8, &
+                                    wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
                             else
-                                POTOK2(9) = POTOK2(1) / qqq2(1) * qqq2(9)
+                                if(dsc >= wc) then  !! Правильно считаем конвективный перенос
+                                    POTOK2(9) = POTOK2(1) / qqq1(1) * qqq1(9)
+                                else
+                                    POTOK2(9) = POTOK2(1) / qqq2(1) * qqq2(9)
+                                end if
                             end if
                         end if
 
-                        ! if(SS%gl_Gran_type(gran) == 2 .and. null_un == .False.) then
-                        !     !print*, "POTOK = 0"
-                        !     !pause
-                        !     null_un = .True.
-                        !     POTOK2 = 0.0
-                        !     wc = dsc
-                        !     go to 123
-                        ! end if
                     else
                         call chlld_Q(SS%gl_Gran_shem(gran), normal(1), normal(2), 0.0_8, &
                         wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
                     end if
+
+                    ! if(SS%gl_Cell_neighbour(gr, cell) == -4 .and. gran_center(1) > 35 .and. gran_center(1) < 60) then
+                    !     print*, POTOK2
+                    !     print*, "_______________"
+                    !     pause
+                    ! end if
 
                     ! if(gran == 77) then
                     !     print*, qqq1
@@ -611,14 +724,15 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4), intent(in) :: step
         integer(4) :: Num, i, s1, s2, gran, Num2, Num3, s3
-        real(8) :: normal(2), qqq1(8), qqq2(8), POTOK(8)
+        real(8) :: normal(2), qqq1(8), qqq2(8), POTOK(8), nat_HP
         real(8) :: dsl, dsc, dsp
         real(8) :: c1(2), c2(2), c3(2), wc
         integer(4) :: kdir, idgod, KOBL
 
-        SS%par_koeff_TS = 0.002
-        SS%par_koeff_HP = 0.1
-        SS%par_koeff_BS = 0.1
+
+        ! SS%par_koeff_TS = 0.002
+        ! SS%par_koeff_HP = 0.1
+        ! SS%par_koeff_BS = 0.1
 
         Num = size(SS%gl_TS)
 
@@ -703,8 +817,9 @@ module Algoritm
         end do
         !$omp end do
 
-        !$omp do private(KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
+        !$omp do private(nat_HP, KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
         do i = 1, Num2
+            nat_HP = SS%par_nat_HP
             qqq1 = 0.0
             qqq2 = 0.0
             wc = 0.0
@@ -728,6 +843,10 @@ module Algoritm
 
             ! call chlld(2, normal(1), normal(2), 0.0_8, &
 			! 	0.0_8, qqq1, qqq2, dsl, dsp, dsc, POTOK)
+
+            !! Попробуем убрать тангенциальные скорости (хотим убрать неустойчивость)
+            ! qqq1(2:3) = DOT_PRODUCT(qqq1(2:3), normal) * normal
+            ! qqq2(2:3) = DOT_PRODUCT(qqq2(2:3), normal) * normal
 
             call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                 normal(1), normal(2), 0.0_8, 1.0_8, &
@@ -755,7 +874,7 @@ module Algoritm
             SS%gl_Point_num(s2) = SS%gl_Point_num(s2) + 1
 
             !! Сюда же напишем поверхностное натяжение
-            !! Это поверхностое натяжение работает только в случае, если скорость движения узла везда как среднее движения его граней
+            !! Это поверхностое натяжение работает только в случае, если скорость движения узла везде как среднее движения его граней
             ! s1 = SS%gl_all_Gran(1, gran)
             ! s2 = SS%gl_all_Gran(2, gran)
 
@@ -767,12 +886,16 @@ module Algoritm
             !     CYCLE
             ! end if
 
+            !if(c1(1) > -50) nat_HP = nat_HP * 10
+
+            !nat_HP = GET_HP_nat(polar_angle(c1(2), c1(1)))
+
             if(i > 1) then
                 gran = SS%gl_HP(i - 1)
                 s3 = SS%gl_all_Gran(2, gran)
                 c3 = SS%gl_yzel(:, s3, step)
                 c3 = (c2 + c3)/2.0
-                SS%gl_yzel_Vel(:, s1) = SS%gl_yzel_Vel(:, s1) + 2.0 * (c3 - c1) * SS%par_nat_HP
+                SS%gl_yzel_Vel(:, s1) = SS%gl_yzel_Vel(:, s1) + 2.0 * (c3 - c1) * nat_HP
             end if
 
             if(i < Num2) then
@@ -780,7 +903,7 @@ module Algoritm
                 s3 = SS%gl_all_Gran(1, gran)
                 c3 = SS%gl_yzel(:, s3, step)
                 c3 = (c1 + c3)/2.0
-                SS%gl_yzel_Vel(:, s2) = SS%gl_yzel_Vel(:, s2) + 2.0 * (c3 - c2) * SS%par_nat_HP
+                SS%gl_yzel_Vel(:, s2) = SS%gl_yzel_Vel(:, s2) + 2.0 * (c3 - c2) * nat_HP
             end if
 
         end do
@@ -923,21 +1046,22 @@ module Algoritm
 
         do j = 2, 2
             the = (j - 1) * par_pi/2.0/(N2 - 1)
+            the2 = (j) * par_pi/2.0/(N2 - 1)
 
-            node = SS%gl_RAY_A(SS%par_n_TS, 2)
-            coord = SS%gl_yzel(:, node, step)
+            node = SS%gl_RAY_A(SS%par_n_TS, 2) !! --------------------------------------------------
+            coord = SS%gl_yzel(:, node, step2)
             norma = norm2(coord)
             R_TS = norma
 
             node = SS%gl_RAY_A(SS%par_n_HP, 3)
-            coord = SS%gl_yzel(:, node, step)
+            coord = SS%gl_yzel(:, node, step2)
             norma = norm2(coord)
             R_HP = norma
 
-            node = SS%gl_RAY_A(SS%par_n_BS, 2)
-            coord = SS%gl_yzel(:, node, step)
+            node = SS%gl_RAY_A(SS%par_n_BS, 3)
+            coord = SS%gl_yzel(:, node, step2)
             norma = norm2(coord)
-            R_BS = norma
+            R_BS = norma * cos(the2)/cos(the)
 
             do i = 1, N1
                 call Set_Ray_A(SS, i, j, R_TS, R_HP, R_BS, step2)
@@ -946,21 +1070,22 @@ module Algoritm
 
         do j = 1, 1
             the = (j - 1) * par_pi/2.0/(N2 - 1)
+            the2  = (j) * par_pi/2.0/(N2 - 1)
 
             node = SS%gl_RAY_A(SS%par_n_TS, 2)
-            coord = SS%gl_yzel(:, node, step)
+            coord = SS%gl_yzel(:, node, step2)
             norma = norm2(coord)
             R_TS = norma
 
             node = SS%gl_RAY_A(SS%par_n_HP, 2)
-            coord = SS%gl_yzel(:, node, step)
+            coord = SS%gl_yzel(:, node, step2)
             norma = norm2(coord)
             R_HP = norma
 
             node = SS%gl_RAY_A(SS%par_n_BS, 2)
-            coord = SS%gl_yzel(:, node, step)
+            coord = SS%gl_yzel(:, node, step2)
             norma = norm2(coord)
-            R_BS = norma
+            R_BS = norma * cos(the2)
 
             do i = 1, N1
                 call Set_Ray_A(SS, i, j, R_TS, R_HP, R_BS, step2)
@@ -1402,8 +1527,9 @@ module Algoritm
         do j = 1, N2
             the = par_pi/2.0 + SS%par_triple_point + (N2 - j + 1) * (par_pi/2.0 - SS%par_triple_point)/(N2)  !TODO небезопасно, лучше организовать функцию, которая по номеру луча будет выдавать его угол
             R_TS = SUR_GET_TS(SURF, the)
-            ! print*, R_TS, the
-            ! pause
+            !print*, R_TS, the
+            !pause
+			
             do i = 1, N1
                 if (i == 1) then
                     CYCLE
