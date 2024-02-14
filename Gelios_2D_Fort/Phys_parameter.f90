@@ -201,8 +201,8 @@ module Phys_parameter
 
         istoch1 = .False.
         istoch2 = .False.
-        if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5) istoch1 = .True.
-        if(norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5) istoch2 = .True.
+        if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5 .and. SS%gl_all_Cell_zone(s1) <= 2) istoch1 = .True.
+        if(norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5 .and. SS%gl_all_Cell_zone(s2) <= 2) istoch2 = .True.
 
         c1 = SS%gl_Cell_Centr(:, s1, now)
         c2 = SS%gl_Cell_Centr(:, s2, now)
@@ -222,12 +222,65 @@ module Phys_parameter
             par1(1) = par1(1) * r1**2 / r5**2
             par1(5) = par1(5) * r1**2 / r5**2
             par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+
+            ! Для второго нужно сделать снос только с одной стороны
+            if(s4 > 0) then
+                c4 = SS%gl_Cell_Centr(:, s4, now)
+                d1 = norm2(c5 - c2)
+                d2 = norm2(c5 - c4)
+                par4 = SS%gd(1:5, s4, now)
+
+                do i = 1, 5 
+                    par2_(i) = linear1(d2, par4(i), d1, par2(i), 0.0_8)
+                end do
+                if(par2_(1) <= 0.0) then
+                    par2_(1) = SS%gd(1, s2, now)
+                    par2_(5) = SS%gd(5, s2, now)
+                end if
+                if(par2_(2) <= 0.0) par2_(2) = SS%gd(2, s2, now)
+            else
+                print*, "ERROR oiue97gew8o4vqiocvt5e ", s1, s2, s3, s4
+                print*, c1, c2
+                pause
+                STOP
+            end if
+
+            par1_ = par1
+
+            return
         else if(istoch1 == .False. .and. istoch2 == .True.) then
             call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
             call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
             par2(1) = par2(1) * r2**2 / r5**2
             par2(5) = par2(5) * r2**2 / r5**2
             par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+
+            ! Для второго нужно сделать снос только с одной стороны
+            if(s3 > 0) then
+                c3 = SS%gl_Cell_Centr(:, s3, now)
+                d1 = norm2(c5 - c1)
+                d2 = norm2(c5 - c3)
+                par3 = SS%gd(1:5, s3, now)
+
+                do i = 1, 5 
+                    par1_(i) = linear1(d2, par3(i), d1, par1(i), 0.0_8)
+                end do
+
+                if(par1_(1) <= 0.0) then
+                    par1_(1) = SS%gd(1, s1, now)
+                    par1_(5) = SS%gd(5, s1, now)
+                end if
+                if(par1_(2) <= 0.0) par1_(2) = SS%gd(2, s1, now)
+            else
+                print*, "ERROR l087968j5h74g635f2ddx4f5v54be4ybtbrevt", s1, s2, s3, s4
+                print*, c1, c2
+                pause
+                STOP
+            end if
+
+            par2_ = par2
+
+            return
 
         else if(istoch1 == .True. .and. istoch2 == .True.) then
             call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
@@ -242,7 +295,59 @@ module Phys_parameter
             par2(5) = par2(5) * r2**2 / r5**2
             par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
         else
-            if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2)) then
+            if (s1 > 0 .and. s2 > 0 .and. s3 > 0 .and. s4 > 0) then
+                c3 = SS%gl_Cell_Centr(:, s3, now)
+                c4 = SS%gl_Cell_Centr(:, s4, now)
+                d1 = -norm2(c5 - c1)
+                d2 = -norm2(c5 - c3)
+                d3 = norm2(c5 - c2)
+                par3 = SS%gd(1:5, s3, now)
+                par4 = SS%gd(1:5, s4, now)
+
+                if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s3)) then
+                    do i = 1, 5 
+                        par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
+                    end do
+                else if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s1) /= SS%gl_all_Cell_zone(s3)) then
+                    do i = 1, 5 
+                        par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
+                    end do
+                else  ! zona s1 = s3   s1/= s2
+                    do i = 1, 5 
+                        par1_(i) = linear1(d2, par3(i), d1, par1(i), 0.0_8)
+                    end do
+                    if(par1_(1) <= 0.0) then
+                        par1_(1) = SS%gd(1, s1, now)
+                        par1_(5) = SS%gd(5, s1, now)
+                    end if
+                    if(par1_(2) <= 0.0) par1_(2) = SS%gd(2, s1, now)
+                end if
+
+                d2 = -d1
+                d1 = -d3
+                d3 = d2
+                d2 = -norm2(c4 - c5)
+                if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s2) == SS%gl_all_Cell_zone(s4)) then
+                    do i = 1, 5 
+                        par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
+                    end do
+                else if (SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s2) /= SS%gl_all_Cell_zone(s4)) then
+                    do i = 1, 5 
+                        par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
+                    end do
+                else
+                    do i = 1, 5 
+                        par2_(i) = linear1(d2, par4(i), d1, par2(i), 0.0_8)
+                    end do
+                    if(par2_(1) <= 0.0) then
+                        par2_(1) = SS%gd(1, s2, now)
+                        par2_(5) = SS%gd(5, s2, now)
+                    end if
+                    if(par2_(2) <= 0.0) par2_(2) = SS%gd(2, s2, now)
+                end if
+
+                return
+            else if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2)) then
                 if(s3 > 0 .and. s4 > 0) then
                     c3 = SS%gl_Cell_Centr(:, s3, now)
                     c4 = SS%gl_Cell_Centr(:, s4, now)

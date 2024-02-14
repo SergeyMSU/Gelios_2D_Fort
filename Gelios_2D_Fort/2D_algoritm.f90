@@ -106,7 +106,7 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "K0004")   ! ДЛЯ ВОДОРОДА
+        call Read_setka_bin(gl_S3, "D0008")   ! ДЛЯ ВОДОРОДА
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -116,7 +116,7 @@ module Algoritm
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "J0005")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "C0009")      ! ОСНОВНАЯ СЕТКА
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -220,7 +220,7 @@ module Algoritm
             call Geo_Culc_normal(SS, 2) 
             call Geo_Culc_length_area(SS, 2)
 
-            call Start_GD_algoritm(SS, 500, 1) !500
+            call Start_GD_algoritm(SS, 200, 1) !500
 
             call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
         end do
@@ -228,8 +228,8 @@ module Algoritm
 
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, 6)
-        call Save_setka_bin(SS, "J0006")
+        call Geo_Print_Surface(SS, 10)
+        call Save_setka_bin(SS, "C0010")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -285,9 +285,10 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: i, j, cell
 
-        call Read_setka_bin(gl_S4, "DD001")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
+        call Read_setka_bin(gl_S4, "D0008")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
-        call Read_setka_bin(SS, "C0009")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "C0010")      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
         !call Geo_Print_Surface(SS)
@@ -328,6 +329,7 @@ module Algoritm
         gl_S3%par_Max_e = 5.91662
         gl_S3%par_a_2 = 0.130735_8
         gl_S3%par_poglosh = 0.389274
+        gl_S3%culc_pui = .False.
 
         call Init_Setka(gl_S3)
 		print*, "A4"
@@ -381,13 +383,17 @@ module Algoritm
         call Print_hydrogen_1D(gl_S3)
         call Calc_Pogloshenie(gl_S3)
 
-        call Culc_f_pui(gl_S3, gl_S2)
-        call PUI_print_pui(gl_S3, 15.0_8, 0.0001_8)
-        call PUI_print_pui(gl_S3, -15.0_8, 0.0001_8)
-        call PUI_print_pui(gl_S3, 0.0_8, 15.0001_8)
-        call PUI_print_pui(gl_S3, 25.0_8, 0.0001_8)
-        call PUI_print_pui(gl_S3, -50.0_8, 0.0001_8)
-        call Save_setka_bin(gl_S3, "DD002")
+        if(gl_S3%culc_pui == .True.) then
+            call Culc_f_pui(gl_S3, gl_S2)
+            call PUI_print_pui(gl_S3, 15.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, -15.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, 0.0_8, 15.0001_8)
+            call PUI_print_pui(gl_S3, 25.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, -50.0_8, 0.0001_8)
+        end if
+
+
+        call Save_setka_bin(gl_S3, "D0010")
 
         print*, "END"
 
@@ -529,7 +535,7 @@ module Algoritm
                     !if(.True.) then
                     if(SS%gl_Gran_shem(gran) == 3) then
 
-                        if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 5) then  ! Контакт
+                        if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 8) then  ! Контакт  5
                             wc = 0.0
                             qqq2 = qqq1
                             wc = DOT_PRODUCT(qqq1(2:3), normal)
@@ -624,21 +630,21 @@ module Algoritm
                     end if
 
 
-                    ! if(SS%gl_Gran_POTOK(gran) < -99000) then
-                    !     SS%gl_Gran_POTOK(gran) = POTOK2(1)
-                    ! else if(dabs(dabs(POTOK2(1)) - dabs(SS%gl_Gran_POTOK(gran))) > 0.00001) then
-                    !     print*, "________________"
-                    !     print*, POTOK2(1)
-                    !     print*, "________________"
-                    !     print*, SS%gl_Gran_POTOK(gran)
-                    !     print*, "________________"
-                    !     print*, gran_center
-                    !     print*, "________________"
-                    !     print*, gran
-                    !     print*, "________________"
-						
-                    !     pause
-                    ! end if
+                     !if(SS%gl_Gran_POTOK(gran) < -99000) then
+                     !    SS%gl_Gran_POTOK(gran) = POTOK2(1)
+                     !else if(dabs(dabs(POTOK2(1)) - dabs(SS%gl_Gran_POTOK(gran))) > 0.00001) then
+                     !    print*, "________________"
+                     !    print*, POTOK2(1)
+                     !    print*, "________________"
+                     !    print*, SS%gl_Gran_POTOK(gran)
+                     !    print*, "________________"
+                     !    print*, gran_center
+                     !    print*, "________________"
+                     !    print*, gran
+                     !    print*, "________________"
+						               !
+                     !    pause
+                     !end if
 
                 end do
 
@@ -711,7 +717,8 @@ module Algoritm
 			!$omp end do
             !$omp end parallel
 
-
+   !         print*, "END"
+			!pause
         end do
 
 
@@ -1055,15 +1062,31 @@ module Algoritm
             norma = norm2(coord)
             R_TS = norma
 
+
+            node = SS%gl_RAY_A(SS%par_n_HP, 2)
+            coord2 = SS%gl_yzel(:, node, step2)
+
             node = SS%gl_RAY_A(SS%par_n_HP, 3)
             coord = SS%gl_yzel(:, node, step2)
-            norma = norm2(coord)
-            R_HP = norma
+            if(coord2(1) < coord(1)) then
+                norma = norm2(coord)
+                R_HP = norma * cos(the2)/cos(the)
+            else
+                norma = norm2(coord2)
+                R_HP = norma
+            end if
 
+            node = SS%gl_RAY_A(SS%par_n_BS, 2)
+            coord2 = SS%gl_yzel(:, node, step2)
             node = SS%gl_RAY_A(SS%par_n_BS, 3)
             coord = SS%gl_yzel(:, node, step2)
-            norma = norm2(coord)
-            R_BS = norma * cos(the2)/cos(the)
+            if(coord2(1) < coord(1)) then
+                norma = norm2(coord)
+                R_BS = norma * cos(the2)/cos(the)
+            else
+                norma = norm2(coord2)
+                R_BS = norma
+            end if
 
             do i = 1, N1
                 call Set_Ray_A(SS, i, j, R_TS, R_HP, R_BS, step2)
@@ -1082,7 +1105,7 @@ module Algoritm
             node = SS%gl_RAY_A(SS%par_n_HP, 2)
             coord = SS%gl_yzel(:, node, step2)
             norma = norm2(coord)
-            R_HP = norma
+            R_HP = norma * cos(the2)/cos(the)
 
             node = SS%gl_RAY_A(SS%par_n_BS, 2)
             coord = SS%gl_yzel(:, node, step2)

@@ -9,7 +9,7 @@ module STORAGE
 
     integer(4), parameter :: par_n_zone = 6! 7  !   оличество радиусов (но есть ещЄ внешн€€ зона)
 	integer(4), parameter :: par_m_zone = 7! 6  !   оличество лучей по углу (от 0 до 180)
-    integer(4), parameter :: par_n_potok = 32! 32! 32  ! „исло потоков (у каждого потока свой стек)
+    integer(4), parameter :: par_n_potok = 32! 32! 24! 32  ! „исло потоков (у каждого потока свой стек)
     integer(4), parameter :: par_n_claster = 1  ! „исло компьютеров (дл€ MPI)
     integer(4), parameter :: par_n_parallel = 20! 20  ! ƒл€ распараллеливани€ цикла (т.е. каждый поток будет в среднем обрабатывать такое число итераций
     integer(4), parameter :: par_stek = 1000  ! √лубина стека (заранее выдел€етс€ пам€ть под него)
@@ -24,7 +24,7 @@ module STORAGE
 
     ! „исло частиц у каждого потока!
 	! „исло должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 14 * 9!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 30 минут)
+	integer(4), parameter :: MK_k_multiply = 18 * 7!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 30 минут)
     ! 14 - это 1 час с пикапами
     ! 18 - это 1 час без пикапов
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
@@ -252,7 +252,7 @@ module STORAGE
 
         !! PUI 
         ! PUI - т€жЄловесный блок, поэтому пам€ть выдел€етс€ не в "Geometry", а в "PUI" только при необходимости работы с пикапами
-        LOGICAL :: culc_pui = .True.   ! —читаем ли PUI ? 
+        LOGICAL :: culc_pui = .False.   ! —читаем ли PUI ? 
         integer :: pui_nW = 60      ! 50   !TODO —ќ’–јЌя≈“—я
         real(8) :: pui_wR = 150.0    ! 150.0  !TODO —ќ’–јЌя≈“—я
         integer :: pui_size            ! —колько €чеек содержат pui

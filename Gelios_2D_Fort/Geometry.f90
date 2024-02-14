@@ -2730,7 +2730,7 @@ module GEOMETRY
         write(1) SS%par_Velosity_inf
         write(1) SS%par_Kn
 
-        if(SS%culc_pui == .True.) then
+        if(SS%culc_pui == .True. .and. ALLOCATED(SS%pui_Sm) .and. ALLOCATED(SS%par_pui) .and. ALLOCATED(SS%f_pui)) then
             write(1) 1  ! œ» ¿œ€
             write(1) SS%pui_nW, SS%pui_wR, SS%pui_n_par
             write(1) SS%f_pui
@@ -2738,6 +2738,7 @@ module GEOMETRY
             write(1) SS%f_pui_num2 
             write(1) SS%par_pui 
             write(1) size(SS%pui_Sm(:, 1)), size(SS%pui_Sm(1, :))
+            print*, "Save  pui_Sm = ", size(SS%pui_Sm(:, 1)), size(SS%pui_Sm(1, :))
             write(1) SS%pui_Sm 
             write(1) size(SS%pui_Sp(:, 1)), size(SS%pui_Sp(1, :))
             write(1) SS%pui_Sp
