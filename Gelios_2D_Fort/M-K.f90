@@ -427,7 +427,7 @@ module Monte_Karlo
 		logical :: particle_3(par_n_zone + 1, par_m_zone + 1)
 		
 		integer(4) :: num  ! Номер частицы, верхняя в стеке
-		integer(4) :: cell ! Номер ячейки, в которой находится частица
+		integer(4) :: cell, cell_pui ! Номер ячейки, в которой находится частица
 		integer(4) :: cell2 ! Номер ячейки для интерполяции
 		integer(4) :: next ! Номер ячейки, в которую попадёт частица в следующий раз
 		integer(4) :: next2 ! Номер ячейки, в которую попадёт частица в следующий раз
@@ -519,13 +519,16 @@ module Monte_Karlo
 					! 	norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
 					PAR = SS%gd(:, cell, 1)  !! Пока без интерполяции
 					if(SS%culc_pui == .True. .and. area2 <= 2) then
-						ro_pui = SS%par_pui(1, cell)
-						T_pui = SS%par_pui(2, cell)
+						cell_pui = SS%f_pui_num2(cell)
+						if(cell_pui <= 0) STOP "ERROR 0i9fry8o7tbhrevterbyencqr"
+						ro_pui = SS%par_pui(1, cell_pui)
+						T_pui = SS%par_pui(2, cell_pui)
 
 						if(ro_pui <= 0.0 .or. ro_pui > 1000000.0) then
 							print*, ro_pui, T_pui
+							print*, particle(1), sqrt(particle(2)**2 + particle(3)**2)
 							print*, "___"
-							print*, cell
+							print*, cell, cell_pui
 							pause "ERROR ro_pUI MK 15634557 7umn98yb7tvbc56r47vt5yb86nu7vwc"
 						end if
 					else

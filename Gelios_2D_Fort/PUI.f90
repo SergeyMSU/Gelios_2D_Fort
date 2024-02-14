@@ -115,6 +115,8 @@ module PUI
         num = 1
         call Geo_Find_Cell(SS, x, y, num, inzone)
 
+		print*, "PUI_print_pui = ", num, x, y
+
         if(SS%gl_all_Cell_zone(num) > 2) return
         write(unit=name,fmt='(i5.5)') num
 
@@ -148,11 +150,12 @@ module PUI
 
 		SS%pui_Sm = SS%pui_Sm * SS%par_n_H_LISM
 		SS%pui_Sp = SS%pui_Sp * SS%par_n_H_LISM
+		SS%f_pui = 0.0
 
 
 		print*, "START Culc_f_pui"
 
-		dt = 0.01/50.0
+		dt = 0.01/55.0
 
 		! Находим функцию распределения для ячеек перед ударной волной
 		print*, "Do TS"
@@ -190,8 +193,8 @@ module PUI
 				call Geo_Find_Cell(SS, r(1), r(2), cell, inzone)
 				if(inzone == .False.) then
 					print*, "ERROR wvretbyunim67574321c4tv5y"
-					pause
-					STOP
+					print*, r
+					print*, cell, iter
 				end if
 				q1 = PAR_k(4)
 				rho = PAR(1)
@@ -258,9 +261,11 @@ module PUI
 				call Int_Get_Parameter(SS_int, r(1), r(2), num, PAR_gd = PAR, PAR_atom_source = PAR_k)
 				call Geo_Find_Cell(SS, r(1), r(2), cell, inzone)
 				if(inzone == .False.) then
-					print*, "ERROR wvretbyunim67574321c4tv5y"
-					pause
-					STOP
+					print*, "ERROR 8j7trnbev45yebv6by "
+					print*, r
+					print*, cell
+					!pause
+					!STOP
 				end if
 
 				q1 = PAR_k(4)
@@ -421,6 +426,8 @@ module PUI
 		allocate(SS%nu_integr_pui(SS%pui_F_n, N))
 		allocate(SS%Mz_integr_pui(SS%pui_F_n, N))
 		allocate(SS%E_integr_pui(SS%pui_F_n, N))
+		allocate(SS%h0_pui(SS%pui_h0_n))
+
 		print*, "PUI_F_integr_Set  END"
 	end subroutine PUI_F_integr_Set
 

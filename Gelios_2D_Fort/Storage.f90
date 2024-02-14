@@ -24,7 +24,9 @@ module STORAGE
 
     ! „исло частиц у каждого потока!
 	! „исло должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 6 * 3 * 5! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 18 минут)
+	integer(4), parameter :: MK_k_multiply = 14 * 9!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 30 минут)
+    ! 14 - это 1 час с пикапами
+    ! 18 - это 1 час без пикапов
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
 	integer(4), parameter :: MK_N1 = MK_k_mul1 * 60/par_n_parallel   ! 60 „исло исходных частиц первого типа (с полусферы)
@@ -260,7 +262,7 @@ module STORAGE
         integer, allocatable :: f_pui_num2(:)		   ! ѕо номеру €чейки в сетке, определ€ем номер в массиве PUI (если он есть - если область внутренн€€) !TODO —ќ’–јЌя≈“—я
         ! 0 - €чейка не содержит pui
         
-        real(8), allocatable :: par_pui(:, :)               ! (3 pui_n_par, :)	   ѕараметры пикапов !TODO —ќ’–јЌя≈“—я
+        real(8), allocatable :: par_pui(:, :)               ! (3 pui_n_par, : pui_size)	   ѕараметры пикапов !TODO —ќ’–јЌя≈“—я
         ! (n_pui, T_pui, p_pui)
         real(8), allocatable :: pui_Sm(:, :)           ! (pui_nW, : pui_size)  !TODO —ќ’–јЌя≈“—я
 	    real(8), allocatable :: pui_Sp(:, :)           ! (pui_nW, : pui_size)  !TODO —ќ’–јЌя≈“—я
@@ -351,6 +353,7 @@ module STORAGE
 	!! Ќабор глобальных переменных 
     TYPE (Setka):: gl_S1
     TYPE (Setka):: gl_S3
+    TYPE (Setka):: gl_S4
 
     TYPE (Inter_Setka):: gl_S2, gl_I1
 
@@ -398,6 +401,7 @@ module STORAGE
             ALLOCATE(SS%pui_Sm(SS%pui_nW, n))
             ALLOCATE(SS%pui_Sp(SS%pui_nW, n))
             ALLOCATE(SS%pui_lock(n))
+
 
             SS%f_pui = 0.0
             SS%f_pui_num = 0.0

@@ -103,7 +103,7 @@ program Gelios_2D_Fort
     ! pause
 
     call Gas_dynamic_algoritm2(gl_S1)
-    !call MK_algoritm(gl_S1)
+    ! call MK_algoritm(gl_S1)
     !call Perestroika_algoritm(gl_S1)
 
     !call Print_Cell(gl_S1)

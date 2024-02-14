@@ -106,30 +106,17 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "DD001")   ! ДЛЯ ВОДОРОДА
+        call Read_setka_bin(gl_S3, "K0004")   ! ДЛЯ ВОДОРОДА
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
-
-        call PUI_print_S(gl_S3, 15.0_8, 0.0001_8)
-        call PUI_print_S(gl_S3, 25.0_8, 0.0001_8)
-        
-        call Culc_f_pui(gl_S3, gl_I1)
-        call PUI_Culc_h0(gl_S3)
-        call PUI_F_integr_Set(gl_S3)
-        call PUI_F_integr_Culc(gl_S3)
-        call PUI_n_T_culc(gl_S3)
-
-        call PUI_print_pui(gl_S3, 15.0_8, 0.0001_8)
-        call PUI_print_pui(gl_S3, 25.0_8, 0.0001_8)
-        return
 
         
         print*, "D"
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "C0009")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "J0005")      ! ОСНОВНАЯ СЕТКА
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -241,8 +228,8 @@ module Algoritm
 
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, 5)
-        call Save_setka_bin(SS, "J0005")
+        call Geo_Print_Surface(SS, 6)
+        call Save_setka_bin(SS, "J0006")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -298,6 +285,8 @@ module Algoritm
         TYPE (Setka), intent(in out) :: SS
         integer(4) :: i, j, cell
 
+        call Read_setka_bin(gl_S4, "DD001")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+
         call Read_setka_bin(SS, "C0009")      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
@@ -343,6 +332,11 @@ module Algoritm
         call Init_Setka(gl_S3)
 		print*, "A4"
         call Build_Setka_start(gl_S3)
+
+        if(gl_S3%culc_pui == .True.) then
+            call PUI_SET(gl_S3)
+        end if
+
 		print*, "A5"
 	    call Algoritm_ReMove_Surface(gl_S3, gl_surf1)
 		print*, "A6"
@@ -362,12 +356,16 @@ module Algoritm
         
 		print*, "A8"
 
-        ! call Print_Cell(gl_S3)
-        ! call Print_GD(gl_S3)
-        ! call Geo_Print_Surface(gl_S3)
-        ! call Print_Grans(gl_S3)
-        ! call Print_GD_1D(gl_S3)
-        ! return
+        if(gl_S3%culc_pui == .True.) then
+            call Algoritm_Reinterpol_S_pui(gl_S3, gl_S4)  ! Берём S+ S- с предыдущего расчёта
+            call Culc_f_pui(gl_S3, gl_S2)
+            call PUI_F_integr_Set(gl_S3)
+            call PUI_Culc_h0(gl_S3)
+            call PUI_F_integr_Culc(gl_S3)
+            call PUI_n_T_culc(gl_S3)
+        end if
+        call Dell_Setka(gl_S4)
+
 
         print*, "Proverim parametry"
         print*, gl_S3%par_n_H_LISM
@@ -383,9 +381,13 @@ module Algoritm
         call Print_hydrogen_1D(gl_S3)
         call Calc_Pogloshenie(gl_S3)
 
-        call PUI_print_S(gl_S3, 15.0_8, 0.0001_8)
-        call PUI_print_S(gl_S3, 25.0_8, 0.0001_8)
-        call Save_setka_bin(gl_S3, "DD001")
+        call Culc_f_pui(gl_S3, gl_S2)
+        call PUI_print_pui(gl_S3, 15.0_8, 0.0001_8)
+        call PUI_print_pui(gl_S3, -15.0_8, 0.0001_8)
+        call PUI_print_pui(gl_S3, 0.0_8, 15.0001_8)
+        call PUI_print_pui(gl_S3, 25.0_8, 0.0001_8)
+        call PUI_print_pui(gl_S3, -50.0_8, 0.0001_8)
+        call Save_setka_bin(gl_S3, "DD002")
 
         print*, "END"
 
@@ -1643,5 +1645,43 @@ module Algoritm
             SS%atom_source(1:4, i) = source
         end do
     end subroutine Algoritm_Reinterpol
+
+    subroutine Algoritm_Reinterpol_S_pui(SS, XX)
+        !! Переинтерполирует значения атомарного водорода из сетки интерполяции в центры ячеек новой сетки
+        !! Нужно ли переинтерполировать газовую динамику, или только водород
+	    ! Передвигает поверхности сетки согласно поверхностям в SURF
+	    TYPE (Setka), intent(in out) :: SS
+	    TYPE (Setka), intent(in) :: XX
+        
+        integer(4) :: N, i, num, j, cell, num2
+        real(8) :: r(2)
+
+
+        N = size(SS%gl_Cell_Centr(1, :, 1))
+        num = 1
+        cell = 1
+
+        SS%pui_Sm = 0.0
+        SS%pui_Sp = 0.0
+
+        if(size(SS%pui_Sm(:, 1)) /= size(XX%pui_Sm(:, 1))) then
+            print*, "ERROR Algoritm_Reinterpol_S_pui 9i847yt65vgwohe9p4ivu5t098ytc03r"
+            print*, size(SS%pui_Sm(:, 1)), size(XX%pui_Sm(:, 1))
+            pause
+            STOP
+        end if
+
+
+        do i = 1, N
+            if(SS%gl_all_Cell_zone(i) >= 3) CYCLE
+            r = SS%gl_Cell_Centr(:, i, 1)
+            call Geo_Find_Cell(XX, r(1), r(2), cell)
+            num = XX%f_pui_num2(cell)
+            if(num <= 0) CYCLE
+            num2 = SS%f_pui_num2(i)
+            SS%pui_Sm(:, num2) = XX%pui_Sm(:, num)
+            SS%pui_Sp(:, num2) = XX%pui_Sp(:, num)
+        end do
+    end subroutine Algoritm_Reinterpol_S_pui
 
 end module Algoritm
