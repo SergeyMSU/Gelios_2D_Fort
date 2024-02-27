@@ -6,6 +6,37 @@ module My_func
 
     contains
 
+    subroutine get_bazis(ex, ey, ez)
+            ! По заданному вектору ex подбирает ey, ez ему перпендикулярные, образующие правую тройку
+            !! ex - должен быть единичным
+            real(8), intent(in) :: ex(3)
+            real(8), intent(out) :: ey(3)
+            real(8), intent(out) :: ez(3)
+            real(8) :: norm
+
+            ez(1) = 1.0
+            ez(2) = 0.0
+            ez(3) = 0.0
+
+            if( 1.0 - dabs(DOT_PRODUCT(ex, ez)) < 0.001) then
+                ez(1) = 0.0
+                ez(2) = 1.0
+                ez(3) = 0.0
+            end if
+
+            ey(1) = ex(2) * ez(3) - ex(3) * ez(2)
+            ey(2) = ex(3) * ez(1) - ex(1) * ez(3)
+            ey(3) = ex(1) * ez(2) - ex(2) * ez(1)
+            norm = sqrt(ey(1)**2 + ey(2)**2 + ey(3)**2)
+            ey = ey/norm
+
+            ez(1) = ex(2) * ey(3) - ex(3) * ey(2)
+            ez(2) = ex(3) * ey(1) - ex(1) * ey(3)
+            ez(3) = ex(1) * ey(2) - ex(2) * ey(1)
+            norm = sqrt(ez(1)**2 + ez(2)**2 + ez(3)**2)
+            ez = ez/norm
+        end subroutine get_bazis
+
     !@cuf attributes(host, device) & 
     integer(4) pure function signum(x)
         implicit none

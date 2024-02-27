@@ -106,7 +106,7 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "D0008")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿
+        call Read_setka_bin(gl_S3, "DD018")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -116,7 +116,7 @@ module Algoritm
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "C0009")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
+        call Read_setka_bin(SS, "CC019")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -152,6 +152,7 @@ module Algoritm
         SS%par_rho_e = 150.0
         SS%par_Max_e = 5.91662
         SS%par_a_2 = 0.130735_8
+        SS%culc_pui = .True.
 
 
         !call Algoritm_Initial_condition(SS)  ! «‡‰‡‰ËÏ Ì‡˜‡Î¸Ì˚Â ÛÒÎÓ‚Ëˇ ‰Îˇ ‚ÒÂı ˇ˜ÂÂÍ ÒÂÚÍË
@@ -205,7 +206,7 @@ module Algoritm
 
 
         print*, "H"
-        i_max = 500!200!350   100 - 7 ÏËÌÛÚ
+        i_max = 700!200!350   100 - 7 ÏËÌÛÚ
         do i = 1, i_max
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
             if (mod(i, 5) == 0) then
@@ -220,7 +221,7 @@ module Algoritm
             call Geo_Culc_normal(SS, 2) 
             call Geo_Culc_length_area(SS, 2)
 
-            call Start_GD_algoritm(SS, 200, 1) !500
+            call Start_GD_algoritm(SS, 500, 1) !500
 
             call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
         end do
@@ -228,8 +229,8 @@ module Algoritm
 
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, 10)
-        call Save_setka_bin(SS, "C0010")
+        call Geo_Print_Surface(SS, 20)
+        call Save_setka_bin(SS, "CC020")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -286,9 +287,9 @@ module Algoritm
         integer(4) :: i, j, cell
 
         ! —ÂÚÍ‡ ‚Ó‰ÓÓ‰‡ ÌÛÊÌÓ ÚÓÎ¸ÍÓ ‚ ÒÎÛ˜‡Â ËÒÔÓÎ¸ÁÓ‚‡ÌËˇ œ» ¿œŒ¬   culc_pui == True
-        call Read_setka_bin(gl_S4, "D0008")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿ (œÂ‰˚‰Û˘ËÈ ‡Ò˜∏Ú)
+        call Read_setka_bin(gl_S4, "DD017")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿ (œÂ‰˚‰Û˘ËÈ ‡Ò˜∏Ú)
 
-        call Read_setka_bin(SS, "C0010")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
+        call Read_setka_bin(SS, "CC018")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
 
         ! call Print_GD(SS)
         !call Geo_Print_Surface(SS)
@@ -329,7 +330,7 @@ module Algoritm
         gl_S3%par_Max_e = 5.91662
         gl_S3%par_a_2 = 0.130735_8
         gl_S3%par_poglosh = 0.389274
-        gl_S3%culc_pui = .False.
+        gl_S3%culc_pui = .True.
 
         call Init_Setka(gl_S3)
 		print*, "A4"
@@ -376,12 +377,18 @@ module Algoritm
         print*, gl_S3%par_nu_ph
         print*, "________________________"
 
+        call Print_GD_PUI(gl_S3)
+        !call PUI_print_pui(gl_S3, -56.2_8, 12.96_8)
+        !call PUI_print_pui(gl_S3, -74.5_8, 21.35_8)
+        !return 
 
         call M_K_start(gl_S3, gl_S2)
 
         call Print_hydrogen(gl_S3)
         call Print_hydrogen_1D(gl_S3)
         call Calc_Pogloshenie(gl_S3)
+
+        call Print_GD_PUI(gl_S3)
 
         if(gl_S3%culc_pui == .True.) then
             call Culc_f_pui(gl_S3, gl_S2)
@@ -393,11 +400,38 @@ module Algoritm
         end if
 
 
-        call Save_setka_bin(gl_S3, "D0010")
+        call Save_setka_bin(gl_S3, "DD018")
+        call Print_PUI_1D(gl_S3)
 
         print*, "END"
 
     end subroutine MK_algoritm
+
+    subroutine Print_PUI_algoritm(SS)
+        TYPE (Setka), intent(in out) :: SS
+
+         ! —ÂÚÍ‡ ‚Ó‰ÓÓ‰‡ ÌÛÊÌÓ ÚÓÎ¸ÍÓ ‚ ÒÎÛ˜‡Â ËÒÔÓÎ¸ÁÓ‚‡ÌËˇ œ» ¿œŒ¬   culc_pui == True
+        call Read_setka_bin(gl_S4, "DD012")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿ (œÂ‰˚‰Û˘ËÈ ‡Ò˜∏Ú)
+
+        call Read_setka_bin(SS, "CC012")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿
+
+		print*, "A1"
+        call SUR_init(gl_surf1, SS)
+		print*, "A2"
+        call Int_Init(gl_S2, SS)
+		print*, "A3"
+
+        call Culc_f_pui(gl_S4, gl_S2)
+        !call PUI_F_integr_Set(gl_S4)
+        !call PUI_Culc_h0(gl_S4)
+        !call PUI_F_integr_Culc(gl_S4)
+        call PUI_n_T_culc(gl_S4)
+
+        call Print_PUI_1D(gl_S4)
+
+        print*, "END"
+
+    end subroutine Print_PUI_algoritm
 
     subroutine Start_GD_algoritm(SS, all_step_, area)
         TYPE (Setka), intent(in out) :: SS
@@ -615,7 +649,7 @@ module Algoritm
                     !     pause
                     ! end if
 
-                    loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )
+                    loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )  
 
                     POTOK(5) = POTOK(5) + POTOK2(9) * Sqv
                     POTOK(1) = POTOK(1) + POTOK2(1) * Sqv
@@ -653,7 +687,7 @@ module Algoritm
 
                 call Calc_sourse_MF(SS, cell, source, now, use_koeff_ = .True.)
 
-                !if(center(1) > 120) source = 0.0  !! ”¡–¿“‹
+                !if(center(1) < -215) source = 0.0  !! ”¡–¿“‹
 
                 if(ieee_is_nan(source(2)) .or. ieee_is_nan(source(1)) .or. ieee_is_nan(source(4))) then
                     print*, "error source nan 186 tyujhwgeftywfwf"
@@ -688,12 +722,13 @@ module Algoritm
                 if(ro2 <= 0.0) then
                     print*, "Ro < 0", ro2, ro, TT, Vol, cell
                     print*, "centr = ", center
-                    print*, "_____________"
-                    print*, "POTOK = ", POTOK
-                    print*, "_____________"
-                    print*, par1, "||||||||| ", par2
-                    print*, "_____________"
-                    stop
+                    ! print*, "_____________"
+                    ! print*, "POTOK = ", POTOK
+                    ! print*, "_____________"
+                    ! print*, par1, "||||||||| ", par2
+                    ! print*, "_____________"
+                    ! stop
+                    ro2 = 0.03
                 end if
                 Q2 = Q * Vol/Vol2 - TT * (POTOK(5) / Vol2 + Q * v/center(2) - (Q/ro) * source(1))
                 u2 = (ro * u * Vol/Vol2 - TT * ( POTOK(3) / Vol2 + ro * v * u/center(2) - source(2) )) / ro2
@@ -704,7 +739,7 @@ module Algoritm
                         - TT * (POTOK(2)/ Vol2 + pp - source(4)) ) - 0.5 * ro2 * (u2**2 + v2**2) ) * (SS%par_ggg - 1.0)
 
                 if(p2 <= 0.0) then
-                    p2 = 0.000001
+                    p2 = 0.1! 0.000001   !! ”””¡–¿“‹
                 end if
 
                 SS%gd(1, cell, now2) = ro2
@@ -717,7 +752,7 @@ module Algoritm
 			!$omp end do
             !$omp end parallel
 
-   !         print*, "END"
+     !         print*, "END"
 			!pause
         end do
 

@@ -557,8 +557,8 @@ module Monte_Karlo
 						p = 4.0 * (ro - ro_pui) * (p - ro_pui * T_pui) /&
 						(8.0 * ro - 4.0 * ro_pui)
 						ro = ro - ro_pui
-						if(p < 0.0) p = 4286.72/((r/SS%par_R0)**(2.0 * SS%par_ggg))
-						if(ro <= 0.0000001) ro = 0.0000001
+						if(p < 0.0) p = PAR(2)/60.0! p = 4286.72/((r/SS%par_R0)**(2.0 * SS%par_ggg))/2.0
+						if(ro <= 0.0000001) ro = PAR(1)/30.0
 						cp = sqrt(2.0 * p/ro)
 					end if
 
@@ -696,6 +696,39 @@ module Monte_Karlo
 				else
 					II = MK_geo_zones(SS, r, 1.2_8) - 1
 				end if
+
+				!! Надо перезарядить с пикапами
+				if(SS%culc_pui == .True. .and. area2 <= 2) then
+					call MK_pui_charge_exchange_velocity(SS, n_potok, vx, vy, vz, particle(4), particle(5), particle(6), SS%f_pui_num2(cell2), k1, k2, k3)
+					! Функция возвращает сразу декартовые компоненты новой скорости
+					V = (/ k1, k2, k3 /)
+					call MK_Distination(SS, r_ex, V, to_i, to_j, r_peregel)
+					mu3 = mu_ex_pui
+					call MK_ruletka(SS, n_potok, to_i, to_j, from_i, from_j, area2, r, r_peregel, mu3, bb2)
+
+					!SS%M_K_Moment(8, particle_2(2), cell, n_potok) = SS%M_K_Moment(8, particle_2(2), cell, n_potok) + &
+					!	mu_ex_pui * (norm2(particle(4:6))**2 - norm2(V)**2)/2.0
+
+					if(bb2 /= .False.) then  ! Если не надо вырубать атом
+						! Запишем новую частицу в стек
+						SS%stek(n_potok) = SS%stek(n_potok) + 1
+						SS%M_K_particle(1:3, SS%stek(n_potok), n_potok) = r_ex
+						SS%M_K_particle(4:6, SS%stek(n_potok), n_potok) = V
+						SS%M_K_particle(7, SS%stek(n_potok), n_potok) = mu3
+						SS%M_K_particle(8, SS%stek(n_potok), n_potok) = r_peregel
+
+						SS%M_K_particle_2(:, SS%stek(n_potok), n_potok) = (/ cell, area2, to_i, to_j, cell2 /)
+						
+						if(MK_Mu_stat == .True.) then
+							if(particle_2(2) == area2) then
+								SS%M_K_particle_3(:, :, SS%stek(n_potok), n_potok) = particle_3
+							else 
+								SS%M_K_particle_3(:, :, SS%stek(n_potok), n_potok) = .False.
+							end if
+						end if
+						
+					end if
+				end if
 				
 				!print*, "GGG"
 				call M_K_Change_Velosity4(SS, n_potok, Ur/cp, Uthe/cp, Uphi/cp, Vr/cp, Vthe/cp, Vphi/cp, Wr, Wthe, Wphi, mu_, &
@@ -799,6 +832,51 @@ module Monte_Karlo
 		end do
 
 	end subroutine M_K_Fly
+
+	subroutine MK_pui_charge_exchange_velocity(SS, potok, Upx, Upy, Upz, UHx, UHy, UHz, num, VHx, VHy, VHz)
+		!? Функция перезарядки - получает новые скорости атома после перезарядки
+		USE PUI
+		implicit none
+		TYPE (Setka), intent(in out) :: SS
+		real(8), intent(in) :: Upx, Upy, Upz, UHx, UHy, UHz
+		integer, intent(in) :: potok, num ! В какой ячейке сейчас находимся (чтобы брать эту f_pui)
+		real(8), intent(out) :: VHx, VHy, VHz
+		
+		real(8) :: ksi1, ksi2, ksi3
+		real(8) :: UH, w, the, u, h0, phi
+		real(8) :: ex(3), ey(3), ez(3), vx, vy, vz
+
+		ez(1) = UHx - Upx
+		ez(2) = UHy - Upy
+		ez(3) = UHz - Upz
+
+		UH = sqrt((Upx - UHx)**2 + (Upy - UHy)**2 + (Upz - UHz)**2)
+		ez = ez/UH
+		h0 = PUI_get_h0(SS, UH)
+
+		call get_bazis(ez, ex, ey)
+
+		do while(.True.)
+			call M_K_rand(SS%sensor(1, 2, potok), SS%sensor(2, 2, potok), SS%sensor(3, 2, potok), ksi1)
+			call M_K_rand(SS%sensor(1, 2, potok), SS%sensor(2, 2, potok), SS%sensor(3, 2, potok), ksi2)
+			call M_K_rand(SS%sensor(1, 2, potok), SS%sensor(2, 2, potok), SS%sensor(3, 2, potok), ksi3)
+			w = PUI_get_F_integer(SS, ksi1, num)
+			the = acos(1.0 - 2.0 * ksi2)
+			u = sqrt(w**2 * sin(the)**2 + (w * cos(the) - UH)**2)
+			if(u * MK_sigma(SS, u)/( (w + SS%pui_h0_wc) * MK_sigma(SS, w + SS%pui_h0_wc) * h0) >= ksi3) EXIT
+		end do
+
+		call M_K_rand(SS%sensor(1, 2, potok), SS%sensor(2, 2, potok), SS%sensor(3, 2, potok), ksi1)
+		phi = ksi1 * 2.0 * par_pi
+
+		vx = w * sin(the) * cos(phi)
+		vy = w * sin(the) * sin(phi)
+		vz = w * cos(the)
+
+		VHx = Upx + vx * ex(1) + vy * ey(1) + vz * ez(1)
+		VHy = Upy + vx * ex(2) + vy * ey(2) + vz * ez(2)
+		VHz = Upz + vx * ex(3) + vy * ey(3) + vz * ez(3)
+	end subroutine MK_pui_charge_exchange_velocity
 
 	subroutine MK_ADD_MOMENT(SS, n_potok, sort, cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, u, cp, uz, u1, u2, u3, skalar)
 		!! СТАРАЯ ФУНКЦИЯ, ПОТОМ МОЖНО УБРАТЬ
@@ -997,6 +1075,11 @@ module Monte_Karlo
 			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + mu_ex_pui * (u**2 / 2.0 + &
 			(k1 * vx + k2 * vy + k3 * vz) - uz_E)
 
+			! print*, (VV(1) - vx), k1
+			! print*, (norm2(VV)**2 - (vx**2 + vy**2 + vz**2))/2.0, (u**2 / 2.0 + (k1 * vx + k2 * vy + k3 * vz) - uz_E)
+			! print*, uz_E, u**2 / 2.0, (k1 * vx + k2 * vy + k3 * vz)
+			! print*, "________________________________"
+			! pause
 
 			!if(SS%gl_all_Cell_zone(cell) <= 2) then
 			call PUI_Add(SS, cell, u, nu_all, mu, t_ex)
@@ -1407,7 +1490,8 @@ module Monte_Karlo
 		Vz = a * sin(2.0 * par_pi * ksi1)
 		
 		z = 0
-		p1 = 0.5 * dabs(SS%par_Velosity_inf) * par_sqrtpi / (0.5 + 0.5 * dabs(SS%par_Velosity_inf) * par_sqrtpi);
+		!p1 = 0.5 * dabs(SS%par_Velosity_inf) * par_sqrtpi / (0.5 + 0.5 * dabs(SS%par_Velosity_inf) * par_sqrtpi);
+		p1 = dabs(SS%par_Velosity_inf) * par_sqrtpi / (1.0 + dabs(SS%par_Velosity_inf) * par_sqrtpi);
 
 		do
 			call M_K_rand(SS%sensor(1, 1, potok), SS%sensor(2, 1, potok), SS%sensor(3, 1, potok), ksi3)
@@ -1415,13 +1499,24 @@ module Monte_Karlo
 			call M_K_rand(SS%sensor(1, 1, potok), SS%sensor(2, 1, potok), SS%sensor(3, 1, potok), ksi5)
 			call M_K_rand(SS%sensor(1, 1, potok), SS%sensor(2, 1, potok), SS%sensor(3, 1, potok), ksi6)
 
+			! if (p1 > ksi3) then
+			! 	z = cos(par_pi * ksi5) * sqrt(-log(ksi4))
+			! else
+			! 	z = sqrt(-log(1.0 - ksi4))
+			! end if
+
 			if (p1 > ksi3) then
 				z = cos(par_pi * ksi5) * sqrt(-log(ksi4))
 			else
-				z = sqrt(-log(1.0 - ksi4))
+				if(ksi4 <= 0.5) then
+					z = -sqrt(-log(2.0 * ksi4))
+				else
+					z = sqrt(-log(2.0 * (1.0 - ksi4)))
+				end if
 			end if
 			
-			if((dabs(z + SS%par_Velosity_inf) / (dabs(SS%par_Velosity_inf) + dabs(z)) > ksi6 .and. z >= -SS%par_Velosity_inf)) EXIT
+			! if((dabs(z + SS%par_Velosity_inf) / (dabs(SS%par_Velosity_inf) + dabs(z)) > ksi6 .and. z >= -SS%par_Velosity_inf)) EXIT
+			if((dabs(z + SS%par_Velosity_inf) / (dabs(SS%par_Velosity_inf) + dabs(z)) > ksi6 .and. z > -SS%par_Velosity_inf)) EXIT
 		end do
 
 		Vx = z + SS%par_Velosity_inf

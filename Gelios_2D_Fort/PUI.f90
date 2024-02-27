@@ -73,6 +73,9 @@ module PUI
 		!$omp end do
 		!$omp end parallel
 
+		SS%pui_Sm = SS%pui_Sm * SS%par_n_H_LISM
+		SS%pui_Sp = SS%pui_Sp * SS%par_n_H_LISM
+
 		print*, "End PUI_calc_Sm"
 
 	end subroutine PUI_calc_Sm
@@ -130,16 +133,57 @@ module PUI
 		end if
 		close(3)
 
+		open(3, file = "S_+_" // name // ".txt")
+		if(n2 > 0) then
+			do i = 1, SS%pui_nW
+				w = (i-0.5) * SS%pui_wR/SS%pui_nW
+				write(3,*) w, SS%pui_Sp(i, n2)
+			end do
+		end if
+		close(3)
+
+		open(3, file = "S_-_" // name // ".txt")
+		if(n2 > 0) then
+			do i = 1, SS%pui_nW
+				w = (i-0.5) * SS%pui_wR/SS%pui_nW
+				write(3,*) w, SS%pui_Sm(i, n2)
+			end do
+		end if
+		close(3)
+
 
     end subroutine PUI_print_pui
+
+	subroutine Get_jump(SS, phi, drho)
+		TYPE (Setka), intent(in) :: SS
+		real(8), intent(in) :: phi
+		real(8), intent(out) :: drho
+		real(8) :: r(2), alp, r2(2), d, d2
+		integer(4) :: i, gr, s1, s2
+
+		do i = 1, size(SS%gl_TS)
+			gr = SS%gl_TS(i)
+			r = SS%gl_Gran_Center(:, gr, 1)
+			alp = polar_angle(r(1), r(2))
+			if(alp > phi .or. i == size(SS%gl_TS)) then
+				s1 = SS%gl_Gran_neighbour(1, gr)
+				s2 = SS%gl_Gran_neighbour(2, gr)
+				r2 = SS%gl_Cell_Centr(:, s1, 1)
+				d = norm2(r)
+				d2 = norm2(r2)
+				drho = SS%gd(1, s2, 1)/(SS%gd(1, s1, 1) * d2**2 / d**2 )
+				return
+			end if
+		end do
+	end subroutine Get_jump
 
 	subroutine Culc_f_pui(SS, SS_int)
 		TYPE (Setka), intent(in out) :: SS
 		TYPE (Inter_Setka), intent(in) :: SS_int
-		integer :: i, k, num, yzel, tetraedron, iw, numw, num_do, i1, num2, cell_n, iter, cell
+		integer :: i, k, num, yzel, tetraedron, iw, numw, num_do, i1, num2, cell_n, iter, cell, mmm
 		real(8) :: r(2), PAR(SS%n_par), dt, Sm, w0, q1, rho, rho0, w, qInt, Sp, rho_do, rr
 		real(8) :: aa(3), bb(3), cc(3)
-		real(8) :: s, cospsi, C, A, B
+		real(8) :: s, cospsi, C, A, B, phi
 		real(8) :: PAR_k(4), normal(3)
 		real(8) :: f0_pui(SS%pui_nW)
 		real(8) :: mas_w(SS%pui_nW)
@@ -148,19 +192,21 @@ module PUI
 		real(8) :: mas_Sm2(SS%pui_nW)
 		logical :: find_n, inzone
 
-		SS%pui_Sm = SS%pui_Sm * SS%par_n_H_LISM
-		SS%pui_Sp = SS%pui_Sp * SS%par_n_H_LISM
+		! SS%pui_Sm = SS%pui_Sm * SS%par_n_H_LISM
+		! SS%pui_Sp = SS%pui_Sp * SS%par_n_H_LISM
 		SS%f_pui = 0.0
 
 
 		print*, "START Culc_f_pui"
 
-		dt = 0.01/55.0
+		dt = 0.005/55.0
 
 		! Находим функцию распределения для ячеек перед ударной волной
 		print*, "Do TS"
 		!$omp parallel
-	 	!$omp do private(cell, iter, k, num, yzel, tetraedron, iw, numw, num_do, i1, num2, r, PAR, Sm, w0, q1, rho, rho0, w, qInt, Sp, rho_do, s, cospsi, C, A, B, PAR_k, normal, f0_pui, mas_w, mas_w0, mas_Sm, mas_Sm2, find_n)
+	 	!$omp do private(inzone, cell, iter, k, num, yzel, tetraedron, iw, numw, num_do, i1, &
+		!$omp num2, r, PAR, Sm, w0, q1, rho, rho0, w, qInt, Sp, rho_do, s, cospsi, C, A, B, PAR_k, normal, &
+		!$omp f0_pui, mas_w, mas_w0, mas_Sm, mas_Sm2, find_n, dt)
 		do i = 1, size(SS%f_pui_num)
 			if(mod(i, 300) == 0) print*, "i = ", i, " from", size(SS%f_pui_num)
 			k = SS%f_pui_num(i)      ! Номер ячейки
@@ -170,6 +216,7 @@ module PUI
 				mas_w0(iw) = ((iw - 0.5) * SS%pui_wR / SS%pui_nW)
 			end do
 
+			dt = 0.005/55.0
 			rho0 = SS%gd(1, k, 1)
 			f0_pui = 0.0
 			mas_Sm = 0.0
@@ -190,6 +237,8 @@ module PUI
 				end if
 				!call Int2_Get_par_fast(r(1), r(2), r(3), num, PAR, PAR_k = PAR_k)
 				call Int_Get_Parameter(SS_int, r(1), r(2), num, PAR_gd = PAR, PAR_atom_source = PAR_k)
+				!PAR = SS%gd(:, cell, 1)
+				!PAR_k = SS%atom_source(1:4, cell)
 				call Geo_Find_Cell(SS, r(1), r(2), cell, inzone)
 				if(inzone == .False.) then
 					print*, "ERROR wvretbyunim67574321c4tv5y"
@@ -198,6 +247,7 @@ module PUI
 				end if
 				q1 = PAR_k(4)
 				rho = PAR(1)
+				dt = 0.005/norm2(PAR(3:4))
 				qInt = qInt + dt * q1/rho
 				r = r - PAR(3:4) * dt
 				if(dt * norm2(PAR(3:4)) > 0.01) then
@@ -225,25 +275,28 @@ module PUI
 		!$omp end do
 		!$omp end parallel
 
-
+		mmm = SS%f_pui_num2(2079)
 
 		! Находим функцию распределения для ячеек за ударной волной
 		print*, "Posle TS"
 		!$omp parallel
-	 	!$omp do private(cell, iter, aa, bb, cc, k, num, yzel, tetraedron, iw, numw, num_do, i1, num2, r, PAR, Sm, w0, q1, rho, rho0, w, qInt, Sp, rho_do, s, cospsi, C, A, B, PAR_k, normal, f0_pui, mas_w, mas_w0, mas_Sm, mas_Sm2, find_n)
-		do i = 1, size(SS%f_pui_num)
+	 	!$omp do private(cell, iter, aa, bb, cc, k, num, yzel, tetraedron, iw, numw, num_do, i1, num2, &
+		!$omp r, PAR, Sm, w0, q1, rho, rho0, w, qInt, Sp, rho_do, s, cospsi, C, A, B, PAR_k, normal, f0_pui, &
+		!$omp  mas_w, mas_w0, mas_Sm, mas_Sm2, find_n, inzone, dt, phi)
+		do i = 1, size(SS%f_pui_num) !mmm
 
 			do iw = 1, SS%pui_nW
 				mas_w0(iw) = ((iw - 0.5) * SS%pui_wR / SS%pui_nW)
 			end do
 
-			if(mod(i, 300) == 0) print*, "i = ", i, " from", size(SS%f_pui_num)
+			if(mod(i, 100) == 0) print*, "i = ", i, " from", size(SS%f_pui_num)
 			k = SS%f_pui_num(i)      ! Номер узла сетки интерполяции, в которой считаем PUI
 			if(SS%gl_all_Cell_zone(k) == 1) CYCLE  ! Пропускаем ячейки до TS
 			rho0 = SS%gd(1, k, 1)
 			rho = rho0
 			f0_pui = 0.0
 			mas_Sm = 0.0
+			dt = 0.005/55.0
 
 			r = SS%gl_Cell_Centr(:, k, 1)  ! Координаты этого узла
 			mas_w = mas_w0
@@ -254,11 +307,14 @@ module PUI
 
 			!print*, r
 			!pause
+			
 
 			! Бежим до TS
 			do while (.TRUE.)
 				num_do = cell
-				call Int_Get_Parameter(SS_int, r(1), r(2), num, PAR_gd = PAR, PAR_atom_source = PAR_k)
+				!call Int_Get_Parameter(SS_int, r(1), r(2), num, PAR_gd = PAR, PAR_atom_source = PAR_k)
+				PAR = SS%gd(:, cell, 1)
+				PAR_k = SS%atom_source(1:4, cell)
 				call Geo_Find_Cell(SS, r(1), r(2), cell, inzone)
 				if(inzone == .False.) then
 					print*, "ERROR 8j7trnbev45yebv6by "
@@ -271,12 +327,13 @@ module PUI
 				q1 = PAR_k(4)
 				rho_do = rho
 				rho = PAR(1)
+				dt = 0.005/norm2(PAR(3:4))
 				
 				if(SS%gl_all_Cell_zone(cell) == 1) EXIT   ! Если попали в ячейку из области 1 - область до TS
 
 				if(SS%gl_all_Cell_zone(cell) == 3) then   ! Если попали в ячейку из области 3 - область за HP
 					!print*, "Popal v zonu 3"
-					r = r * 0.999
+					r = r * 0.99
 					CYCLE
 				end if
 
@@ -297,7 +354,10 @@ module PUI
 
 			end do
 
-			s = rho_do/rho
+			phi = polar_angle(r(1), r(2))
+
+			call Get_jump(SS, phi, s)
+			!s = rho_do/rho
 			C = s
 
 			rho0 = rho
@@ -307,10 +367,13 @@ module PUI
 
 			! Бежим до Солнца
 			do while (.TRUE.)
-				call Int_Get_Parameter(SS_int, r(1), r(2), num, PAR_gd = PAR, PAR_atom_source = PAR_k)
+				!call Int_Get_Parameter(SS_int, r(1), r(2), num, PAR_gd = PAR, PAR_atom_source = PAR_k)
+				PAR = SS%gd(:, cell, 1)
+				PAR_k = SS%atom_source(1:4, cell)
 				call Geo_Find_Cell(SS, r(1), r(2), cell, inzone)
 				q1 = PAR_k(4)
 				rho = PAR(1)
+				dt = 0.005/norm2(PAR(3:4))
 				qInt = qInt + dt * q1/rho
 				r = r - PAR(3:4) * dt
 				if(r(2) <= 0.0) r(2) = 0.00001
@@ -532,6 +595,58 @@ module PUI
 		!$omp end parallel
 
 	end subroutine PUI_n_T_culc
+
+	real(8) pure function PUI_get_h0(SS, w)
+		! Получить значение функции h0 
+		TYPE (Setka), intent(in) :: SS
+		real(8), intent (in) :: w
+
+		integer :: k1, k2
+		real(8) :: x1, x2,  f1, f2
+		k1 = max(min(INT(w/SS%pui_wR * SS%pui_h0_n + 0.5), SS%pui_h0_n), 1)
+		k2 = min(k1 + 1, SS%pui_h0_n)
+		x1 = (k1 - 0.5) * 1.0/SS%pui_h0_n
+		x2 = (k2 - 0.5) * 1.0/SS%pui_h0_n
+		f1 = SS%h0_pui(k1)
+		f2 = SS%h0_pui(k2)
+
+		if(dabs(x1 - x2) <= 0.0000001) then
+			PUI_get_h0 = f1
+		else if(w < x1) then
+			PUI_get_h0 = f1   ! * (ksi)/(x1)   
+			!TODO
+		else if (w > x2) then
+			PUI_get_h0 = f2
+		else
+			PUI_get_h0 = f1 * (w - x2)/(x1 - x2) + f2 * (w - x1)/(x2 - x1)
+		end if
+    end function PUI_get_h0
+
+	real(8) pure function PUI_get_F_integer(SS, ksi, n)
+		! Получить значение функции F_integr_pui 
+		TYPE (Setka), intent(in) :: SS 
+		real(8), intent (in) :: ksi
+		integer, intent (in) :: n
+
+		integer :: k1, k2
+		real(8) :: x1, x2,  f1, f2
+		k1 = max(min(INT(ksi * SS%pui_F_n + 0.5), SS%pui_F_n), 1)
+		k2 = min(k1 + 1, SS%pui_F_n)
+		x1 = (k1 - 0.5) * 1.0/SS%pui_F_n
+		x2 = (k2 - 0.5) * 1.0/SS%pui_F_n
+		f1 = SS%F_integr_pui(k1, n)
+		f2 = SS%F_integr_pui(k2, n)
+
+		if(dabs(x1 - x2) <= 0.0000001) then
+			PUI_get_F_integer = f1
+		else if(ksi < x1) then
+			PUI_get_F_integer = f1 * (ksi)/(x1)
+		else if (ksi > x2) then
+			PUI_get_F_integer = f2
+		else
+			PUI_get_F_integer = f1 * (ksi - x2)/(x1 - x2) + f2 * (ksi - x1)/(x2 - x1)
+		end if
+    end function PUI_get_F_integer
 
 	real(8) pure function PUI_get_nu_integr(SS, n, w)
 		TYPE (Setka), intent(in) :: SS

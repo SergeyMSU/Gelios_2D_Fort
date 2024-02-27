@@ -201,8 +201,11 @@ module Phys_parameter
 
         istoch1 = .False.
         istoch2 = .False.
-        if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5 .and. SS%gl_all_Cell_zone(s1) <= 2) istoch1 = .True.
-        if(norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5 .and. SS%gl_all_Cell_zone(s2) <= 2) istoch2 = .True.
+        ! if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5 .and. SS%gl_all_Cell_zone(s1) <= 2) istoch1 = .True.
+        ! if(norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5 .and. SS%gl_all_Cell_zone(s2) <= 2) istoch2 = .True.
+
+        if(SS%gl_all_Cell_zone(s1) == 1) istoch1 = .True.
+        if(SS%gl_all_Cell_zone(s2) == 1) istoch2 = .True.
 
         c1 = SS%gl_Cell_Centr(:, s1, now)
         c2 = SS%gl_Cell_Centr(:, s2, now)

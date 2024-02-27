@@ -1319,7 +1319,7 @@ module GEOMETRY
             c = SS%gl_Gran_Center(:, i, 1)
 
             if(c(1) < -60) then
-                SS%gl_Gran_shem(i) = 3
+                SS%gl_Gran_shem(i) = 3   !! «ј ќћћ≈Ќ“»–ќ¬јЋ
                 CYCLE
             end if
 
@@ -2001,6 +2001,25 @@ module GEOMETRY
 
     end subroutine Print_GD
 
+    subroutine Print_GD_PUI(SS)
+        ! ѕечатаем центры всех €чеек
+        TYPE (Setka), intent(in) :: SS
+        integer :: i, j, node, k
+        real(8) :: Mach
+
+        open(1, file = SS%name // '_Print_GD_pui.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = X, Y, Rho, p, u, v, Q, Mach, ro_pui, T_pui"
+
+        do j = 1, size(SS%gl_all_Cell(1, :))
+            k = SS%f_pui_num2(j)
+            Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
+            write(1,*) SS%gl_Cell_Centr(:, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach, SS%par_pui(1:2, k)
+        end do
+
+        close(1)
+
+    end subroutine Print_GD_PUI
+
     subroutine Print_hydrogen(SS)
         ! ѕечатаем центры всех €чеек
         TYPE (Setka), intent(in) :: SS
@@ -2049,6 +2068,51 @@ module GEOMETRY
         close(1)
 
     end subroutine Print_GD_1D
+
+    subroutine Print_PUI_1D(SS)
+        ! ѕечатаем центры всех €чеек
+        TYPE (Setka), intent(in) :: SS
+        integer :: i, j, node, k
+        real(8) :: Mach, c(2), p
+
+        open(1, file = SS%name // '_Print_PUI_1D.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = X, Rho, p, T, u, ro_pui, T_pui, p_pui, ro_p, p_p, T_p"
+
+        do i = size(SS%gl_Cell_B(:, 1)), 1, -1
+            j = SS%gl_Cell_B(i, 1)
+            k = SS%f_pui_num2(j)
+            if(k > 0) then
+                p = 4.0 * (SS%gd(1, j, 1) - SS%par_pui(1, k)) * (SS%gd(2, j, 1) - SS%par_pui(1, k) * SS%par_pui(2, k)) /&
+					(8.0 * SS%gd(1, j, 1) - 4.0 * SS%par_pui(1, k))
+                write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:2, j, 1), 0.5 * SS%gd(2, j, 1)/SS%gd(1, j, 1),&
+                    SS%gd(3, j, 1), SS%par_pui(1:2, k), SS%par_pui(1, k) * SS%par_pui(2, k), SS%gd(1, j, 1) - SS%par_pui(1, k), &
+                    p, p/(SS%gd(1, j, 1) - SS%par_pui(1, k))
+            else
+                write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:2, j, 1), 0.5 * SS%gd(2, j, 1)/SS%gd(1, j, 1),&
+                    SS%gd(3, j, 1), 0.0, 0.0, 0.0, SS%gd(1, j, 1), &
+                    SS%gd(2, j, 1)/2.0, SS%gd(2, j, 1)/SS%gd(1, j, 1)/2.0
+            end if
+        end do
+
+        do i = 1, size(SS%gl_Cell_A(:, 1))
+            j = SS%gl_Cell_A(i, 1)
+            k = SS%f_pui_num2(j)
+            if(k > 0) then
+                p = 4.0 * (SS%gd(1, j, 1) - SS%par_pui(1, k)) * (SS%gd(2, j, 1) - SS%par_pui(1, k) * SS%par_pui(2, k)) /&
+					(8.0 * SS%gd(1, j, 1) - 4.0 * SS%par_pui(1, k))
+                write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:2, j, 1), 0.5 * SS%gd(2, j, 1)/SS%gd(1, j, 1),&
+                    SS%gd(3, j, 1), SS%par_pui(1:2, k), SS%par_pui(1, k) * SS%par_pui(2, k), SS%gd(1, j, 1) - SS%par_pui(1, k), &
+                    p, p/(SS%gd(1, j, 1) - SS%par_pui(1, k))
+            else
+                write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:2, j, 1), 0.5 * SS%gd(2, j, 1)/SS%gd(1, j, 1),&
+                    SS%gd(3, j, 1), 0.0, 0.0, 0.0, SS%gd(1, j, 1), &
+                    SS%gd(2, j, 1)/2.0, SS%gd(2, j, 1)/SS%gd(1, j, 1)/2.0
+            end if
+        end do
+
+        close(1)
+
+    end subroutine Print_PUI_1D
 
     subroutine Print_hydrogen_1D(SS)
         ! ѕечатаем центры всех €чеек
