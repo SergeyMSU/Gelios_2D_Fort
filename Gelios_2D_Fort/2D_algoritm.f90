@@ -106,7 +106,7 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "DD018")   ! ДЛЯ ВОДОРОДА
+        call Read_setka_bin(gl_S3, "Q0006")   ! ДЛЯ ВОДОРОДА   DD018
         print*, "B"
         call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -116,7 +116,7 @@ module Algoritm
         call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "CC019")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "E0007")      ! ОСНОВНАЯ СЕТКА  CC019
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -142,7 +142,7 @@ module Algoritm
         ! SS%par_Max_e = 6.21523
 
         ! Параметры Модели, которые сейчас строим
-        SS%par_n_H_LISM = 3.0
+        SS%par_n_H_LISM = 2.0
         SS%par_Velosity_inf = -2.54278_8
         SS%par_Kn = 50.3858
         SS%par_nu_ph = 12.0969 
@@ -152,7 +152,7 @@ module Algoritm
         SS%par_rho_e = 150.0
         SS%par_Max_e = 5.91662
         SS%par_a_2 = 0.130735_8
-        SS%culc_pui = .True.
+        SS%culc_pui = .False.
 
 
         !call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
@@ -229,8 +229,8 @@ module Algoritm
 
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, 20)
-        call Save_setka_bin(SS, "CC020")
+        call Geo_Print_Surface(SS, 8)
+        call Save_setka_bin(SS, "E0008")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -287,9 +287,9 @@ module Algoritm
         integer(4) :: i, j, cell
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
-        call Read_setka_bin(gl_S4, "DD017")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "DD018")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
-        call Read_setka_bin(SS, "CC018")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "CC020")      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
         !call Geo_Print_Surface(SS)
