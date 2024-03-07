@@ -52,6 +52,7 @@ module GEOMETRY
         if(SS%pogl_ == .True.) then
             ALLOCATE(SS%pogloshenie(SS%n_Hidrogen, SS%pogl_iter, N1))
             SS%pogl_ddd = (SS%pogl_v_max - SS%pogl_v_min)/SS%pogl_iter
+            SS%pogloshenie = 0.0
         end if
 
         allocate(SS%gl_Cell_gran(4, N1))
@@ -1291,7 +1292,8 @@ module GEOMETRY
         integer(4) :: N, i, s1, s2, t1, t2, yz1, yz2, j, HP
         real(8) :: c(2)
 
-        SS%gl_Gran_shem = 2
+        SS%gl_Gran_shem = 2!!2
+        ! return                        !! ”¡–¿“‹
 
         N = size(SS%gl_Gran_shem)
         do i = 1, N
@@ -1299,7 +1301,7 @@ module GEOMETRY
             s2 = SS%gl_Gran_neighbour(2, i)
 
             if(s1 < 1 .or. s2 < 1) then
-                SS%gl_Gran_shem(i) = 3
+                SS%gl_Gran_shem(i) = 3!!3
                 CYCLE
             end if
 
@@ -1307,7 +1309,7 @@ module GEOMETRY
             t2 = SS%gl_all_Cell_zone(s2)
 
             if(t1 /= t2) then
-                SS%gl_Gran_shem(i) = 3
+                SS%gl_Gran_shem(i) = 3!!3
                 CYCLE
             end if
 
@@ -1318,18 +1320,25 @@ module GEOMETRY
 
             c = SS%gl_Gran_Center(:, i, 1)
 
-            if(c(1) < -60) then
-                SS%gl_Gran_shem(i) = 3   !! «¿ ŒÃÃ≈Õ“»–Œ¬¿À
+            if(c(1) < -60) then  !-60
+                SS%gl_Gran_shem(i) = 3!!3   !! «¿ ŒÃÃ≈Õ“»–Œ¬¿À
                 CYCLE
             end if
 
+            !! ”¡–¿“‹
+            ! if(c(1) < -120) then  !-60
+            !     SS%gl_Gran_shem(i) = 0!!3 
+            !     CYCLE
+            ! end if
+
+
             if(t1 == 2 .or. t2 == 2) then
-                SS%gl_Gran_shem(i) = 1!1
+                SS%gl_Gran_shem(i) = 1!!1
                 CYCLE
             end if
 
             if(t1 == 3 .or. t2 == 3) then
-                SS%gl_Gran_shem(i) = 1!1
+                SS%gl_Gran_shem(i) = 1!!1
                 CYCLE
             end if
 
@@ -1341,9 +1350,9 @@ module GEOMETRY
             do i = SS%par_n_TS,  SS%par_n_HP - 1
                 s1 = SS%gl_Cell_A(i, j)
                 s2 = SS%gl_Cell_gran(3, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!!1
                 s2 = SS%gl_Cell_gran(4, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!!1
             end do
         end do
 
@@ -1351,9 +1360,9 @@ module GEOMETRY
             do i = SS%par_n_HP,  SS%par_n_BS - 1
                 s1 = SS%gl_Cell_A(i, j)
                 s2 = SS%gl_Cell_gran(3, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!!1
                 s2 = SS%gl_Cell_gran(4, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!1
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 1!!1
             end do
         end do
 
@@ -1361,18 +1370,19 @@ module GEOMETRY
             do i = SS%par_n_BS,  size(SS%gl_Cell_A(:, 1))
                 s1 = SS%gl_Cell_A(i, j)
                 s2 = SS%gl_Cell_gran(3, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 2
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 2!! 2
                 s2 = SS%gl_Cell_gran(4, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 2
+                if(s2 > 0) SS%gl_Gran_shem(s2) = 2!! 2
             end do
         end do
 
-        ! do j = 1, 5 !size(SS%gl_Cell_A(1, :))
-        !     do i = SS%par_n_HP - 8,  SS%par_n_HP + 7
+        !! À‡ÍÒ ÔÓÔÂÍ ‡Á˚‚‡
+        ! do j = 1, size(SS%gl_Cell_A(1, :))
+        !     do i = SS%par_n_HP - 3,  SS%par_n_HP + 2
         !         s1 = SS%gl_Cell_A(i, j)
-        !         s2 = SS%gl_Cell_gran(1, s1)
+        !         s2 = SS%gl_Cell_gran(3, s1)
         !         if(s2 > 0) SS%gl_Gran_shem(s2) = 0
-        !         s2 = SS%gl_Cell_gran(2, s1)
+        !         s2 = SS%gl_Cell_gran(4, s1)
         !         if(s2 > 0) SS%gl_Gran_shem(s2) = 0
         !     end do
         ! end do
@@ -1390,10 +1400,14 @@ module GEOMETRY
             t2 = SS%gl_all_Cell_zone(s2)
 
             if(t1 /= t2) then
-                SS%gl_Gran_shem(i) = 3
+                SS%gl_Gran_shem(i) = 3!!3
                 CYCLE
             end if
+
+            
         end do
+
+        
 
     end subroutine Geo_Set_sxem
 
@@ -2074,6 +2088,7 @@ module GEOMETRY
         TYPE (Setka), intent(in) :: SS
         integer :: i, j, node, k
         real(8) :: Mach, c(2), p
+        
 
         open(1, file = SS%name // '_Print_PUI_1D.txt')
         write(1,*) "TITLE = 'HP'  VARIABLES = X, Rho, p, T, u, ro_pui, T_pui, p_pui, ro_p, p_p, T_p"
@@ -2118,31 +2133,29 @@ module GEOMETRY
         ! œÂ˜‡Ú‡ÂÏ ˆÂÌÚ˚ ‚ÒÂı ˇ˜ÂÂÍ
         TYPE (Setka), intent(in) :: SS
         integer :: i, j, node
+        character(len=1) :: name
 
-        if(SS%n_Hidrogen /= 4) then
-            print*, "Error n_Hidrogen /= 4   Print_hydrogen_1D  1906  y87wtrguwvby8bej7yt7vwc8yynu6rbv"
-        end if
 
         open(1, file = SS%name // '_Print_hydrogen_1D.txt')
         write(1,*) "TITLE = 'HP'  VARIABLES = X" 
-        write(1,*)",Rho1, p1, u1, v1, T1"
-        write(1,*)",Rho2, p2, u2, v2, T2"
-        write(1,*)",Rho3, p3, u3, v3, T3"
-        write(1,*)",Rho4, p4, u4, v4, T4"
+
+        do i = 1, SS%n_Hidrogen
+            write(unit=name,fmt='(i1.1)') i
+            write(1,*) ",Rho" // name // ", p" // name // ", u" // name // ", v" // name // ", T" //name
+        end do
+
         write(1,*)", k1, k2, k3, In, Iu, Iv, IT"
 
         do i = size(SS%gl_Cell_B(:, 1)), 1, -1
             j = SS%gl_Cell_B(i, 1)
             
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-                SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(:, j)
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, :, j, 1), SS%atom_source(:, j)
         end do
 
         do i = 1, size(SS%gl_Cell_A(:, 1))
             j = SS%gl_Cell_A(i, 1)
 
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, 1, j, 1), &
-            SS%hydrogen(1:5, 2, j, 1), SS%hydrogen(1:5, 3, j, 1), SS%hydrogen(1:5, 4, j, 1), SS%atom_source(:, j)
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, :, j, 1),  SS%atom_source(:, j)
         end do
 
         close(1)
@@ -2846,6 +2859,28 @@ module GEOMETRY
         WRITE (2, *) "par_Max_e", SS%par_Max_e
         WRITE (2, *) "par_R0", SS%par_R0
         WRITE (2, *) "par_poglosh", SS%par_poglosh
+        WRITE (2, *) "par_m_A", SS%par_m_A
+        WRITE (2, *) "par_m_BC", SS%par_m_BC
+        WRITE (2, *) "par_m_O", SS%par_m_O
+        WRITE (2, *) "par_m_K", SS%par_m_K
+        WRITE (2, *) "par_triple_point", SS%par_triple_point
+        WRITE (2, *) "par_triple_point_2", SS%par_triple_point_2
+        WRITE (2, *) "par_n_TS", SS%par_n_TS
+        WRITE (2, *) "par_n_HP", SS%par_n_HP
+        WRITE (2, *) "par_n_BS", SS%par_n_BS
+        WRITE (2, *) "par_n_END", SS%par_n_END
+        WRITE (2, *) "par_n_IA", SS%par_n_IA
+        WRITE (2, *) "par_n_IB", SS%par_n_IB
+        WRITE (2, *) "par_kk1", SS%par_kk1
+        WRITE (2, *) "par_kk2", SS%par_kk2
+        WRITE (2, *) "par_kk3", SS%par_kk3
+        WRITE (2, *) "par_kk31", SS%par_kk31
+        WRITE (2, *) "par_kk13", SS%par_kk13
+        WRITE (2, *) "par_kk131", SS%par_kk131
+        WRITE (2, *) "par_kk132", SS%par_kk132
+        WRITE (2, *) "par_kk14", SS%par_kk14
+        WRITE (2, *) "par_kk12", SS%par_kk12
+        WRITE (2, *) "par_kk113", SS%par_kk113
         close(2)
 
     end subroutine Save_setka_bin
@@ -2855,6 +2890,9 @@ module GEOMETRY
         CHARACTER(len = 5), intent(in) :: name
         logical :: exists
         integer(4) :: i, j, k, n, n1, n2, n3
+        real(8), allocatable :: local_hydrogen(:, :, :, :)
+        real(8), allocatable :: local_atom_all_source(:, :, :)
+        real(8), allocatable :: local_pogloshenie(:, :, :) 
 
         inquire(file= "Save_all_" // name // ".bin", exist=exists)
     
@@ -2958,7 +2996,14 @@ module GEOMETRY
         read(1) SS%gl_Gran_type   
 
         !! ‘»«» ¿
-        read(1) SS%n_Hidrogen
+        read(1) n
+        if(SS%n_Hidrogen /= n) then ! ÕÛÊÌÓ ÔÂÂÒÓÁ‰‡Ú¸ Ï‡ÒÒË‚
+            n2 = size(SS%hydrogen(1, 1, :, 1))
+            SS%n_Hidrogen = n
+            DEALLOCATE(SS%hydrogen)
+            ALLOCATE(SS%hydrogen(5, SS%n_Hidrogen, n2, 2))
+        end if
+
         read(1) n
         if(SS%n_par /= n) then ! ÕÛÊÌÓ ÔÂÂÒÓÁ‰‡Ú¸ Ï‡ÒÒË‚
             n2 = size(SS%gd(1, :, 1))
@@ -2970,16 +3015,49 @@ module GEOMETRY
         read(1) SS%gd
         read(1) SS%hydrogen
 
+        if(par_n_sort > SS%n_Hidrogen) then
+            ALLOCATE(local_hydrogen, mold = SS%hydrogen)
+            n2 = size(SS%hydrogen(1, 1, :, 1))
+            local_hydrogen = SS%hydrogen
+            DEALLOCATE(SS%hydrogen)
+            ALLOCATE(SS%hydrogen(5, par_n_sort, n2, 2))
+            SS%hydrogen = 0.0
+            do i = 1, SS%n_Hidrogen
+                SS%hydrogen(:, i, :, :) = local_hydrogen(:, i, :, :)
+            end do
+            SS%n_Hidrogen = par_n_sort
+            DEALLOCATE(local_hydrogen)
+        end if
+
+        if(par_n_sort < SS%n_Hidrogen) then
+            print*, "ERROR par_n_sort  n_Hidrogen iuygruwhciejhgryoewio;jhrpuahigbwfla;oceifruhiayvbwl;ojcfb"
+            print*, par_n_sort, SS%n_Hidrogen
+            pause
+            STOP
+        end if
+
         !if(name == "B0034") then
         read(1) n
         if(n == 1) then
             read(1) n1
-            if(n1 /= size(SS%atom_all_source(:, 1, 1))) STOP "ERROR 2751 Geometry 87843y7t8uhihcw4uquiojyre5hgqwc4 "
             read(1) n2
-            if(n2 /= size(SS%atom_all_source(1, :, 1))) STOP "ERROR 2752 Geometry 97087867jklpkjertvefervfgbytryhgf5 "
             read(1) n3
-            if(n3 /= size(SS%atom_all_source(1, 1, :))) STOP "ERROR 2753 Geometry jytyjtyudreretsadeswcfewrcfrfeergege "
-            read(1) SS%atom_all_source
+
+            ALLOCATE(local_atom_all_source(n1, n2, n3))
+            read(1) local_atom_all_source
+            DEALLOCATE(SS%atom_all_source)
+            ALLOCATE(SS%atom_all_source(4, par_n_sort, n3))
+            if(par_n_sort > n2) then
+                do i = 1, n2
+                    SS%atom_all_source(:, i, :) = local_atom_all_source(:, i, :)
+                end do
+            end if
+
+            if(par_n_sort < n2) then
+                print*, "ERROR o98y7gtvobiow4u8r9hr8w4"
+                stop
+            end if
+            DEALLOCATE(local_atom_all_source)
 
             read(1) n1
             if(n1 /= size(SS%atom_source(:, 1))) STOP "ERROR 2754 Geometry ,imntbrtvecwxqervtyn7i6ue6y "
@@ -2994,12 +3072,14 @@ module GEOMETRY
             read(1) SS%pogl_, SS%pogl_v_min, SS%pogl_v_max, SS%pogl_iter, SS%pogl_ddd
             read(1) n1, n2, n3
             if(size(SS%pogloshenie) /= n1 * n2 * n3) then
-                print*, size(SS%pogloshenie)
+                print*, "WARNING!!! SS%pogloshenie pridetsa ydalit, t.k. razmernost ne podhodit"
                 print*, n1, n2, n3
-                pause "ERROR 9iu8yo8437rtt5eurbo6nutb6y5evtcrw4vt5ey"
-                STOP "ERROR 09807ety59gug5h65h5gf432g54h67g3fg"
+                ALLOCATE(local_pogloshenie(n1, n2, n3))
+                read(1) local_pogloshenie
+                DEALLOCATE(local_pogloshenie)
+            else
+                read(1) SS%pogloshenie
             end if
-            read(1) SS%pogloshenie
         end if
 
 
@@ -3017,7 +3097,6 @@ module GEOMETRY
 
         read(1) n
         if (n == 1) then
-            print*, "TUT ", n
             read(1) SS%par_nu_ph
             read(1) SS%par_E_ph
             read(1) SS%par_chi

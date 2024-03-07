@@ -13,19 +13,25 @@ module STORAGE
     integer(4), parameter :: par_n_claster = 1  ! Число компьютеров (для MPI)
     integer(4), parameter :: par_n_parallel = 20! 20  ! Для распараллеливания цикла (т.е. каждый поток будет в среднем обрабатывать такое число итераций
     integer(4), parameter :: par_stek = 1000  ! Глубина стека (заранее выделяется память под него)
-    integer(4), parameter :: par_n_sort = 4  !  Количество сортов атомов
+    integer(4), parameter :: par_n_sort = 4!6  !  4 Количество сортов атомов
 
     logical, parameter :: MK_is_NaN = .False.    ! Нужны ли проверки на nan
-	logical, parameter :: MK_Mu_stat = .False.    ! Нужно ли накапливать веса для статистики и весовых каэффициентов
+	logical, parameter :: MK_Mu_stat = .True.    ! Нужно ли накапливать веса для статистики и весовых каэффициентов
 	logical, parameter :: MK_photoionization = .True.    ! Нужна ли фотоионизация
+	logical, parameter :: MK_el_impact = .True.    ! Нужна ли фотоионизация
+	logical, parameter :: MK_statistik_file = .True.    ! Какой файл со статистикой использовать?  true - это первый файл
 
-    real(8), parameter :: par_Rmax = 220.0  !  Радиус сферы, с которой запускаем частицы
+	logical, parameter :: par_Hydro = .True.    ! Нужен ли водород? Или чисто газовую-динамику считаем?
+	logical, parameter :: par_TVD_linear_HP = .True.    ! Нужно ли сносить на контакт линейно только с одной стороны
+	logical, parameter :: par_move_setka = .True.    ! Нужно ли сносить на контакт линейно только с одной стороны
+    real(8), parameter :: par_Rmax = 220.0 !300.0! 220.0  !  Радиус сферы, с которой запускаем частицы
 
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 14 * 26!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
-    ! 14 - это 1 час с пикапами
+	integer(4), parameter :: MK_k_multiply = 11 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
+    ! 9 сейчас с пикапами
+    ! 12 (14) - это 1 час с пикапами
     ! 18 - это 1 час без пикапов
 	integer(4), parameter :: MK_k_mul1 = 6 * MK_k_multiply! 6
 	integer(4), parameter :: MK_k_mul2 = 1 * MK_k_multiply! 
@@ -76,6 +82,10 @@ module STORAGE
         real(8) :: par_rho_e = 150.0
         real(8) :: par_Max_e = 5.91662
         real(8) :: par_poglosh = 0.389274        !! На что обезразмериваем поглощение
+
+        ! Для электронного удара
+        real(8) :: nu_e_impact = 0.15465_8       
+        real(8) :: lambda_e = 12.09_8       
 
         !! -------------------------------------------------------------
 
@@ -248,7 +258,7 @@ module STORAGE
         real(8) :: pogl_v_max = 15.0
         integer(4) :: pogl_iter = 300
         real(8) :: pogl_ddd
-        real(8), allocatable :: pogloshenie(:, :, :)   !  (сортов, рабиений по скорости, ячеек)
+        real(8), allocatable :: pogloshenie(:, :, :)   !  (n_Hidrogen, рабиений по скорости, ячеек)
 
 
         !! PUI 

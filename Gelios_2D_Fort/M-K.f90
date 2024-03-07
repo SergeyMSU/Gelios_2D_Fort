@@ -31,6 +31,8 @@ module Monte_Karlo
 		logical :: inzone
 		integer :: nk
 
+		print*, "MK_start"
+
         call M_K_Set(SS)    ! Создали массивы
         call M_K_init(SS)   ! Инициализируем веса и т.д.
  
@@ -272,7 +274,7 @@ module Monte_Karlo
 				SS%pogloshenie(:, :, i) = SS%pogloshenie(:, :, i) * SS%sqv / no
 			end if
 
-			do j = 1, par_n_sort
+			do j = 1, SS%n_Hidrogen
 				if(SS%M_K_Moment(1, j, i, 1) > 0.000001) then
 					SS%M_K_Moment(2:3, j, i, 1) = SS%M_K_Moment(2:3, j, i, 1)/SS%M_K_Moment(1, j, i, 1)  ! Скорости
 					SS%M_K_Moment(4, j, i, 1) = (1.0/3.0) * ( SS%M_K_Moment(4, j, i, 1)/SS%M_K_Moment(1, j, i, 1) - &
@@ -330,18 +332,44 @@ module Monte_Karlo
 			call PUI_calc_Sm(SS)
 		end if
 		! ******************************************************************************************************************
-		! Собираем статистику по весам
-		if(MK_Mu_stat) then
-			open(1, file = "MK_Mu_statistic_.txt")
+
+		if(SS%n_Hidrogen /= 4) then
+				STOP "ERRORo hg8o7wyevghp98j5y87e5wtpvqc5tyebv4wacagvb6u7n68mynbynhgnfgbjygfnbfh"
+			end if
 			
-			do k = 1, par_n_sort
+			do k = 1, SS%n_Hidrogen
 				do j = 1, par_m_zone + 1
 					do i = 1, par_n_zone + 1
-						write(1, *) i, j, k, SS%MK_Mu_statistic(i, j, k) * &
-							(par_Rmax/SS%MK_R_zone( min(i, par_n_zone) ))**2 * (par_m_zone + 1)/ SS%MK_N
+						read(2, *) n, n, n, SS%MK_Mu(i, j, k)
 					end do
 				end do
 			end do
+
+		! Собираем статистику по весам
+		if(MK_Mu_stat) then
+			if(MK_statistik_file) then
+				open(1, file = "MK_Mu_statistic_.txt")
+				do k = 1, SS%n_Hidrogen
+					do j = 1, par_m_zone + 1
+						do i = 1, par_n_zone + 1
+							write(1, *) i, j, k, SS%MK_Mu_statistic(i, j, k) * &
+								(par_Rmax/SS%MK_R_zone( min(i, par_n_zone) ))**2 * (par_m_zone + 1)/ SS%MK_N
+						end do
+					end do
+				end do
+			else
+				open(1, file = "2_MK_Mu_statistic_.txt")
+				write(1, *) SS%n_Hidrogen
+				write(1, *) 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+				do k = 1, SS%n_Hidrogen
+					do j = 1, par_m_zone + 1
+						do i = 1, par_n_zone + 1
+							write(1, *) i, j, k, SS%MK_Mu_statistic(i, j, k) * &
+								(par_Rmax/SS%MK_R_zone( min(i, par_n_zone) ))**2 * (par_m_zone + 1)/ SS%MK_N
+						end do
+					end do
+				end do
+			end if
 			
 			close(1)
 		end if
@@ -433,18 +461,19 @@ module Monte_Karlo
 		integer(4) :: next2 ! Номер ячейки, в которую попадёт частица в следующий раз
 		integer(4) :: area2  ! Зона, в которой сейчас находится ячейка
 		integer(4) :: II  ! На сколько атомов расщепляется атом при перезарядке
-		integer(4) :: to_i, to_j, from_i, from_j, drob
+		integer(4) :: to_i, to_j, from_i, from_j, drob, sort
 		logical :: bb, bb2, inzone
 		
 		real(8) :: time ! Оценочное время до вылета частицы из ячейки
 		
-		real(8) :: cp, vx, vy, vz, ro, PAR(5)  ! Параметры плазмы в ячейке
+		real(8) :: cp, vx, vy, vz, ro, PAR(5), Tp  ! Параметры плазмы в ячейке
 		real(8) :: uz, nu_ex, kappa, ksi, t_ex, t2, mu_ex, mu2, r_ex(3), r, mu, u, V(3), mu3, r_exit(3)
 		real(8) :: uz_M, uz_E, k1, k2, k3, u1, u2, u3, skalar
 		real(8) :: Ur, Uthe, Uphi, Vr, Vthe, Vphi, phi
 		real(8) :: v1, v2, v3, r_peregel, ddt, p
 		
 		real(8) :: nu_ph, kappa_ph, kappa_all, mu_ph, mu_perez
+		real(8) :: nu_eim, kappa_eim, mu_eim                             ! Параметры ионизации электронным ударом
 		real(8) :: nu_ex_pui, kappa_pui, mu_ex_pui, ro_pui, T_pui
 		
 		real(8) :: Wr(par_n_zone + 1), Wthe(par_n_zone + 1), Wphi(par_n_zone + 1), mu_(par_n_zone + 1)
@@ -515,8 +544,8 @@ module Monte_Karlo
 
 					phi = polar_angle(particle(2) + ddt * time * particle(5), particle(3) + ddt * time * particle(6))
 					
-					! call Int_Get_Parameter(SS_int, particle(1) + ddt * time * particle(5), &
-					! 	norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
+					!call Int_Get_Parameter(SS_int, particle(1) + ddt * time * particle(5), &
+					!	norm2(particle(2:3) + ddt * time * particle(5:6)), cell2, PAR_gd = PAR)
 					PAR = SS%gd(:, cell, 1)  !! Пока без интерполяции
 					if(SS%culc_pui == .True. .and. area2 <= 2) then
 						cell_pui = SS%f_pui_num2(cell)
@@ -552,14 +581,16 @@ module Monte_Karlo
 					vz = PAR(4) * sin(phi)
 					ro = PAR(1)
 					cp = sqrt(p/ro)
+					Tp = p/(2.0 * ro)
 
 					if(SS%culc_pui == .True. .and. area2 <= 2) then
 						p = 4.0 * (ro - ro_pui) * (p - ro_pui * T_pui) /&
 						(8.0 * ro - 4.0 * ro_pui)
 						ro = ro - ro_pui
-						if(p < 0.0) p = PAR(2)/60.0! p = 4286.72/((r/SS%par_R0)**(2.0 * SS%par_ggg))/2.0
-						if(ro <= 0.0000001) ro = PAR(1)/30.0
+						if(p < 0.0) p = PAR(2)/100.0! p = 4286.72/((r/SS%par_R0)**(2.0 * SS%par_ggg))/2.0
+						if(ro <= 0.0000001) ro = PAR(1)/50.0
 						cp = sqrt(2.0 * p/ro)
+						Tp = p/ro
 					end if
 
 					if(ieee_is_nan(cp)) then
@@ -597,7 +628,7 @@ module Monte_Karlo
 						nu_ex = (ro * MK_int_1(SS, u, cp)) / SS%par_Kn        ! Пробуем вычислять интеграллы численно
 					end if
 
-					if(SS%culc_pui == .True. .and. area2 <= 2) kappa_pui = kappa_pui + PUI_get_nu_integr(SS, SS%f_pui_num2(cell2), u)/ SS%par_Kn * time/drob
+					if(SS%culc_pui == .True. .and. area2 <= 2) kappa_pui = kappa_pui + PUI_get_nu_integr(SS, SS%f_pui_num2(cell), u)/ SS%par_Kn * time/drob
 			
 					kappa = kappa + (nu_ex * time/drob)  ! по перезарядке
 				end do
@@ -610,9 +641,15 @@ module Monte_Karlo
 					nu_ph = SS%par_nu_ph * (SS%par_R0/r)**2
 					kappa_ph = (nu_ph * time)     ! по фотоионизации
 				end if
+
+				if(MK_el_impact) then
+					nu_eim = (ro + ro_pui) * MK_nu_el_impact(SS, Tp)
+					kappa_eim = (nu_eim * time)     ! по фотоионизации
+				end if
 				
 				kappa_all = kappa + kappa_pui
 				if(MK_photoionization) kappa_all = kappa_all + kappa_ph
+				if(MK_el_impact) kappa_all = kappa_all + kappa_eim
 				
 				call M_K_rand(SS%sensor(1, 2, n_potok), SS%sensor(2, 2, n_potok), SS%sensor(3, 2, n_potok), ksi)
 				
@@ -621,7 +658,9 @@ module Monte_Karlo
 				mu_perez = mu * (1.0 - exp(-kappa_all)) ! вес перезаряженного атома по всем процессам
 				mu2 = mu * exp(-kappa_all)  ! вес оставшегося неперезаряженного атома
 				mu_ph = 0.0
+				mu_eim = 0.0
 				if(MK_photoionization) mu_ph = (kappa_ph / kappa_all) * mu_perez  ! Вес ионизированного атома
+				if(MK_el_impact) mu_eim = (kappa_eim / kappa_all) * mu_perez  ! Вес ионизированного атома
 				mu_ex = (kappa / kappa_all) * mu_perez  !mu_perez - mu_ph      ! Вес перезаряженного на протонах атома
 				mu_ex_pui = (kappa_pui / kappa_all) * mu_perez 
 				!print*, "EE"
@@ -680,7 +719,7 @@ module Monte_Karlo
 				!print*, "FF"
 				! НАДО НАКОПИТЬ МОМЕНТЫ
 				call MK_ADD_MOMENT2(SS, SS_int, n_potok, particle_2(2), cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
-				 	particle(4:6), particle(1:3), kappa_all/time, mu_ex_pui)
+				 	particle(4:6), particle(1:3), kappa_all/time, mu_ex_pui, mu_eim)
 
 				! call MK_ADD_MOMENT(SS, n_potok, particle_2(2), cell, t_ex, t2, mu, mu2, mu_ex, mu_ph, &
 				! 	particle(4:6), particle(1:3), u, cp, uz, u1, u2, u3, skalar)
@@ -699,12 +738,14 @@ module Monte_Karlo
 
 				!! Надо перезарядить с пикапами
 				if(SS%culc_pui == .True. .and. area2 <= 2) then
+					if(area2 == 1) sort = 5
+					if(area2 == 2) sort = 6
 					call MK_pui_charge_exchange_velocity(SS, n_potok, vx, vy, vz, particle(4), particle(5), particle(6), SS%f_pui_num2(cell2), k1, k2, k3)
 					! Функция возвращает сразу декартовые компоненты новой скорости
 					V = (/ k1, k2, k3 /)
 					call MK_Distination(SS, r_ex, V, to_i, to_j, r_peregel)
 					mu3 = mu_ex_pui
-					call MK_ruletka(SS, n_potok, to_i, to_j, from_i, from_j, area2, r, r_peregel, mu3, bb2)
+					call MK_ruletka(SS, n_potok, to_i, to_j, from_i, from_j, sort, r, r_peregel, mu3, bb2)
 
 					!SS%M_K_Moment(8, particle_2(2), cell, n_potok) = SS%M_K_Moment(8, particle_2(2), cell, n_potok) + &
 					!	mu_ex_pui * (norm2(particle(4:6))**2 - norm2(V)**2)/2.0
@@ -717,10 +758,12 @@ module Monte_Karlo
 						SS%M_K_particle(7, SS%stek(n_potok), n_potok) = mu3
 						SS%M_K_particle(8, SS%stek(n_potok), n_potok) = r_peregel
 
-						SS%M_K_particle_2(:, SS%stek(n_potok), n_potok) = (/ cell, area2, to_i, to_j, cell2 /)
+
+
+						SS%M_K_particle_2(:, SS%stek(n_potok), n_potok) = (/ cell, sort, to_i, to_j, cell2 /)
 						
 						if(MK_Mu_stat == .True.) then
-							if(particle_2(2) == area2) then
+							if(particle_2(2) == sort) then
 								SS%M_K_particle_3(:, :, SS%stek(n_potok), n_potok) = particle_3
 							else 
 								SS%M_K_particle_3(:, :, SS%stek(n_potok), n_potok) = .False.
@@ -739,7 +782,7 @@ module Monte_Karlo
 				Wthe = Wthe * cp
 				Wphi = Wphi * cp
 				
-				!print*, "A"
+				!! Перезарядка с протонами
 				do i = 1, II + 1
 					if(i == II + 1 .and. bb == .False.) CYCLE  ! Если не запускается основной атом
 					call dekard_skorost(r_ex(1), r_ex(2), r_ex(3), Wr(i), Wphi(i), Wthe(i), v1, v2, v3)
@@ -809,6 +852,8 @@ module Monte_Karlo
 				end if
 				
 				particle_2(1) = next
+				!!particle_2(5) = next
+
 				if(next == 0) then
 					if (norm2(particle(1:3)) <= 150.0) then
 						print*, "Error wqer2r42  ", particle(1:3)
@@ -935,11 +980,11 @@ module Monte_Karlo
 
 	end subroutine MK_ADD_MOMENT
 
-	subroutine MK_ADD_MOMENT2(SS, SS_int, n_potok, sort, cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, nu_all, mu_ex_pui)
+	subroutine MK_ADD_MOMENT2(SS, SS_int, n_potok, sort, cell, cell2, t_ex, t2, mu, mu2, mu_ex, mu_ph, VV, XX, nu_all, mu_ex_pui, mu_eim)
 		TYPE (Setka), intent(in out) :: SS
 		TYPE (Inter_Setka), intent(in) :: SS_int
 		integer(4), intent(in) :: n_potok, sort, cell, cell2
-		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), mu_ex, mu_ph, nu_all, mu_ex_pui
+		real(8), intent(in) :: t_ex, t2, mu, mu2, VV(3), XX(3), mu_ex, mu_ph, nu_all, mu_ex_pui, mu_eim
 
 		real(8) :: alpha, v, uz_M, uz_E, k1, k2, k3, vx, vy, vz, phi
 
@@ -957,10 +1002,12 @@ module Monte_Karlo
 		SS%M_K_Moment(12, sort, cell, n_potok) = SS%M_K_Moment(12, sort, cell, n_potok) + &
 			(t_ex * mu + t2 * mu2) * VV(1)**3
 		! Добавим интеграллы по фотоионизации  
-		SS%M_K_Moment(5, sort, cell, n_potok) = SS%M_K_Moment(5, sort, cell, n_potok) + mu_ph 
-		SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + mu_ph * VV(1)
-		SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
-			mu_ph * (0.5 * norm2(VV) + SS%par_E_ph)
+		if(MK_photoionization) then
+			SS%M_K_Moment(5, sort, cell, n_potok) = SS%M_K_Moment(5, sort, cell, n_potok) + mu_ph + mu_eim
+			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + (mu_ph + mu_eim) * VV(1)
+			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
+				mu_ph * (0.5 * norm2(VV) + SS%par_E_ph) + mu_eim * (0.5 * norm2(VV) + SS%lambda_e)
+		end if
 		!! ----------------------------------------------------------------------------------------------------------
 		
 		!! Для поглощения -------------------------------------------------------------------------------------
@@ -1058,14 +1105,14 @@ module Monte_Karlo
 		end if
 
 		! Добавим интеграллы по фотоионизации  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + mu_ph * v
+		if(MK_photoionization) SS%M_K_Moment(7, sort, cell, n_potok) = SS%M_K_Moment(7, sort, cell, n_potok) + (mu_ph + mu_eim) * v
 
 		! Добавим для расчёта PUI
 		if(SS%culc_pui == .True. .and. SS%gl_all_Cell_zone(cell) <= 2) then
 
-			k1 = PUI_get_nu_integr(SS, SS%f_pui_num2(cell2), u)
-			uz_M = PUI_get_Mz_integr(SS, SS%f_pui_num2(cell2), u)/k1
-			uz_E = PUI_get_E_integr(SS, SS%f_pui_num2(cell2), u)/k1
+			k1 = PUI_get_nu_integr(SS, SS%f_pui_num2(cell), u)           !! cell2
+			uz_M = PUI_get_Mz_integr(SS, SS%f_pui_num2(cell), u)/k1      !! cell2
+			uz_E = PUI_get_E_integr(SS, SS%f_pui_num2(cell), u)/k1       !! cell2
 			uz_M = 1.0 - uz_M/u
 			k1 = (VV(1) - vx) * uz_M
 			k2 = (VV(2) - vy) * uz_M
@@ -1091,7 +1138,7 @@ module Monte_Karlo
 
     subroutine M_K_Set(SS)
 		TYPE (Setka), intent(in out) :: SS
-		integer(4) :: i, j, n, k
+		integer(4) :: i, j, n, k, n1, n2, n3
 		real(8) :: Yr
 		logical :: exists
 		
@@ -1100,15 +1147,15 @@ module Monte_Karlo
 		
 		if(MK_Mu_stat) then
 			allocate(SS%M_K_particle_3(par_n_zone + 1, par_m_zone + 1, par_stek, par_n_potok))
-			allocate(SS%MK_Mu_statistic(par_n_zone + 1, par_m_zone + 1, par_n_sort))
+			allocate(SS%MK_Mu_statistic(par_n_zone + 1, par_m_zone + 1, SS%n_Hidrogen))
 			SS%M_K_particle_3 = .False.
 			SS%MK_Mu_statistic = 0.0
 		end if
 		
 		allocate(SS%sensor(3, 2, par_n_potok))
 		allocate(SS%stek(par_n_potok))
-		allocate(SS%MK_Mu(par_n_zone + 1, par_m_zone + 1, par_n_sort))
-		allocate(SS%M_K_Moment(SS%par_n_moment, par_n_sort, size(SS%gl_all_Cell(1, :)), par_n_potok))
+		allocate(SS%MK_Mu(par_n_zone + 1, par_m_zone + 1, SS%n_Hidrogen))
+		allocate(SS%M_K_Moment(SS%par_n_moment, SS%n_Hidrogen, size(SS%gl_all_Cell(1, :)), par_n_potok))
 		
 	
 		SS%MK_Mu = 1.0
@@ -1146,27 +1193,67 @@ module Monte_Karlo
 			end do
 		end do
 		
-		inquire(file="MK_Mu_statistic.txt", exist=exists)
-		if (exists == .False.) then
-			pause "net faila!!!  cvbdfgertmkopl"
-			STOP "net faila!!!"
-		end if
-		open(2, file = "MK_Mu_statistic.txt", status = 'old')
-		
-		do k = 1, par_n_sort
-			do j = 1, par_m_zone + 1
-				do i = 1, par_n_zone + 1
-					read(2, *) n, n, n, SS%MK_Mu(i, j, k)
+		if(MK_statistik_file)  then  !! СТАРЫЙ ВАРИАНТ
+			inquire(file="MK_Mu_statistic.txt", exist=exists)
+			if (exists == .False.) then
+				pause "net faila!!!  cvbdfgertmkopl"
+				STOP "net faila!!!"
+			end if
+			open(2, file = "MK_Mu_statistic.txt", status = 'old')
+
+			if(SS%n_Hidrogen /= 4) then
+				STOP "ERRORo hg8o7wyevghp98j5y87e5wtpvqc5tyebv4wacagvb6u7n68mynbynhgnfgbjygfnbfh"
+			end if
+			
+			do k = 1, SS%n_Hidrogen
+				do j = 1, par_m_zone + 1
+					do i = 1, par_n_zone + 1
+						read(2, *) n, n, n, SS%MK_Mu(i, j, k)
+					end do
 				end do
 			end do
-		end do
-		
-		close(2)
+
+			! SS%MK_Mu(:, :, 5) = SS%MK_Mu(:, :, 1)
+			! SS%MK_Mu(:, :, 6) = SS%MK_Mu(:, :, 1)
+			
+			close(2)
+		else
+			inquire(file="2_MK_Mu_statistic.txt", exist=exists)
+			if (exists == .False.) then
+				pause "net faila!!!  cvbdfgertmkopl"
+				STOP "net faila!!!"
+			end if
+			open(2, file = "2_MK_Mu_statistic.txt", status = 'old')
+
+			read(2, *) n1
+			if(n1 /= SS%n_Hidrogen) then
+				STOP "ERRORo oirtjiuhboeuioishbtiuyduvbgsvcteraxdcfutayvfsdrgd"
+			end if
+
+			read(2, *) n2, n2, n2, n2, n2, n2
+			read(2, *) n2, n2, n2, n2, n2, n2
+			read(2, *) n2, n2, n2, n2, n2, n2, n2, n2
+			
+			do k = 1, SS%n_Hidrogen
+				do j = 1, par_m_zone + 1
+					do i = 1, par_n_zone + 1
+						read(2, *) n, n, n, SS%MK_Mu(i, j, k)
+					end do
+				end do
+			end do
+
+			close(2)
+		end if
 		
 		SS%MK_Mu(:, :, 1) = SS%MK_Mu(:, :, 1) * 1.0 ! 1.5
 		SS%MK_Mu(:, :, 2) = SS%MK_Mu(:, :, 2) * 0.2
 		SS%MK_Mu(:, :, 3) = SS%MK_Mu(:, :, 3) * 0.5
 		SS%MK_Mu(:, :, 4) = SS%MK_Mu(:, :, 4) * 0.5
+
+		if(SS%n_Hidrogen > 4) then
+			SS%MK_Mu(:, :, 5) = SS%MK_Mu(:, :, 5) * 0.8
+			SS%MK_Mu(:, :, 6) = SS%MK_Mu(:, :, 6) * 0.8
+		end if
 		
 		
 		SS%MK_SINKR(1) = sin(SS%MK_al_zone(1))
@@ -1218,6 +1305,12 @@ module Monte_Karlo
 		! Body of M_K_init
 		SS%MK_N = SS%MK_N * par_n_potok * par_n_parallel
 	end subroutine M_K_init
+
+	subroutine M_K_test_PUI(SS)
+		TYPE (Setka), intent(in) :: SS
+
+	end subroutine M_K_test_PUI
+
 
 	integer(4) pure function MK_poglosh_nomer(SS, V)
 		!! В какой номер в массиве поглощений нужно записать данную скорость
@@ -1569,17 +1662,17 @@ module Monte_Karlo
 		return
 	end subroutine MK_Velosity_initial
 
-    subroutine MK_ruletka(SS, n_potok, to_i, to_j, from_i, from_j, area, r, r_per, mu3, bb2)
+    subroutine MK_ruletka(SS, n_potok, to_i, to_j, from_i, from_j, sort, r, r_per, mu3, bb2)
         TYPE (Setka), intent(in out) :: SS
 		real(8), intent(in out) :: mu3
 		real(8), intent(in) :: r, r_per
-		integer(4), intent(in) :: n_potok, to_i, to_j, from_i, from_j, area
+		integer(4), intent(in) :: n_potok, to_i, to_j, from_i, from_j, sort
 		logical, intent(out) :: bb2
 		
 		real(8) :: mu, ksi
 		
-		mu = min( SS%MK_Mu(to_i, to_j, area) * 0.3 * SS%MK_SINKR(to_j) * (r_per/par_Rmax)**2, &
-					SS%MK_Mu(from_i, from_j, area) * 0.3 * SS%MK_SINKR(from_j) * (r/par_Rmax)**2) 
+		mu = min( SS%MK_Mu(to_i, to_j, sort) * 0.3 * SS%MK_SINKR(to_j) * (r_per/par_Rmax)**2, &
+					SS%MK_Mu(from_i, from_j, sort) * 0.3 * SS%MK_SINKR(from_j) * (r/par_Rmax)**2) 
 		
 		if (mu3 >= mu) then
 			bb2 = .True.
@@ -2341,6 +2434,57 @@ module Monte_Karlo
 			(par_sqrtpi / (2.0 * b)) * exp( (V + gam * V - ur)**2 / b2) * (2.0 * b4 + (ut**2) * (b2 * (3.0 * gam + 2.0) + 2.0 * gam * (ur**2))) * &
 			(1.0 + erf((-ur + gam * V + V) / b)))
 	end function MK_f2
+
+	real(8) function MK_nu_el_impact(SS, Te) ! pure	
+		TYPE (Setka), intent(in) :: SS
+		real(8), intent (in) :: Te
+		real(8) :: lam, b, c
+
+        lam = SS%lambda_e/(Te)
+        b = 0.6_8
+        c = 0.56_8
+        MK_nu_el_impact = SS%nu_e_impact * sqrt(lam) * (MK_E1(lam) - b * exp(c) * lam/(lam + c) * MK_E1(lam + c))
+		return
+
+	end function MK_nu_el_impact
+
+	real(8) function MK_E1(x) ! pure	
+		real(8), intent (in) :: x
+		real(8) :: S, dS, dx, xx
+
+		if(x < 0.5) then
+			MK_E1 = -0.57721566_8 - log(x) + x - x * x/4.0_8 + x * x * x/18.0_8  
+			return
+		else if(x < 2.0) then
+			MK_E1 = 1.7121332057 - 3.90719164238 * x + 4.3466304015 * x**2 - 2.69275405496 * x**3 + 0.8769657098 *  x**4 - 0.1163996854612 * x**5
+			return
+		else if(x < 5.0) then
+			MK_E1 = 0.580115 - 0.617414 * x + 0.27678 * x**2 - 0.0641781 * x**3 + 0.00759825 *  x**4 - 0.000364172 * x**5
+			return
+		else
+			!! Это не точная интерполяция, а просто аппроксимация
+			MK_E1 = 0.5 * exp(-x) * (0.5 * log(1.0 + 2.0 / x) + log(1.0 + 1.0 / x))
+			return
+		end if
+
+
+		! dS = 1.0
+		! dx = 0.0001
+		! S = 0.0
+		! xx = x
+		! do while (dS > 0.00001)
+		! 	dS = exp(-xx)/xx
+		! 	S = S + dS * dx
+		! 	xx = xx + dx
+		! 	! print*, xx, dS, S
+		! 	! pause
+		! end do
+		
+		! MK_E1 = S
+		! return
+
+	end function MK_E1
+
 
 
 end module Monte_Karlo

@@ -106,23 +106,26 @@ module Algoritm
         real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
-        call Read_setka_bin(gl_S3, "Q0006")   ! ДЛЯ ВОДОРОДА   DD018
+        ! if(par_Hydro) call Read_setka_bin(gl_S3, "DDD35")   ! ДЛЯ ВОДОРОДА   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "B0060")   ! ДЛЯ ВОДОРОДА   DD020    K0010
         print*, "B"
-        call Int_Init(gl_I1, gl_S3)
+        if(par_Hydro) call Int_Init(gl_I1, gl_S3)
         print*, "C"
 
         
         print*, "D"
-        call Int_Print_Cell(gl_I1)
+        if(par_Hydro) call Int_Print_Cell(gl_I1)
         print*, "E"
 
-        call Read_setka_bin(SS, "E0007")      ! ОСНОВНАЯ СЕТКА  CC019
+        ! call Read_setka_bin(SS, "V0020")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        call Read_setka_bin(SS, "A0068")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
 
         ! call Print_hydrogen(gl_S3)
-        call Dell_Setka(gl_S3)
+        if(par_Hydro) call Dell_Setka(gl_S3)
         
 
         !call Algoritm_Reinterpol(SS, gl_S2)
@@ -142,16 +145,16 @@ module Algoritm
         ! SS%par_Max_e = 6.21523
 
         ! Параметры Модели, которые сейчас строим
-        SS%par_n_H_LISM = 2.0
+        SS%par_n_H_LISM = 3.5
         SS%par_Velosity_inf = -2.54278_8
-        SS%par_Kn = 50.3858
+        SS%par_Kn = 68.0243! 50.3858
         SS%par_nu_ph = 12.0969 
         SS%par_E_ph = 0.10878
         SS%par_R0 = 0.198956
-        SS%par_chi = 41.0391
+        SS%par_chi = 41.0391! 3.0!! 41.0391
         SS%par_rho_e = 150.0
         SS%par_Max_e = 5.91662
-        SS%par_a_2 = 0.130735_8
+        SS%par_a_2 = 0.11857_8! 0.130735_8
         SS%culc_pui = .False.
 
 
@@ -181,7 +184,7 @@ module Algoritm
         call Geo_Print_Surface(SS)
         call Print_Grans(SS)
         call Print_GD_1D(SS)
-        call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
+        if(par_Hydro) call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
 
         !call Print_hydrogen(SS)
 
@@ -189,27 +192,30 @@ module Algoritm
 
         SS%gl_Gran_POTOK = -100000.0
 
-        SS%par_nat_TS = 0.04_8 ! 0.03_8
-        SS%par_nat_HP = 0.003_8  ! 0.04  0.06
+        SS%par_nat_TS = 0.04_8 !! 0.04_8
+        SS%par_nat_HP = 0.003_8  ! 0.003_8  0.04  0.06
         SS%par_nat_BS = 0.006_8 !0.004_8
 
-        SS%par_koeff_HP = 0.03_8  
+        SS%par_koeff_HP = 0.03_8! 0.3_8    0.03_8 
 
     
 
-        print*, "Proverim parametry"
+        print*, "Proverim parametry   GD"
         print*, SS%par_n_H_LISM
-        print*, SS%par_Kn
+        print*, "Kn = ", SS%par_Kn
         print*, SS%par_a_2
         print*, SS%par_nu_ph
+        print*, "SS%par_chi = ", SS%par_chi
         print*, "________________________"
 
+        call Print_GD(SS)
 
         print*, "H"
         i_max = 700!200!350   100 - 7 минут
         do i = 1, i_max
+
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
-            if (mod(i, 5) == 0) then
+            if (mod(i, 10) == 0) then
                 print*, "Global step = ", i, "from ", i_max
             end if
             call Start_GD_algoritm(SS, 5000, 2) !5000
@@ -221,16 +227,20 @@ module Algoritm
             call Geo_Culc_normal(SS, 2) 
             call Geo_Culc_length_area(SS, 2)
 
-            call Start_GD_algoritm(SS, 500, 1) !500
+            call Start_GD_algoritm(SS, 1200, 1) !500
 
-            call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
+            if(par_Hydro) call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
+
+            if(mod(i, 100) == 0) call Geo_Print_Surface(SS, 0)
         end do
 
 
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, 8)
-        call Save_setka_bin(SS, "E0008")
+        call Geo_Print_Surface(SS, 1)
+        ! call Save_setka_bin(SS, "V0021")
+        ! call Save_setka_bin(SS, "CC036")
+        call Save_setka_bin(SS, "AA001")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -246,7 +256,7 @@ module Algoritm
         ! Пересетройка основной сетки
         TYPE (Setka), intent(in out) :: SS
 
-        call Read_setka_bin(SS, "A0047")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "CC029")      ! ОСНОВНАЯ СЕТКА
         print*, "A1"
         call SUR_init(gl_surf1, SS)
 		print*, "A2"
@@ -255,15 +265,17 @@ module Algoritm
         !! Задаём параметры мини-сетки
         gl_S3%par_m_A = 20! 30      ! Количество лучей A в плоскости
         gl_S3%par_m_BC = 10! 18      ! Количество лучей B/C в плоскости
-        gl_S3%par_m_O = 10! 17      ! Количество лучей O в плоскости
+        gl_S3%par_m_O = 14! 17      ! Количество лучей O в плоскости
         gl_S3%par_m_K = 8! 7      ! Количество лучей K в плоскости
         gl_S3%par_n_TS =  33! 26                    ! Количество точек до TS (TS включается)
         gl_S3%par_n_HP =  63! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
-        gl_S3%par_n_BS =  89! 60! 5                 ! Количество точек BS (BS включается)
-        gl_S3%par_n_END = 101! 72! 6                ! Количество точек до конца сетки (конец включается)
+        gl_S3%par_n_BS =  99! 60! 5                 ! Количество точек BS (BS включается)
+        gl_S3%par_n_END = 120! 101! 72! 6                ! Количество точек до конца сетки (конец включается)
         gl_S3%par_n_IA =  20! 12                   ! Количество точек, которые входят во внутреннюю область
         gl_S3%par_n_IB =  22! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
-        gl_S3%par_kk2 = 2.08
+        gl_S3%par_kk2 = 1.5_8! 2.08
+        gl_S3%par_R_LEFT = -300.0_8 !-240.0_8
+        gl_S3%par_R_END = 400.0  
         call Init_Setka(gl_S3)
 		print*, "A4"
         call Build_Setka_start(gl_S3)
@@ -278,7 +290,7 @@ module Algoritm
         call Print_Grans(gl_S3)
         call Print_GD_1D(gl_S3)
 
-        call Save_setka_bin(gl_S3, "A0048")
+        call Save_setka_bin(gl_S3, "CC030")
 
     end subroutine Perestroika_algoritm
 
@@ -287,15 +299,159 @@ module Algoritm
         integer(4) :: i, j, cell
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
-        call Read_setka_bin(gl_S4, "DD018")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        ! call Read_setka_bin(gl_S4, "B0060")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "D0011")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
-        call Read_setka_bin(SS, "CC020")      ! ОСНОВНАЯ СЕТКА
+        ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
+        ! call Read_setka_bin(SS, "AA001")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "C0012")      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
         !call Geo_Print_Surface(SS)
         !call Print_Grans(SS)
         ! call Print_GD_1D(SS)
         !pause
+
+		print*, "A1"
+        call SUR_init(gl_surf1, SS)
+		print*, "A2"
+        call Int_Init(gl_S2, SS)
+		print*, "A3"
+
+        !! Задаём параметры мини-сетки
+        gl_S3%par_m_A = 20! 30      ! Количество лучей A в плоскости
+        gl_S3%par_m_BC = 10! 18      ! Количество лучей B/C в плоскости
+        gl_S3%par_m_O = 14! 17      ! Количество лучей O в плоскости
+        gl_S3%par_m_K = 8! 7      ! Количество лучей K в плоскости
+        gl_S3%par_n_TS =  27! 26                    ! Количество точек до TS (TS включается)
+        gl_S3%par_n_HP =  40! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
+        gl_S3%par_n_BS =  67! 60! 5                 ! Количество точек BS (BS включается)
+        gl_S3%par_n_END = 80! 72! 6                ! Количество точек до конца сетки (конец включается)
+        gl_S3%par_n_IA =  12! 12                   ! Количество точек, которые входят во внутреннюю область
+        gl_S3%par_n_IB =  14! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
+        gl_S3%par_kk13 =  1.6!
+        gl_S3%par_kk14 =  0.8!
+        gl_S3%par_kk113 = 1.2
+
+        gl_S3%par_R_LEFT = -240.0_8!! -300.0_8 !-240.0_8
+        gl_S3%par_R_END = 300.0 !!400.0  
+
+        !! Физические параметры модели
+        gl_S3%par_n_H_LISM = 3.0 !! 3.0
+        gl_S3%par_Velosity_inf = -2.54278_8
+        gl_S3%par_Kn = 50.3858! 68.0243!! 50.3858
+        gl_S3%par_nu_ph = 12.0969 
+        gl_S3%par_E_ph = 0.10878
+        gl_S3%par_R0 = 0.198956
+        gl_S3%par_chi = 41.0391
+        gl_S3%par_rho_e = 150.0
+        gl_S3%par_Max_e = 5.91662
+        gl_S3%par_a_2 = 0.130735_8!! 0.11857 !!0.130735_8
+        gl_S3%par_poglosh = 0.389274
+        gl_S3%culc_pui = .False.  !! 
+
+        call Init_Setka(gl_S3)
+		print*, "A4"
+        call Build_Setka_start(gl_S3)
+
+        if(gl_S3%culc_pui == .True.) then
+            call PUI_SET(gl_S3)
+        end if
+
+		print*, "A5"
+	    call Algoritm_ReMove_Surface(gl_S3, gl_surf1)
+		print*, "A6"
+
+        ! call Print_Cell(gl_S3)
+        ! call Geo_Print_Surface(gl_S3)
+        call Print_Grans(gl_S3)
+        ! return
+
+        !print*, gl_S2%gd(:, 1)
+        !print*, gl_S2%gd(:, 2)
+        !print*, gl_S2%gd(:, 3)
+
+        print*, "A7"
+
+        call Algoritm_Reinterpol(gl_S3, gl_S2)
+        
+		print*, "A8"
+
+        if(gl_S3%culc_pui == .True.) then
+            call Algoritm_Reinterpol_S_pui(gl_S3, gl_S4)  ! Берём S+ S- с предыдущего расчёта
+            call Culc_f_pui(gl_S3, gl_S2)
+            call PUI_F_integr_Set(gl_S3)
+            call PUI_Culc_h0(gl_S3)
+            call PUI_F_integr_Culc(gl_S3)
+            call PUI_n_T_culc(gl_S3)
+        end if
+        call Dell_Setka(gl_S4)
+
+
+        print*, "Proverim parametry  MK"
+        print*, gl_S3%par_n_H_LISM
+        print*, gl_S3%par_Kn
+        print*, gl_S3%par_a_2
+        print*, gl_S3%par_nu_ph
+        print*, "________________________"
+
+
+        !call PUI_print_pui(gl_S3, -56.2_8, 12.96_8)
+        !call PUI_print_pui(gl_S3, -74.5_8, 21.35_8)
+        !return 
+
+        if(gl_S3%culc_pui == .True.) then
+            call Print_PUI_1D(gl_S3)
+            call Print_GD_PUI(gl_S3)
+        else
+            call Print_GD_1D(gl_S3)
+            call Print_GD(gl_S3)
+        end if
+
+        call M_K_start(gl_S3, gl_S2)
+
+        call Print_hydrogen(gl_S3)
+        call Print_hydrogen_1D(gl_S3)
+        call Calc_Pogloshenie(gl_S3)
+
+        if(gl_S3%culc_pui == .True.) call Print_GD_PUI(gl_S3)
+
+        if(gl_S3%culc_pui == .True.) then
+            call Culc_f_pui(gl_S3, gl_S2)
+            call PUI_print_pui(gl_S3, 15.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, -15.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, 0.0_8, 15.0001_8)
+            call PUI_print_pui(gl_S3, 25.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, 30.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, 31.0_8, 0.0001_8)
+            call PUI_print_pui(gl_S3, -50.0_8, 0.0001_8)
+        end if
+
+
+        ! call Save_setka_bin(gl_S3, "DDD35")
+        call Save_setka_bin(gl_S3, "RR001")
+        if(gl_S3%culc_pui == .True.) then
+            call Print_PUI_1D(gl_S3)
+        else
+            call Print_GD_1D(gl_S3)
+        end if
+
+        print*, "END"
+
+    end subroutine MK_algoritm
+
+    subroutine MK_test_chastot(SS)
+        ! Тестируем различные частоты по перезарядке на протонах, пикапах, электронный удар
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: i, j, cell, cell_pui
+        real(8) :: PAR(SS%n_par), ro_pui, T_pui, p, vx, vy, vz, ro, cp, u, u1, u2, u3, skalar, uz, nu_ex, nu_pui, VH
+        real(8) :: Tp, b, c, nu_e_impact, lambda_e, lam, nu_electron
+
+        ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
+        call Read_setka_bin(gl_S4, "DDD25")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+
+        call Read_setka_bin(SS, "CC026")      ! ОСНОВНАЯ СЕТКА
 
 		print*, "A1"
         call SUR_init(gl_surf1, SS)
@@ -344,20 +500,11 @@ module Algoritm
 	    call Algoritm_ReMove_Surface(gl_S3, gl_surf1)
 		print*, "A6"
 
-        ! call Print_Cell(gl_S3)
-        ! call Geo_Print_Surface(gl_S3)
-        ! call Print_Grans(gl_S3)
-        ! return
-
-        !print*, gl_S2%gd(:, 1)
-        !print*, gl_S2%gd(:, 2)
-        !print*, gl_S2%gd(:, 3)
-
         print*, "A7"
 
         call Algoritm_Reinterpol(gl_S3, gl_S2)
         
-		print*, "A8"
+		print*, "A8", MK_E1(1.0_8)
 
         if(gl_S3%culc_pui == .True.) then
             call Algoritm_Reinterpol_S_pui(gl_S3, gl_S4)  ! Берём S+ S- с предыдущего расчёта
@@ -370,50 +517,70 @@ module Algoritm
         call Dell_Setka(gl_S4)
 
 
-        print*, "Proverim parametry"
-        print*, gl_S3%par_n_H_LISM
-        print*, gl_S3%par_Kn
-        print*, gl_S3%par_a_2
-        print*, gl_S3%par_nu_ph
-        print*, "________________________"
+        cell = 1
+        call Geo_Find_Cell(gl_S3, 140.0_8, 0.0_8, cell)
+        PAR = gl_S3%gd(:, cell, 1)  !! Пока без интерполяции
+        !cell_pui = gl_S3%f_pui_num2(cell)
+        ro_pui = 0.0!gl_S3%par_pui(1, cell_pui)
+        T_pui = 0.0!gl_S3%par_pui(2, cell_pui)
+        p = PAR(2)
+        vx = PAR(3)
+        vy = 0.0
+        vz = 0.0
+        ro = PAR(1)
+        cp = sqrt(p/ro)
 
-        call Print_GD_PUI(gl_S3)
-        !call PUI_print_pui(gl_S3, -56.2_8, 12.96_8)
-        !call PUI_print_pui(gl_S3, -74.5_8, 21.35_8)
-        !return 
+        p = 4.0 * (ro - ro_pui) * (p - ro_pui * T_pui) /&
+            (8.0 * ro - 4.0 * ro_pui)
+        ro = ro - ro_pui
+        cp = sqrt(2.0 * p/ro)
 
-        call M_K_start(gl_S3, gl_S2)
+        print*, "Dense = ", PAR(1), ro, ro_pui
 
-        call Print_hydrogen(gl_S3)
-        call Print_hydrogen_1D(gl_S3)
-        call Calc_Pogloshenie(gl_S3)
+        open(1, file = 'MK_test_chastot.txt')
+        write(1,*) "TITLE = 'HP'  VARIABLES = VH, nu_ex, nu_ex_pui, nu_electron"
 
-        call Print_GD_PUI(gl_S3)
+        nu_e_impact = 0.15465
+        lambda_e = 12.09
+        lam = lambda_e/(p/ro)
+        b = 0.6
+        c = 0.56
+        nu_electron = nu_e_impact * sqrt(lam) * (MK_E1(lam) - b * exp(c) * lam/(lam + c) * MK_E1(lam + c))
 
-        if(gl_S3%culc_pui == .True.) then
-            call Culc_f_pui(gl_S3, gl_S2)
-            call PUI_print_pui(gl_S3, 15.0_8, 0.0001_8)
-            call PUI_print_pui(gl_S3, -15.0_8, 0.0001_8)
-            call PUI_print_pui(gl_S3, 0.0_8, 15.0001_8)
-            call PUI_print_pui(gl_S3, 25.0_8, 0.0001_8)
-            call PUI_print_pui(gl_S3, -50.0_8, 0.0001_8)
-        end if
+        do i = 1, 100
+            VH = -5.0 + 0.1 * i
+            u = sqrt(kvv(VH - vx, 0.0_8, 0.000001_8))
+            u1 =  vx - VH
+            u2 =  0.0_8
+            u3 =  0.0_8
+            skalar = VH * u1
+        
+            if (u / cp > 7.0) then
+                uz = MK_Velosity_1(u, cp);
+                nu_ex = (uz * MK_sigma(gl_S3, uz)) / gl_S3%par_Kn
+            else
+                nu_ex = (MK_int_1(gl_S3, u, cp)) / gl_S3%par_Kn        ! Пробуем вычислять интеграллы численно
+            end if
+
+            nu_pui = 0.0!PUI_get_nu_integr(gl_S3, gl_S3%f_pui_num2(cell), u)/ gl_S3%par_Kn /ro_pui
 
 
-        call Save_setka_bin(gl_S3, "DD018")
-        call Print_PUI_1D(gl_S3)
+            write(1,*) VH, nu_ex, nu_pui, nu_electron
+        end do
+
+        close(1)
+
 
         print*, "END"
 
-    end subroutine MK_algoritm
+    end subroutine MK_test_chastot
 
     subroutine Print_PUI_algoritm(SS)
         TYPE (Setka), intent(in out) :: SS
+        ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
+        call Read_setka_bin(gl_S4, "DD020")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
-         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
-        call Read_setka_bin(gl_S4, "DD012")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-
-        call Read_setka_bin(SS, "CC012")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "CC021")      ! ОСНОВНАЯ СЕТКА
 
 		print*, "A1"
         call SUR_init(gl_surf1, SS)
@@ -428,7 +595,17 @@ module Algoritm
         call PUI_n_T_culc(gl_S4)
 
         call Print_PUI_1D(gl_S4)
+        call Print_GD_PUI(gl_S4)
 
+        call PUI_print_pui(gl_S4, 23.0_8, 0.0001_8)
+        call PUI_print_pui(gl_S4, 23.1_8, 0.0001_8)
+
+        call PUI_print_pui(gl_S4, 30.3_8, 0.0001_8)
+        call PUI_print_pui(gl_S4, 31.0_8, 0.0001_8)
+
+        print*, "Test pui"
+
+        
         print*, "END"
 
     end subroutine Print_PUI_algoritm
@@ -447,6 +624,7 @@ module Algoritm
         real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME, lenght, wc, gran_center(2), sosed_center(2)
         logical :: tvd1, tvd2, null_un
         integer(4) :: kdir, idgod, KOBL
+        real(8) :: dist_inner   ! Расстояние, от которого считаем (в него входят два ряда ячеек)
 
 		all_step = all_step_
         if(mod(all_step, 2) == 1) all_step = all_step + 1   ! Делаем общее число шагов чётным
@@ -457,6 +635,8 @@ module Algoritm
         qqq1 = 0.0
         qqq2 = 0.0
         ALL_TIME = 0.0
+
+        dist_inner = (norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(2, 1), 1)) + norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(3, 1), 1)))/2.0
 
         do step = 1, all_step
 
@@ -472,7 +652,7 @@ module Algoritm
             time = 1000000.0
             ALL_TIME = ALL_TIME + TT
 
-            if(area == 2) then
+            if(area == 2 .and. par_move_setka == .True.) then
                 call Calc_move_velosity(SS, now)
                 call Move_all(SS, now, TT)
                 call Culc_Cell_Centr(SS, now2)
@@ -498,7 +678,7 @@ module Algoritm
                 if(area == 2) then
                     if(r < 10.0) CYCLE
                 else if(area == 1) then
-                    if(r >= 10.0 .or. r <= 0.42) CYCLE
+                    if(r >= 10.0 .or. r <= dist_inner) CYCLE
                 end if
 
                 par1 = SS%gd(1:5, cell, now)    ! Получили газодинамические параметры
@@ -569,7 +749,7 @@ module Algoritm
                     !if(.True.) then
                     if(SS%gl_Gran_shem(gran) == 3) then
 
-                        if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 8) then  ! Контакт  5
+                        if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 15) then  !! Контакт  8
                             wc = 0.0
                             qqq2 = qqq1
                             wc = DOT_PRODUCT(qqq1(2:3), normal)
@@ -590,14 +770,6 @@ module Algoritm
                             POTOK2(8) = 0.0
                             POTOK2(9) = 0.0
 
-                            ! print*, "____________________"
-                            ! print*, qqq1
-                            ! print*, "____________________"
-                            ! print*, qqq2
-                            ! print*, "____________________"
-                            ! print*, POTOK2
-                            ! print*, "____________________"
-                            ! pause
 
                             if (idgod == 2) STOP "ERROR okrfi9uhebrtomeevjoerhbbvecwwvertbhyrvgf"
 
@@ -649,7 +821,7 @@ module Algoritm
                     !     pause
                     ! end if
 
-                    loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )  
+                    loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     POTOK(5) = POTOK(5) + POTOK2(9) * Sqv
                     POTOK(1) = POTOK(1) + POTOK2(1) * Sqv
@@ -685,9 +857,10 @@ module Algoritm
                 Vol = SS%gl_Cell_square(cell, now)
                 Vol2 = SS%gl_Cell_square(cell, now2)
 
-                call Calc_sourse_MF(SS, cell, source, now, use_koeff_ = .True.)
+                if(par_Hydro == .True.) call Calc_sourse_MF(SS, cell, source, now, use_koeff_ = .True.)
+                if(par_Hydro == .False.) source = 0.0  !! 
 
-                !if(center(1) < -215) source = 0.0  !! УБРАТЬ
+                !if(center(1) < -40) source = 0.0  !! УБРАТЬ
 
                 if(ieee_is_nan(source(2)) .or. ieee_is_nan(source(1)) .or. ieee_is_nan(source(4))) then
                     print*, "error source nan 186 tyujhwgeftywfwf"
@@ -728,7 +901,7 @@ module Algoritm
                     ! print*, par1, "||||||||| ", par2
                     ! print*, "_____________"
                     ! stop
-                    ro2 = 0.03
+                    ro2 = 0.0003
                 end if
                 Q2 = Q * Vol/Vol2 - TT * (POTOK(5) / Vol2 + Q * v/center(2) - (Q/ro) * source(1))
                 u2 = (ro * u * Vol/Vol2 - TT * ( POTOK(3) / Vol2 + ro * v * u/center(2) - source(2) )) / ro2
@@ -739,7 +912,11 @@ module Algoritm
                         - TT * (POTOK(2)/ Vol2 + pp - source(4)) ) - 0.5 * ro2 * (u2**2 + v2**2) ) * (SS%par_ggg - 1.0)
 
                 if(p2 <= 0.0) then
-                    p2 = 0.1! 0.000001   !! УУУБРАТЬ
+                    p2 = 0.000001   !! УУУБРАТЬ   0.1
+                end if
+
+                if(center(1) < -40 .and. center(2) < 100 .and. u2 > 0.0) then
+                    u2 = -0.3         !! УУУБРАТЬ
                 end if
 
                 SS%gd(1, cell, now2) = ro2
@@ -1449,7 +1626,7 @@ module Algoritm
 
         n1 = size(SS%gl_Cell_A(1,:))
         do i = 1, n1
-            do j = 1, 2
+            do j = 1, 2!SS%par_n_TS - 2!!2
                 cell = SS%gl_Cell_A(j, i)
                 x = SS%gl_Cell_Centr(1, cell, 1)
                 y = SS%gl_Cell_Centr(2, cell, 1)
@@ -1461,7 +1638,7 @@ module Algoritm
 
         n1 = size(SS%gl_Cell_B(1,:))
         do i = 1, n1
-            do j = 1, 2
+            do j = 1, 2!SS%par_n_TS - 2!!2
                 cell = SS%gl_Cell_B(j, i)
                 x = SS%gl_Cell_Centr(1, cell, 1)
                 y = SS%gl_Cell_Centr(2, cell, 1)
@@ -1470,6 +1647,17 @@ module Algoritm
                 SS%gd(1:5, cell, 2) = SS%gd(1:5, cell, 1)
             end do
         end do
+
+        ! do i = 1, size(SS%gl_all_Cell(1, :))   !! УБРАТЬ
+        !     x = SS%gl_Cell_Centr(1, i, 1)
+        !     y = SS%gl_Cell_Centr(2, i, 1)
+        !     if( x < -80 .and. y < 120) then
+        !         SS%gd(1, i, 1) = 1.0
+        !         SS%gd(2, i, 1) = 1.0
+        !         SS%gd(3, i, 1) = -5.1
+        !         SS%gd(:, i, 2) = SS%gd(:, i, 1)
+        !     end if
+        ! end do
 
 	end subroutine Algoritm_Bound_condition
 
@@ -1659,7 +1847,7 @@ module Algoritm
         logical, intent(in), OPTIONAL :: gd_
         integer(4) :: N, i, num, j
         real(8) :: center(2)
-        real(8) :: parH(5, 4)
+        real(8) :: parH(5, SS%n_Hidrogen)
         real(8) :: par(5)
         real(8) :: source(4)
         logical :: gd
@@ -1741,5 +1929,6 @@ module Algoritm
             SS%pui_Sp(:, num2) = XX%pui_Sp(:, num)
         end do
     end subroutine Algoritm_Reinterpol_S_pui
+
 
 end module Algoritm

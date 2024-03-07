@@ -106,6 +106,7 @@ program Gelios_2D_Fort
     call MK_algoritm(gl_S1)
     ! call Perestroika_algoritm(gl_S1)
     ! call Print_PUI_algoritm(gl_S1)
+    ! call MK_test_chastot(gl_S1)
 
     !call Print_Cell(gl_S1)
 

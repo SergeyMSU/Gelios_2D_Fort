@@ -118,12 +118,13 @@ module PUI
         num = 1
         call Geo_Find_Cell(SS, x, y, num, inzone)
 
-		print*, "PUI_print_pui = ", num, x, y
+		print*, "PUI_print_pui = ", num, x, y, SS%gl_all_Cell_zone(num)
 
         if(SS%gl_all_Cell_zone(num) > 2) return
         write(unit=name,fmt='(i5.5)') num
 
         n2 = SS%f_pui_num2(num)
+		print*, "n_H = ", SS%par_pui(1, n2)
         open(3, file = "f_PUI_" // name // ".txt")
 		if(n2 > 0) then
 			do i = 1, SS%pui_nW
@@ -296,7 +297,7 @@ module PUI
 			rho = rho0
 			f0_pui = 0.0
 			mas_Sm = 0.0
-			dt = 0.005/55.0
+			dt = 0.005/65.0
 
 			r = SS%gl_Cell_Centr(:, k, 1)  ! Координаты этого узла
 			mas_w = mas_w0
@@ -324,12 +325,15 @@ module PUI
 					!STOP
 				end if
 
-				q1 = PAR_k(4)
+				q1 = PAR_k(4) * SS%par_n_H_LISM
 				rho_do = rho
 				rho = PAR(1)
 				dt = 0.005/norm2(PAR(3:4))
 				
-				if(SS%gl_all_Cell_zone(cell) == 1) EXIT   ! Если попали в ячейку из области 1 - область до TS
+				if(SS%gl_all_Cell_zone(cell) == 1) then
+					rho = SS%gd(1, cell, 1)
+					EXIT   ! Если попали в ячейку из области 1 - область до TS
+				end if
 
 				if(SS%gl_all_Cell_zone(cell) == 3) then   ! Если попали в ячейку из области 3 - область за HP
 					!print*, "Popal v zonu 3"
@@ -360,6 +364,9 @@ module PUI
 			!s = rho_do/rho
 			C = s
 
+			! print*, phi * 180/par_pi, s, rho_do/rho
+			! pause
+
 			rho0 = rho
 			qInt = 0.0
 			mas_w0 = mas_w/sqrt(C)
@@ -371,7 +378,7 @@ module PUI
 				PAR = SS%gd(:, cell, 1)
 				PAR_k = SS%atom_source(1:4, cell)
 				call Geo_Find_Cell(SS, r(1), r(2), cell, inzone)
-				q1 = PAR_k(4)
+				q1 = PAR_k(4) * SS%par_n_H_LISM
 				rho = PAR(1)
 				dt = 0.005/norm2(PAR(3:4))
 				qInt = qInt + dt * q1/rho

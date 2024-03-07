@@ -28,12 +28,14 @@ module Phys_parameter
         ! par(5) = 100.0
         ! return
 
-        par(1) = SS%par_rho_e * (SS%par_R0/r)**2
+        !!par(1) = SS%par_rho_e * (SS%par_R0/r)**2
+        par(1) = 10000.0/(SS%par_chi**2 * r**2)
         par(3) = x/r * SS%par_chi
         par(4) = y/r * SS%par_chi
-        p_0 = SS%par_chi**2 * SS%par_rho_e/(SS%par_ggg * SS%par_Max_e**2)
+        !! p_0 = SS%par_chi**2 * SS%par_rho_e/(SS%par_ggg * SS%par_Max_e**2)
+        p_0 = 10000/(SS%par_chi**2 * SS%par_R0**2) * SS%par_chi**2/(SS%par_ggg * SS%par_Max_e**2)
         par(2) = p_0 * (SS%par_R0/r)**(2.0 * SS%par_ggg)
-        par(5) = SS%par_rho_e * (SS%par_R0/r)**2
+        par(5) = par(1)
 
     end subroutine Inner_Conditions
 
@@ -132,12 +134,23 @@ module Phys_parameter
             return
         else if(s2 == -2) then
             par1_ = SS%gd(1:5, cell, now)
-            if(par1_(3) > SS%par_Velosity_inf/3.0) par1_(3) = SS%par_Velosity_inf
+            ! if(par1_(3) > SS%par_Velosity_inf/3.0) par1_(3) = SS%par_Velosity_inf
+            if(par1_(3) > 0.0) par1_(3) = -1.00
             par2_ = par1_
+
+            ! c5 = SS%gl_Gran_Center(:, gran, now)
+            ! if(c5(1) < -499) then
+            !     print*, "Gran", c5
+            !     print*, par2_
+            !     print*, "_____________"
+            !     pause
+            ! end if
+
             return
         else if(s2 == -3) then
             par1_ = SS%gd(1:5, cell, now)
             par2_ = par1_
+            ! par2_(2) = 0.1
             return
         else if(s2 == -4) then  !!  Îñü ñèììåòðèè
             par1_ = SS%gd(1:5, s1, now)
@@ -298,6 +311,7 @@ module Phys_parameter
             par2(5) = par2(5) * r2**2 / r5**2
             par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
         else
+
             if (s1 > 0 .and. s2 > 0 .and. s3 > 0 .and. s4 > 0) then
                 c3 = SS%gl_Cell_Centr(:, s3, now)
                 c4 = SS%gl_Cell_Centr(:, s4, now)
@@ -311,19 +325,23 @@ module Phys_parameter
                     do i = 1, 5 
                         par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
                     end do
-                else if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s1) /= SS%gl_all_Cell_zone(s3)) then
-                    do i = 1, 5 
-                        par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
-                    end do
-                else  ! zona s1 = s3   s1/= s2
-                    do i = 1, 5 
-                        par1_(i) = linear1(d2, par3(i), d1, par1(i), 0.0_8)
-                    end do
-                    if(par1_(1) <= 0.0) then
-                        par1_(1) = SS%gd(1, s1, now)
-                        par1_(5) = SS%gd(5, s1, now)
+                else if(par_TVD_linear_HP) then
+                    if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s1) /= SS%gl_all_Cell_zone(s3)) then
+                        do i = 1, 5 
+                            par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
+                        end do
+                    else  ! zona s1 = s3   s1/= s2
+                        do i = 1, 5 
+                            par1_(i) = linear1(d2, par3(i), d1, par1(i), 0.0_8)
+                        end do
+                        if(par1_(1) <= 0.0) then
+                            par1_(1) = SS%gd(1, s1, now)
+                            par1_(5) = SS%gd(5, s1, now)
+                        end if
+                        if(par1_(2) <= 0.0) par1_(2) = SS%gd(2, s1, now)
                     end if
-                    if(par1_(2) <= 0.0) par1_(2) = SS%gd(2, s1, now)
+                else
+                    par1_ = par1
                 end if
 
                 d2 = -d1
@@ -334,19 +352,23 @@ module Phys_parameter
                     do i = 1, 5 
                         par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
                     end do
-                else if (SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s2) /= SS%gl_all_Cell_zone(s4)) then
-                    do i = 1, 5 
-                        par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
-                    end do
-                else
-                    do i = 1, 5 
-                        par2_(i) = linear1(d2, par4(i), d1, par2(i), 0.0_8)
-                    end do
-                    if(par2_(1) <= 0.0) then
-                        par2_(1) = SS%gd(1, s2, now)
-                        par2_(5) = SS%gd(5, s2, now)
+                else if(par_TVD_linear_HP) then
+                    if (SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s2) /= SS%gl_all_Cell_zone(s4)) then
+                        do i = 1, 5 
+                            par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
+                        end do
+                    else
+                        do i = 1, 5 
+                            par2_(i) = linear1(d2, par4(i), d1, par2(i), 0.0_8)
+                        end do
+                        if(par2_(1) <= 0.0) then
+                            par2_(1) = SS%gd(1, s2, now)
+                            par2_(5) = SS%gd(5, s2, now)
+                        end if
+                        if(par2_(2) <= 0.0) par2_(2) = SS%gd(2, s2, now)
                     end if
-                    if(par2_(2) <= 0.0) par2_(2) = SS%gd(2, s2, now)
+                else
+                    par2_ = par2
                 end if
 
                 return
@@ -526,7 +548,7 @@ module Phys_parameter
             nu(i) = ro * ro_H * U_M_H(i) * sigma(i)
         end do
         
-        do i = 1, 4
+        do i = 1, SS%n_Hidrogen
             ro_H = SS%hydrogen(1, i, cell, step)
             p_H = SS%hydrogen(2, i, cell, step)
             u_H = SS%hydrogen(3, i, cell, step)
@@ -550,7 +572,7 @@ module Phys_parameter
         if (use_koeff == .False.) then
             sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)
         else
-            sourse(1) = SS%atom_source(4, cell)
+            sourse(1) = SS%atom_source(4, cell)! * SS%par_n_H_LISM           !! ÒÓÒ ÍÀÄÎ ËÈ ÄÎÌÍÎÆÀÒÜ ÍÀ ÊÎÍÖÅÍÒÐÀÖÈÞ ÂÎÄÎÐÎÄÀ?
             sourse(2) = sourse(2) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(1, cell)
             sourse(4) = sourse(4) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(3, cell)
 
