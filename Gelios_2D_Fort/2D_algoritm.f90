@@ -107,7 +107,8 @@ module Algoritm
 
         print*, "A"
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "DDD35")   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "B0060")   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
+        ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "RR003")   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
         print*, "B"
         if(par_Hydro) call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -118,8 +119,8 @@ module Algoritm
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
-        ! call Read_setka_bin(SS, "CC035")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
-        call Read_setka_bin(SS, "A0068")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
+        ! call Read_setka_bin(SS, "CC012")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
+        call Read_setka_bin(SS, "DR002")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -141,20 +142,18 @@ module Algoritm
         ! SS%par_E_ph = 0.0725533
         ! SS%par_R0 = 0.20445
         ! SS%par_chi = 43.1202
-        ! SS%par_rho_e = 128.667
         ! SS%par_Max_e = 6.21523
 
         ! Ïàðàìåòðû Ìîäåëè, êîòîðûå ñåé÷àñ ñòðîèì
-        SS%par_n_H_LISM = 3.5
+        SS%par_n_H_LISM = 3.0_8!3.5_8
         SS%par_Velosity_inf = -2.54278_8
-        SS%par_Kn = 68.0243! 50.3858
+        SS%par_Kn = 50.3858 !68.0243! 50.3858
         SS%par_nu_ph = 12.0969 
         SS%par_E_ph = 0.10878
         SS%par_R0 = 0.198956
         SS%par_chi = 41.0391! 3.0!! 41.0391
-        SS%par_rho_e = 150.0
         SS%par_Max_e = 5.91662
-        SS%par_a_2 = 0.11857_8! 0.130735_8
+        SS%par_a_2 = 0.130735_8! 0.11857_8! 0.130735_8
         SS%culc_pui = .False.
 
 
@@ -237,10 +236,10 @@ module Algoritm
 
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, 1)
+        call Geo_Print_Surface(SS, 3)
         ! call Save_setka_bin(SS, "V0021")
         ! call Save_setka_bin(SS, "CC036")
-        call Save_setka_bin(SS, "AA001")
+        call Save_setka_bin(SS, "DR003")
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -301,11 +300,11 @@ module Algoritm
         ! Ñåòêà âîäîðîäà íóæíî òîëüêî â ñëó÷àå èñïîëüçîâàíèÿ ÏÈÊÀÏÎÂ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
         ! call Read_setka_bin(gl_S4, "B0060")   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
-        call Read_setka_bin(gl_S4, "D0011")   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
+        call Read_setka_bin(gl_S4, "RR002")   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
 
         ! call Read_setka_bin(SS, "CC035")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
         ! call Read_setka_bin(SS, "AA001")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
-        call Read_setka_bin(SS, "C0012")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
+        call Read_setka_bin(SS, "DR002")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
 
         ! call Print_GD(SS)
         !call Geo_Print_Surface(SS)
@@ -345,10 +344,11 @@ module Algoritm
         gl_S3%par_E_ph = 0.10878
         gl_S3%par_R0 = 0.198956
         gl_S3%par_chi = 41.0391
-        gl_S3%par_rho_e = 150.0
         gl_S3%par_Max_e = 5.91662
         gl_S3%par_a_2 = 0.130735_8!! 0.11857 !!0.130735_8
         gl_S3%par_poglosh = 0.389274
+        gl_S3%par_rho_LISM = 1.60063_8
+        Sgl_S3S%par_p_LISM = 1.15_8
         gl_S3%culc_pui = .False.  !! 
 
         call Init_Setka(gl_S3)
@@ -430,7 +430,7 @@ module Algoritm
 
 
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "RR001")
+        call Save_setka_bin(gl_S3, "RR003")
         if(gl_S3%culc_pui == .True.) then
             call Print_PUI_1D(gl_S3)
         else
@@ -482,7 +482,6 @@ module Algoritm
         gl_S3%par_E_ph = 0.10878
         gl_S3%par_R0 = 0.198956
         gl_S3%par_chi = 41.0391
-        gl_S3%par_rho_e = 150.0
         gl_S3%par_Max_e = 5.91662
         gl_S3%par_a_2 = 0.130735_8
         gl_S3%par_poglosh = 0.389274
@@ -545,6 +544,7 @@ module Algoritm
         lam = lambda_e/(p/ro)
         b = 0.6
         c = 0.56
+        print*, "Te", (p/ro)
         nu_electron = nu_e_impact * sqrt(lam) * (MK_E1(lam) - b * exp(c) * lam/(lam + c) * MK_E1(lam + c))
 
         do i = 1, 100
@@ -799,27 +799,6 @@ module Algoritm
                         wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
                     end if
 
-                    ! if(SS%gl_Cell_neighbour(gr, cell) == -4 .and. gran_center(1) > 35 .and. gran_center(1) < 60) then
-                    !     print*, POTOK2
-                    !     print*, "_______________"
-                    !     pause
-                    ! end if
-
-                    ! if(gran == 77) then
-                    !     print*, qqq1
-                    !     print*, "__________________"
-                    !     print*, qqq2
-                    !     print*, "__________________"
-                    !     print*, SS%gl_Gran_shem(gran), wc
-                    !     print*, "__________________"
-                    !     print*, POTOK2
-                    !     print*, "__________________"
-                    !     print*, dsl, dsp, dsc
-                    !     print*, "__________________"
-                    !     print*, normal
-                    !     print*, "__________________"
-                    !     pause
-                    ! end if
 
                     loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -834,23 +813,6 @@ module Algoritm
                             time = loc_time
                         !$omp end critical
                     end if
-
-
-                     !if(SS%gl_Gran_POTOK(gran) < -99000) then
-                     !    SS%gl_Gran_POTOK(gran) = POTOK2(1)
-                     !else if(dabs(dabs(POTOK2(1)) - dabs(SS%gl_Gran_POTOK(gran))) > 0.00001) then
-                     !    print*, "________________"
-                     !    print*, POTOK2(1)
-                     !    print*, "________________"
-                     !    print*, SS%gl_Gran_POTOK(gran)
-                     !    print*, "________________"
-                     !    print*, gran_center
-                     !    print*, "________________"
-                     !    print*, gran
-                     !    print*, "________________"
-						               !
-                     !    pause
-                     !end if
 
                 end do
 

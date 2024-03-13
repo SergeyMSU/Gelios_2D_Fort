@@ -333,18 +333,6 @@ module Monte_Karlo
 		end if
 		! ******************************************************************************************************************
 
-		if(SS%n_Hidrogen /= 4) then
-				STOP "ERRORo hg8o7wyevghp98j5y87e5wtpvqc5tyebv4wacagvb6u7n68mynbynhgnfgbjygfnbfh"
-			end if
-			
-			do k = 1, SS%n_Hidrogen
-				do j = 1, par_m_zone + 1
-					do i = 1, par_n_zone + 1
-						read(2, *) n, n, n, SS%MK_Mu(i, j, k)
-					end do
-				end do
-			end do
-
 		! Собираем статистику по весам
 		if(MK_Mu_stat) then
 			if(MK_statistik_file) then
@@ -1006,7 +994,7 @@ module Monte_Karlo
 			SS%M_K_Moment(5, sort, cell, n_potok) = SS%M_K_Moment(5, sort, cell, n_potok) + mu_ph + mu_eim
 			SS%M_K_Moment(6, sort, cell, n_potok) = SS%M_K_Moment(6, sort, cell, n_potok) + (mu_ph + mu_eim) * VV(1)
 			SS%M_K_Moment(8, sort, cell, n_potok) = SS%M_K_Moment(8, sort, cell, n_potok) + &
-				mu_ph * (0.5 * norm2(VV) + SS%par_E_ph) + mu_eim * (0.5 * norm2(VV) + SS%lambda_e)
+				mu_ph * (0.5 * norm2(VV) + SS%par_E_ph) + mu_eim * (0.5 * norm2(VV) - SS%lambda_e)
 		end if
 		!! ----------------------------------------------------------------------------------------------------------
 		
@@ -2444,6 +2432,11 @@ module Monte_Karlo
         b = 0.6_8
         c = 0.56_8
         MK_nu_el_impact = SS%nu_e_impact * sqrt(lam) * (MK_E1(lam) - b * exp(c) * lam/(lam + c) * MK_E1(lam + c))
+		! print*, "SS%nu_e_impact", SS%nu_e_impact
+		! print*, "-- = ", sqrt(lam) * (MK_E1(lam) - b * exp(c) * lam/(lam + c) * MK_E1(lam + c))
+		! print*, "lam", lam
+		! print*, "MK_E1(lam)", MK_E1(lam)
+		! print*, "MK_E1(lam + c)", MK_E1(lam + c)
 		return
 
 	end function MK_nu_el_impact

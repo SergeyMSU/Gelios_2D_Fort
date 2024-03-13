@@ -28,12 +28,11 @@ module Phys_parameter
         ! par(5) = 100.0
         ! return
 
-        !!par(1) = SS%par_rho_e * (SS%par_R0/r)**2
-        par(1) = 10000.0/(SS%par_chi**2 * r**2)
+        par(1) = SS%par_rho_E * 10000.0/(SS%par_chi**2 * r**2)
         par(3) = x/r * SS%par_chi
         par(4) = y/r * SS%par_chi
-        !! p_0 = SS%par_chi**2 * SS%par_rho_e/(SS%par_ggg * SS%par_Max_e**2)
-        p_0 = 10000/(SS%par_chi**2 * SS%par_R0**2) * SS%par_chi**2/(SS%par_ggg * SS%par_Max_e**2)
+        
+        p_0 = SS%par_rho_E * 10000/(SS%par_chi**2 * SS%par_R0**2) * SS%par_chi**2/(SS%par_ggg * SS%par_Max_e**2)
         par(2) = p_0 * (SS%par_R0/r)**(2.0 * SS%par_ggg)
         par(5) = par(1)
 
@@ -82,12 +81,11 @@ module Phys_parameter
         TYPE (Setka), intent(in) :: SS
         real(8), intent(out) :: par(:)
 
-        par(1) = 1.0
+        par(1) = 1.0 * par_rho_LISM
         par(3) = SS%par_Velosity_inf
         par(4) = 0.0
-        par(2) = 1.0
-        par(5) = 100.0
-
+        par(2) = 1.0 * par_p_LISM
+        par(5) = par(1) * 100.0
     end subroutine Phys_input_flow
 
     subroutine Get_gran_parameter(SS, gran, cell, par1_, par2_, now)

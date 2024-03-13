@@ -49,8 +49,8 @@
 	
     
 
-       ! Моя версия с добавлением Q (сделана из версии Д.Б.)
-      !@cuf attributes(host, device) & 
+        ! Моя версия с добавлением Q (сделана из версии Д.Б.)
+        !@cuf attributes(host, device) & 
 	    subroutine chlld_Q(n_state, al, be, ge, &
                                  w, qqq1, qqq2, &
                                  dsl, dsp, dsc, &
