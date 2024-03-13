@@ -185,6 +185,35 @@ module GEOMETRY
         deallocate(SS%gl_HP)
         deallocate(SS%gl_TS)
         deallocate(SS%gl_BS)
+
+
+        if(ALLOCATED(SS%MK_Mu)) deallocate(SS%MK_Mu)
+        if(ALLOCATED(SS%M_K_Moment)) deallocate(SS%M_K_Moment)
+        if(ALLOCATED(SS%sensor)) deallocate(SS%sensor)
+        if(ALLOCATED(SS%stek)) deallocate(SS%stek)
+        if(ALLOCATED(SS%M_K_particle)) deallocate(SS%M_K_particle)
+        if(ALLOCATED(SS%M_K_particle_2)) deallocate(SS%M_K_particle_2)
+        if(ALLOCATED(SS%M_K_particle_3)) deallocate(SS%M_K_particle_3)
+        if(ALLOCATED(SS%MK_Mu_statistic)) deallocate(SS%MK_Mu_statistic)
+        if(ALLOCATED(SS%gl_all_Cell_zone)) deallocate(SS%gl_all_Cell_zone)
+        if(ALLOCATED(SS%atom_all_source)) deallocate(SS%atom_all_source)
+        if(ALLOCATED(SS%atom_source)) deallocate(SS%atom_source)
+        if(ALLOCATED(SS%pogloshenie)) deallocate(SS%pogloshenie)
+        if(ALLOCATED(SS%f_pui)) deallocate(SS%f_pui)
+        if(ALLOCATED(SS%f_pui_num)) deallocate(SS%f_pui_num)
+        if(ALLOCATED(SS%f_pui_num2)) deallocate(SS%f_pui_num2)
+        if(ALLOCATED(SS%par_pui)) deallocate(SS%par_pui)
+        if(ALLOCATED(SS%pui_Sm)) deallocate(SS%pui_Sm)
+        if(ALLOCATED(SS%pui_Sp)) deallocate(SS%pui_Sp)
+        if(ALLOCATED(SS%h0_pui)) deallocate(SS%h0_pui)
+        if(ALLOCATED(SS%F_integr_pui)) deallocate(SS%F_integr_pui)
+        if(ALLOCATED(SS%nu_integr_pui)) deallocate(SS%nu_integr_pui)
+        if(ALLOCATED(SS%Mz_integr_pui)) deallocate(SS%Mz_integr_pui)
+        if(ALLOCATED(SS%E_integr_pui)) deallocate(SS%E_integr_pui)
+        if(ALLOCATED(SS%pui_lock)) deallocate(SS%pui_lock)
+
+        SS%init_geo = .False.
+
     end subroutine Dell_Setka
 
     subroutine Build_Setka_start(SS)        ! Начальное построение сетки
@@ -2060,23 +2089,37 @@ module GEOMETRY
     subroutine Print_GD_1D(SS)
         ! Печатаем центры всех ячеек
         TYPE (Setka), intent(in) :: SS
-        integer :: i, j, node
-        real(8) :: Mach, c(2)
+        integer :: i, j, node, al
+        real(8) :: Mach, c(2), ro_He
 
         open(1, file = SS%name // '_Print_GD_1D.txt')
-        write(1,*) "TITLE = 'HP'  VARIABLES = X, Rho, p, u, v, Q, Mach"
+        write(1,*) "TITLE = 'HP'  VARIABLES = X, Rho, p, u, v, Q, Mach, Rho_He"
 
         do i = size(SS%gl_Cell_B(:, 1)), 1, -1
             j = SS%gl_Cell_B(i, 1)
             Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
 			c = SS%gl_Cell_Centr(1, j, 1)
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach
+
+            ro_He = 0.0
+            if(SS%n_par >= 6) ro_He = SS%gd(6, j, 1)
+            al = 1
+            if(SS%gl_all_Cell_zone(j) <= 2) al = 2
+            call Sootnosheniya(SS%gd(1, j, 1), SS%gd(2, j, 1), ro_He, 0.0_8, 0.0_8, al)
+
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach, ro_He
         end do
 
         do i = 1, size(SS%gl_Cell_A(:, 1))
             j = SS%gl_Cell_A(i, 1)
             Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach
+
+            ro_He = 0.0
+            if(SS%n_par >= 6) ro_He = SS%gd(6, j, 1)
+            al = 1
+            if(SS%gl_all_Cell_zone(j) <= 2) al = 2
+            call Sootnosheniya(SS%gd(1, j, 1), SS%gd(2, j, 1), ro_He, 0.0_8, 0.0_8, al)
+
+            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach, ro_He
         end do
 
         close(1)
@@ -2893,6 +2936,7 @@ module GEOMETRY
         real(8), allocatable :: local_hydrogen(:, :, :, :)
         real(8), allocatable :: local_atom_all_source(:, :, :)
         real(8), allocatable :: local_pogloshenie(:, :, :) 
+        real(8), allocatable ::local_gd(:, :, :) 
 
         inquire(file= "Save_all_" // name // ".bin", exist=exists)
     
@@ -3005,14 +3049,23 @@ module GEOMETRY
         end if
 
         read(1) n
-        if(SS%n_par /= n) then ! Нужно пересоздать массив
-            n2 = size(SS%gd(1, :, 1))
-            SS%n_par = n
-            DEALLOCATE(SS%gd)
-            ALLOCATE(SS%gd(SS%n_par, n2, 2))
+        if(SS%n_par /= n) then 
+            print*, "<-----WARNING----->     SS%n_par /= n  razmernost ne sovpadaut"
+            ALLOCATE(local_gd(n, size(SS%gd(1, :, 1)), 2))
+            read(1) local_gd
+            if(n < SS%n_par) then
+                SS%gd = 0.0
+                SS%gd(1:n, :, :) = local_gd
+            else
+                print*, "ERROR u84y8ohp92hj3gwovybliuqwjq44"
+                pause
+                STOP
+            end if
+            DEALLOCATE(local_gd)
+        else
+            read(1) SS%gd
         end if
-
-        read(1) SS%gd
+        
         read(1) SS%hydrogen
 
         if(par_n_sort > SS%n_Hidrogen) then
@@ -3108,8 +3161,8 @@ module GEOMETRY
             read(1) SS%par_Velosity_inf
             read(1) SS%par_Kn
 
-            print*, SS%par_nu_ph, SS%par_E_ph, SS%par_chi, SS%par_rho_e, SS%par_Max_e, SS%par_poglosh, SS%par_a_2, SS%par_ggg, &
-                SS%par_Velosity_inf, SS%par_Kn
+            !print*, SS%par_nu_ph, SS%par_E_ph, SS%par_chi, SS%par_rho_e, SS%par_Max_e, SS%par_poglosh, SS%par_a_2, SS%par_ggg, &
+            !    SS%par_Velosity_inf, SS%par_Kn
         end if
 
         ! ПИКАПЫ

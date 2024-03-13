@@ -15,7 +15,7 @@ module Phys_parameter
 
         r = sqrt(x**2 + y**2)
 
-        if(size(par) < 5) then
+        if(size(par) < 6) then
             print*, "Error 18 Inner_Conditions size(par) nm5453fdbbdfcsd"
             print*, size(par)
             STOP
@@ -28,13 +28,17 @@ module Phys_parameter
         ! par(5) = 100.0
         ! return
 
-        par(1) = SS%par_rho_E * 10000.0/(SS%par_chi**2 * r**2)
+        par(1) = SS%par_rho_LISM * 10000.0/(SS%par_chi**2 * r**2)
         par(3) = x/r * SS%par_chi
         par(4) = y/r * SS%par_chi
         
-        p_0 = SS%par_rho_E * 10000/(SS%par_chi**2 * SS%par_R0**2) * SS%par_chi**2/(SS%par_ggg * SS%par_Max_e**2)
+        p_0 = SS%par_rho_LISM * 10000/(SS%par_chi**2 * SS%par_R0**2) * SS%par_chi**2/(SS%par_ggg * SS%par_Max_e**2)
         par(2) = p_0 * (SS%par_R0/r)**(2.0 * SS%par_ggg)
         par(5) = par(1)
+
+        if(SS%n_par >= 6) then
+            par(6) = par(1) * SS%par_rho_He_E 
+        end if
 
     end subroutine Inner_Conditions
 
@@ -81,11 +85,21 @@ module Phys_parameter
         TYPE (Setka), intent(in) :: SS
         real(8), intent(out) :: par(:)
 
-        par(1) = 1.0 * par_rho_LISM
+        if(size(par) < 6) then
+            print*, "Error 18 Phys_input_flow size(par) vtbhtydrnbevwacwverb"
+            print*, size(par)
+            STOP
+        end if
+
+        par(1) = 1.0_8 * SS%par_rho_LISM
         par(3) = SS%par_Velosity_inf
-        par(4) = 0.0
-        par(2) = 1.0 * par_p_LISM
-        par(5) = par(1) * 100.0
+        par(4) = 0.0_8
+        par(2) = 1.0_8 * SS%par_p_LISM
+        par(5) = par(1) * 100.0_8
+
+        if(SS%n_par >= 6) then
+            par(6) = 1.0_8 * SS%par_rho_He_Lism  ! Гелия на бесконечности
+        end if
     end subroutine Phys_input_flow
 
     subroutine Get_gran_parameter(SS, gran, cell, par1_, par2_, now)
@@ -98,7 +112,7 @@ module Phys_parameter
         real(8) :: c1(2), c2(2), c3(2), c4(2), c5(2)
         real(8) :: r1, r2, r3, r4, r5
         real(8) :: phi1, phi2, phi3, phi4, phi5, Vr, Vphi, d1, d2, d3
-        real(8) :: par1(5), par2(5), par3(5), par4(5)
+        real(8) :: par1(SS%n_par), par2(SS%n_par), par3(SS%n_par), par4(SS%n_par)
         integer(4) :: s1, s2, s3, s4, s5, i
         logical :: istoch1, istoch2
 
@@ -131,7 +145,7 @@ module Phys_parameter
             par2_ = par2
             return
         else if(s2 == -2) then
-            par1_ = SS%gd(1:5, cell, now)
+            par1_ = SS%gd(:, cell, now)
             ! if(par1_(3) > SS%par_Velosity_inf/3.0) par1_(3) = SS%par_Velosity_inf
             if(par1_(3) > 0.0) par1_(3) = -1.00
             par2_ = par1_
@@ -146,12 +160,12 @@ module Phys_parameter
 
             return
         else if(s2 == -3) then
-            par1_ = SS%gd(1:5, cell, now)
+            par1_ = SS%gd(:, cell, now)
             par2_ = par1_
             ! par2_(2) = 0.1
             return
         else if(s2 == -4) then  !!  Ось симметрии
-            par1_ = SS%gd(1:5, s1, now)
+            par1_ = SS%gd(:, s1, now)
             if(norm2(par1_(3:4))/sqrt(SS%par_ggg * par1_(2)/par1_(1)) > 2.5) then
                 c1 = SS%gl_Cell_Centr(:, s1, now)
                 c5 = SS%gl_Gran_Center(:, gran, now)
@@ -163,6 +177,7 @@ module Phys_parameter
                 call dekard_polyar_skorost(phi5, Vr, Vphi, par1_(3), par1_(4))
                 par1_(1) = par1_(1) * r1**2 / r5**2
                 par1_(5) = par1_(5) * r1**2 / r5**2
+                if(SS%n_par >= 6) par1_(6) = par1_(6) * r1**2 / r5**2
                 par1_(2) = par1_(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
                 par2_ = par1_
                 par2_(4) = -par1_(4)
@@ -193,8 +208,8 @@ module Phys_parameter
             c3 = SS%gl_Cell_Centr(:, s3, now)
             d1 = -norm2(c5 - c1)
             d2 = -norm2(c5 - c3)
-            par3 = SS%gd(1:5, s3, now)
-            do i = 1, 5 
+            par3 = SS%gd(:, s3, now)
+            do i = 1, SS%n_par 
                 par1_(i) = linear1(d2, par3(i), d1, par1_(i), 0.0_8)
             end do
 
@@ -207,8 +222,8 @@ module Phys_parameter
             return
         end if
 
-        par1 = SS%gd(1:5, s1, now)
-        par2 = SS%gd(1:5, s2, now)
+        par1 = SS%gd(:, s1, now)
+        par2 = SS%gd(:, s2, now)
 
         istoch1 = .False.
         istoch2 = .False.
@@ -235,6 +250,7 @@ module Phys_parameter
             call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
             par1(1) = par1(1) * r1**2 / r5**2
             par1(5) = par1(5) * r1**2 / r5**2
+            if(SS%n_par >= 6) par1(6) = par1(6) * r1**2 / r5**2
             par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
 
             ! Для второго нужно сделать снос только с одной стороны
@@ -242,14 +258,15 @@ module Phys_parameter
                 c4 = SS%gl_Cell_Centr(:, s4, now)
                 d1 = norm2(c5 - c2)
                 d2 = norm2(c5 - c4)
-                par4 = SS%gd(1:5, s4, now)
+                par4 = SS%gd(:, s4, now)
 
-                do i = 1, 5 
+                do i = 1, SS%n_par 
                     par2_(i) = linear1(d2, par4(i), d1, par2(i), 0.0_8)
                 end do
                 if(par2_(1) <= 0.0) then
                     par2_(1) = SS%gd(1, s2, now)
                     par2_(5) = SS%gd(5, s2, now)
+                    if(SS%n_par >= 6)  par2_(6) = SS%gd(6, s2, now)
                 end if
                 if(par2_(2) <= 0.0) par2_(2) = SS%gd(2, s2, now)
             else
@@ -267,6 +284,7 @@ module Phys_parameter
             call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
             par2(1) = par2(1) * r2**2 / r5**2
             par2(5) = par2(5) * r2**2 / r5**2
+            if(SS%n_par >= 6) par2(6) = par2(6) * r2**2 / r5**2
             par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
 
             ! Для второго нужно сделать снос только с одной стороны
@@ -274,15 +292,16 @@ module Phys_parameter
                 c3 = SS%gl_Cell_Centr(:, s3, now)
                 d1 = norm2(c5 - c1)
                 d2 = norm2(c5 - c3)
-                par3 = SS%gd(1:5, s3, now)
+                par3 = SS%gd(:, s3, now)
 
-                do i = 1, 5 
+                do i = 1, SS%n_par
                     par1_(i) = linear1(d2, par3(i), d1, par1(i), 0.0_8)
                 end do
 
                 if(par1_(1) <= 0.0) then
                     par1_(1) = SS%gd(1, s1, now)
                     par1_(5) = SS%gd(5, s1, now)
+                    if(SS%n_par >= 6) par1_(6) = SS%gd(6, s1, now)
                 end if
                 if(par1_(2) <= 0.0) par1_(2) = SS%gd(2, s1, now)
             else
@@ -301,12 +320,14 @@ module Phys_parameter
             call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
             par1(1) = par1(1) * r1**2 / r5**2
             par1(5) = par1(5) * r1**2 / r5**2
+            if(SS%n_par >= 6) par1(6) = par1(6) * r1**2 / r5**2
             par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
 
             call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
             call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
             par2(1) = par2(1) * r2**2 / r5**2
             par2(5) = par2(5) * r2**2 / r5**2
+            if(SS%n_par >= 6) par2(6) = par2(6) * r2**2 / r5**2
             par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
         else
 
@@ -316,25 +337,26 @@ module Phys_parameter
                 d1 = -norm2(c5 - c1)
                 d2 = -norm2(c5 - c3)
                 d3 = norm2(c5 - c2)
-                par3 = SS%gd(1:5, s3, now)
-                par4 = SS%gd(1:5, s4, now)
+                par3 = SS%gd(:, s3, now)
+                par4 = SS%gd(:, s4, now)
 
                 if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s3)) then
-                    do i = 1, 5 
+                    do i = 1, SS%n_par
                         par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
                     end do
                 else if(par_TVD_linear_HP) then
                     if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s1) /= SS%gl_all_Cell_zone(s3)) then
-                        do i = 1, 5 
+                        do i = 1, SS%n_par 
                             par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
                         end do
                     else  ! zona s1 = s3   s1/= s2
-                        do i = 1, 5 
+                        do i = 1, SS%n_par 
                             par1_(i) = linear1(d2, par3(i), d1, par1(i), 0.0_8)
                         end do
                         if(par1_(1) <= 0.0) then
                             par1_(1) = SS%gd(1, s1, now)
                             par1_(5) = SS%gd(5, s1, now)
+                            if(SS%n_par >= 6) par1_(6) = SS%gd(6, s1, now)
                         end if
                         if(par1_(2) <= 0.0) par1_(2) = SS%gd(2, s1, now)
                     end if
@@ -347,21 +369,22 @@ module Phys_parameter
                 d3 = d2
                 d2 = -norm2(c4 - c5)
                 if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s2) == SS%gl_all_Cell_zone(s4)) then
-                    do i = 1, 5 
+                    do i = 1, SS%n_par 
                         par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
                     end do
                 else if(par_TVD_linear_HP) then
                     if (SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s2) /= SS%gl_all_Cell_zone(s4)) then
-                        do i = 1, 5 
+                        do i = 1, SS%n_par
                             par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
                         end do
                     else
-                        do i = 1, 5 
+                        do i = 1, SS%n_par 
                             par2_(i) = linear1(d2, par4(i), d1, par2(i), 0.0_8)
                         end do
                         if(par2_(1) <= 0.0) then
                             par2_(1) = SS%gd(1, s2, now)
                             par2_(5) = SS%gd(5, s2, now)
+                            if(SS%n_par >= 6) par2_(6) = SS%gd(6, s2, now)
                         end if
                         if(par2_(2) <= 0.0) par2_(2) = SS%gd(2, s2, now)
                     end if
@@ -377,10 +400,10 @@ module Phys_parameter
                     d1 = -norm2(c5 - c1)
                     d2 = -norm2(c5 - c3)
                     d3 = norm2(c5 - c2)
-                    par3 = SS%gd(1:5, s3, now)
-                    par4 = SS%gd(1:5, s4, now)
+                    par3 = SS%gd(:, s3, now)
+                    par4 = SS%gd(:, s4, now)
 
-                    do i = 1, 5 
+                    do i = 1, SS%n_par 
                         par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
                     end do
 
@@ -389,7 +412,7 @@ module Phys_parameter
                     d3 = d2
                     d2 = -norm2(c4 - c5)
 
-                    do i = 1, 5 
+                    do i = 1, SS%n_par
                         par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
                     end do
                     
@@ -404,14 +427,14 @@ module Phys_parameter
                     d1 = -norm2(c5 - c1)
                     d3 = norm2(c5 - c2)
                     d2 = 2.0 * d1! -norm2(c5 - (/c1(1), -c1(2)/) )
-                    par4 = SS%gd(1:5, s4, now)
+                    par4 = SS%gd(:, s4, now)
 
                     ! do i = 4, 4 
                     !     par1_(i) = linear(d2, 0.0_8, d1, par1(i), d3, par2(i), 0.0_8)
                     !     !par1_(i) = linear(d2, -par1(i), d1, par1(i), d3, par2(i), 0.0_8)
                     ! end do
 
-                    do i = 1, 5 
+                    do i = 1, SS%n_par
                         par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
                     end do
 
@@ -429,7 +452,7 @@ module Phys_parameter
                     d3 = d2
                     d2 = -norm2(c4 - c5)
 
-                    do i = 1, 5 
+                    do i = 1, SS%n_par
                         par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
                     end do
                     
@@ -452,7 +475,7 @@ module Phys_parameter
                     !     par2_(i) = linear(d2, 0.0_8, d1, par2(i), d3, par1(i), 0.0_8)
                     ! end do
 
-                    do i = 1, 5 
+                    do i = 1, SS%n_par 
                         par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
                     end do
 
@@ -465,9 +488,9 @@ module Phys_parameter
                     d1 = -norm2(c5 - c1)
                     d2 = -norm2(c5 - c3)
                     d3 = norm2(c5 - c2)
-                    par3 = SS%gd(1:5, s3, now)
+                    par3 = SS%gd(:, s3, now)
 
-                    do i = 1, 5 
+                    do i = 1, SS%n_par 
                         par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
                     end do
                     

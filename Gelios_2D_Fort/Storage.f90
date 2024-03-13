@@ -18,7 +18,7 @@ module STORAGE
     logical, parameter :: MK_is_NaN = .False.    ! Нужны ли проверки на nan
 	logical, parameter :: MK_Mu_stat = .True.    ! Нужно ли накапливать веса для статистики и весовых каэффициентов
 	logical, parameter :: MK_photoionization = .True.    ! Нужна ли фотоионизация
-	logical, parameter :: MK_el_impact = .True.    ! Нужна ли фотоионизация
+	logical, parameter :: MK_el_impact = .False.    ! Нужен ли электронный удар
 	logical, parameter :: MK_statistik_file = .True.    ! Какой файл со статистикой использовать?  true - это первый файл
 
 	logical, parameter :: par_Hydro = .True.    ! Нужен ли водород? Или чисто газовую-динамику считаем?
@@ -29,7 +29,7 @@ module STORAGE
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 11 * 4 * 4!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
+	integer(4), parameter :: MK_k_multiply = 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
     ! 9 сейчас с пикапами
     ! 12 (14) - это 1 час с пикапами
     ! 18 - это 1 час без пикапов
@@ -79,11 +79,13 @@ module STORAGE
         real(8) :: par_nu_ph = 12.0969 
         real(8) :: par_E_ph = 0.10878
         real(8) :: par_chi = 41.0391
-        !real(8) :: par_rho_e = 150.0
+        real(8) :: par_rho_E = 1.0                 !? Сейчас эта переменная нигде не используется (но сохраняется в файл)
         real(8) :: par_Max_e = 10.0!! 5.91662
-        real(8) :: par_poglosh = 0.389274        !! На что обезразмериваем поглощение
+        real(8) :: par_poglosh = 0.618589! 0.389274        !! На что обезразмериваем поглощение
         real(8) :: par_rho_LISM = 1.60063        !! Коэффициент увеличения плотности из-за гелия на бесконечности и т.д.
         real(8) :: par_p_LISM = 1.15        !! Коэффициент увеличения давления из-за гелия на бесконечности и т.д.
+        real(8) :: par_rho_He_Lism = 0.6_8         !! Какая часть от общей плотности - это гелий
+        real(8) :: par_rho_He_E = 0.155327_8       
 
         ! Для электронного удара
         real(8) :: nu_e_impact = 3.86624! 0.15465_8       
@@ -240,12 +242,13 @@ module STORAGE
         !! ФИЗИКА
         integer(4) :: n_Hidrogen = par_n_sort  ! Число сортов атомов водорода
         integer(4) :: n_atom_source = 7  ! Число источников атомов
-        integer(4) :: n_par = 5  !! Число физических параметров в задаче
+        integer(4) :: n_par = 6  !! Число физических параметров в задаче   5 - если нет гелия
         ! 5 газодинамических
         ! 4 * n_Hidrogen - Водород
 
         real(8), allocatable :: gd(:, :, :)  ! (n_par, :, 2 временной слой)
-        ! (rho p u v Q)
+        ! (rho p u v Q He)
+        !   1  2 3 4 5 6
         real(8), allocatable :: hydrogen(:, :, :, :)  ! (5, n_Hidrogen, :, 2 временной слой)
         ! rho p u v T
 
@@ -447,18 +450,3 @@ module STORAGE
 end module STORAGE
 
 
-
-! N2 = size(SS%gl_Cell_A(1, :))
-! N1 = size(SS%gl_Cell_A(:, 1))
-
-! 2.0 * N1 * N2 - N1
-
-! N2 = size(SS%gl_Cell_B(1, :))
-! N1 = size(SS%gl_Cell_B(:, 1))
-
-! 2.0 * N1 * N2
-
-! N2 = size(SS%gl_Cell_C(1, :))
-! N1 = size(SS%gl_Cell_C(:, 1))
-
-! 2.0 * N1 * N2 + N1

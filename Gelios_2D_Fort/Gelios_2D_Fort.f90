@@ -31,6 +31,7 @@ program Gelios_2D_Fort
 
     implicit none
 
+
     ! integer(4) :: num, mi, ni
     ! real(8) :: M(4, 4)
     ! real(8) :: B(4, 4)
@@ -102,14 +103,16 @@ program Gelios_2D_Fort
     ! call Calc_Pogloshenie(gl_S3)
     ! pause
 
-    call Gas_dynamic_algoritm2(gl_S1)
-    ! call MK_algoritm(gl_S1)
+
+
+    call Gas_dynamic_algoritm2(gl_S1, 3)
+    ! call MK_algoritm(gl_S1, 3)
     ! call Perestroika_algoritm(gl_S1)
     ! call Print_PUI_algoritm(gl_S1)
     ! call MK_test_chastot(gl_S1)
 
-    print*, MK_nu_el_impact(gl_S1, 76.5697_8)
-    pause
+    !print*, MK_nu_el_impact(gl_S1, 76.5697_8)
+    !pause
 
     !call Print_Cell(gl_S1)
 

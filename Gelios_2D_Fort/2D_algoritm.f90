@@ -99,16 +99,25 @@ module Algoritm
         !pause
     end subroutine Gas_dynamic_algoritm
 
-    subroutine Gas_dynamic_algoritm2(SS)
+    subroutine Gas_dynamic_algoritm2(SS, step)
         ! Ýòî âðåìåííî, ÷òîáû íå óäàëÿòü ïðåäûäóùóþ ôóíêöèþ
         TYPE (Setka), intent(in out) :: SS
+        integer(4), intent(in) :: step
         integer(4) :: num, i, i_max
-        real(8) :: par(5), parH(5, 4), r(2)
+        integer(4) :: startGD, startMK
+        character(len=2) :: nameGD
+        character(len=2) :: nameMK
+
+        startGD = 3
+        startMK = 2
+        write(unit=nameGD,fmt='(i2.2)') startGD + step - 1
+        write(unit=nameMK,fmt='(i2.2)') startMK + step
+        !real(8) :: par(5), parH(5, 4), r(2)
 
         print*, "A"
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "DDD35")   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "RR003")   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ÄËß ÂÎÄÎÐÎÄÀ   DD020    K0010
         print*, "B"
         if(par_Hydro) call Int_Init(gl_I1, gl_S3)
         print*, "C"
@@ -120,7 +129,7 @@ module Algoritm
 
         ! call Read_setka_bin(SS, "V0020")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
         ! call Read_setka_bin(SS, "CC012")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
-        call Read_setka_bin(SS, "DR002")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
+        call Read_setka_bin(SS, "X00"//nameGD)      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ  CC021       V0004 - äî ïåðåñòðîéêè     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -146,14 +155,19 @@ module Algoritm
 
         ! Ïàðàìåòðû Ìîäåëè, êîòîðûå ñåé÷àñ ñòðîèì
         SS%par_n_H_LISM = 3.0_8!3.5_8
-        SS%par_Velosity_inf = -2.54278_8
-        SS%par_Kn = 50.3858 !68.0243! 50.3858
-        SS%par_nu_ph = 12.0969 
-        SS%par_E_ph = 0.10878
-        SS%par_R0 = 0.198956
-        SS%par_chi = 41.0391! 3.0!! 41.0391
-        SS%par_Max_e = 5.91662
-        SS%par_a_2 = 0.130735_8! 0.11857_8! 0.130735_8
+        SS%par_Velosity_inf = -2.54385_8! -2.54278_8
+        SS%par_Kn = 45.6044! 50.3858 !68.0243! 50.3858
+        SS%par_nu_ph = 12.8153! 12.0969 
+        SS%par_E_ph = 0.0725533! 0.10878
+        SS%par_R0 = 0.187846! 0.198956
+        SS%par_chi = 43.1202!  41.0391! 3.0!! 41.0391
+        SS%par_Max_e = 10.0_8! 5.91662
+        SS%par_a_2 = 0.102576! 0.130735_8! 0.11857_8! 0.130735_8
+        SS%par_poglosh = 0.618589! 0.389274 
+        SS%par_rho_LISM = 1.60063     
+        SS%par_p_LISM = 1.15     
+        SS%par_rho_He_Lism = 0.6_8         !! Êàêàÿ ÷àñòü îò îáùåé ïëîòíîñòè - ýòî ãåëèé
+        SS%par_rho_He_E = 0.155327_8      
         SS%culc_pui = .False.
 
 
@@ -210,7 +224,7 @@ module Algoritm
         call Print_GD(SS)
 
         print*, "H"
-        i_max = 700!200!350   100 - 7 ìèíóò
+        i_max = 700!700!200!350   100 - 7 ìèíóò
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -226,7 +240,7 @@ module Algoritm
             call Geo_Culc_normal(SS, 2) 
             call Geo_Culc_length_area(SS, 2)
 
-            call Start_GD_algoritm(SS, 1200, 1) !500
+            call Start_GD_algoritm(SS, 500, 1) !500
 
             if(par_Hydro) call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
 
@@ -234,12 +248,13 @@ module Algoritm
         end do
 
 
+        write(unit=nameGD,fmt='(i2.2)') startGD + step
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, 3)
+        call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
         ! call Save_setka_bin(SS, "CC036")
-        call Save_setka_bin(SS, "DR003")
+        call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
         call Print_GD_1D(SS)
@@ -293,18 +308,26 @@ module Algoritm
 
     end subroutine Perestroika_algoritm
 
-    subroutine MK_algoritm(SS)
+    subroutine MK_algoritm(SS, step)
         TYPE (Setka), intent(in out) :: SS
-        integer(4) :: i, j, cell
+        integer(4), intent(in) :: step
+        integer(4) :: i, j, cell, startGD, startMK
+        character(len=2) :: nameGD
+        character(len=2) :: nameMK
+
+        startGD = 3
+        startMK = 2
+        write(unit=nameGD,fmt='(i2.2)') startGD + step - 1
+        write(unit=nameMK,fmt='(i2.2)') startMK + step - 1
 
         ! Ñåòêà âîäîðîäà íóæíî òîëüêî â ñëó÷àå èñïîëüçîâàíèÿ ÏÈÊÀÏÎÂ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
         ! call Read_setka_bin(gl_S4, "B0060")   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
-        call Read_setka_bin(gl_S4, "RR002")   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
+        call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ÄËß ÂÎÄÎÐÎÄÀ (Ïðåäûäóùèé ðàñ÷¸ò)
 
         ! call Read_setka_bin(SS, "CC035")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
         ! call Read_setka_bin(SS, "AA001")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
-        call Read_setka_bin(SS, "DR002")      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
+        call Read_setka_bin(SS, "X00"//nameGD)      ! ÎÑÍÎÂÍÀß ÑÅÒÊÀ
 
         ! call Print_GD(SS)
         !call Geo_Print_Surface(SS)
@@ -337,18 +360,20 @@ module Algoritm
         gl_S3%par_R_END = 300.0 !!400.0  
 
         !! Ôèçè÷åñêèå ïàðàìåòðû ìîäåëè
-        gl_S3%par_n_H_LISM = 3.0 !! 3.0
-        gl_S3%par_Velosity_inf = -2.54278_8
-        gl_S3%par_Kn = 50.3858! 68.0243!! 50.3858
-        gl_S3%par_nu_ph = 12.0969 
-        gl_S3%par_E_ph = 0.10878
-        gl_S3%par_R0 = 0.198956
-        gl_S3%par_chi = 41.0391
-        gl_S3%par_Max_e = 5.91662
-        gl_S3%par_a_2 = 0.130735_8!! 0.11857 !!0.130735_8
-        gl_S3%par_poglosh = 0.389274
-        gl_S3%par_rho_LISM = 1.60063_8
-        Sgl_S3S%par_p_LISM = 1.15_8
+        gl_S3%par_n_H_LISM = 3.0_8!3.5_8
+        gl_S3%par_Velosity_inf = -2.54385_8! -2.54278_8
+        gl_S3%par_Kn = 45.6044! 50.3858 !68.0243! 50.3858
+        gl_S3%par_nu_ph = 12.8153! 12.0969 
+        gl_S3%par_E_ph = 0.0725533! 0.10878
+        gl_S3%par_R0 = 0.187846! 0.198956
+        gl_S3%par_chi = 43.1202!  41.0391! 3.0!! 41.0391
+        gl_S3%par_Max_e = 10.0_8! 5.91662
+        gl_S3%par_a_2 = 0.102576! 0.130735_8! 0.11857_8! 0.130735_8
+        gl_S3%par_poglosh = 0.618589! 0.389274 
+        gl_S3%par_rho_LISM = 1.60063     
+        gl_S3%par_p_LISM = 1.15     
+        gl_S3%par_rho_He_Lism = 0.6_8         !! Êàêàÿ ÷àñòü îò îáùåé ïëîòíîñòè - ýòî ãåëèé
+        gl_S3%par_rho_He_E = 0.155327_8   
         gl_S3%culc_pui = .False.  !! 
 
         call Init_Setka(gl_S3)
@@ -428,14 +453,18 @@ module Algoritm
             call PUI_print_pui(gl_S3, -50.0_8, 0.0001_8)
         end if
 
-
+        write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "RR003")
+        call Save_setka_bin(gl_S3, "XV0" // nameMK)
+
         if(gl_S3%culc_pui == .True.) then
             call Print_PUI_1D(gl_S3)
         else
             call Print_GD_1D(gl_S3)
         end if
+
+        call Dell_Setka(gl_S3)
+        call Dell_Setka(SS)
 
         print*, "END"
 
@@ -618,9 +647,9 @@ module Algoritm
         ! 2 - âíåøíÿÿ îáëàñòü
 
         integer(4) :: now, now2, step, cell, Ncell, gr, gran, sosed, all_step, TVD_sosed_1, TVD_sosed_2
-        real(8) :: time, TT, center(2), par1(5), par2(5), ro, p, u, v, Q, normal(2), Sqv, Vol, Vol2
-        real(8) :: ro2, p2, u2, v2, Q2, pp, par1_TVD(5), r, phi1, phi2, Vr, Vphi, phi3
-        real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(5), source(4), r2, r3, par3(5), par4(5)
+        real(8) :: time, TT, center(2), par1(SS%n_par), par2(SS%n_par), ro, p, u, v, Q, normal(2), Sqv, Vol, Vol2, ro_He
+        real(8) :: ro2, p2, u2, v2, Q2, pp, par1_TVD(SS%n_par), r, phi1, phi2, Vr, Vphi, phi3, ro_He2
+        real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(SS%n_par), source(4), r2, r3
         real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME, lenght, wc, gran_center(2), sosed_center(2)
         logical :: tvd1, tvd2, null_un
         integer(4) :: kdir, idgod, KOBL
@@ -668,7 +697,7 @@ module Algoritm
             !$omp do private(null_un, KOBL, kdir, idgod, sosed_center, phi3, gran_center, Vr, Vphi, phi1, phi2, r, par1_TVD, wc, &
             !$omp r3, r2, loc_time, gr, gran, sosed, center, par1, TVD_sosed_1, TVD_sosed_2, &
             !$omp par2, ro, p, u, v, Q, normal, Sqv, Vol, Vol2, ro2, p2, u2, v2, Q2, pp, qqq1, &
-            !$omp qqq2, POTOK2, POTOK, source, dsl, dsc, dsp, lenght, par3, par4, tvd1, tvd2)
+            !$omp qqq2, POTOK2, POTOK, source, dsl, dsc, dsp, lenght, tvd1, tvd2, ro_He2, ro_He)
             do cell = 1, Ncell
                 source = 0.0
                 center = SS%gl_Cell_Centr(:, cell, now)
@@ -681,7 +710,7 @@ module Algoritm
                     if(r >= 10.0 .or. r <= dist_inner) CYCLE
                 end if
 
-                par1 = SS%gd(1:5, cell, now)    ! Ïîëó÷èëè ãàçîäèíàìè÷åñêèå ïàðàìåòðû
+                par1 = SS%gd(:, cell, now)    ! Ïîëó÷èëè ãàçîäèíàìè÷åñêèå ïàðàìåòðû
                 POTOK = 0.0
                 
                 if(par1(1) <= 0.000000001) then
@@ -799,6 +828,14 @@ module Algoritm
                         wc, qqq1, qqq2, dsl, dsp, dsc, POTOK2, .False.)
                     end if
 
+                    if(SS%n_par >= 6) then  !! Äîáàâèì ïîòîêè Ãåëèÿ
+                        if(dsc >= wc) then  !! Ïðàâèëüíî ñ÷èòàåì êîíâåêòèâíûé ïåðåíîñ
+                            POTOK(6) = POTOK(6) + POTOK2(1) / qqq1(1) * par1_TVD(6) * Sqv
+                        else
+                            POTOK(6) = POTOK(6) + POTOK2(1) / qqq2(1) * par2(6) * Sqv
+                        end if
+                    end if
+
 
                     loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -847,6 +884,7 @@ module Algoritm
                 u = par1(3)
                 v = par1(4)
                 Q = par1(5)
+                if(SS%n_par >= 6) ro_He = par1(6)
 
                 ! if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! ÓÁÐÀÒÜ
                 !     source(3) = 0.0
@@ -866,6 +904,8 @@ module Algoritm
                     ro2 = 0.0003
                 end if
                 Q2 = Q * Vol/Vol2 - TT * (POTOK(5) / Vol2 + Q * v/center(2) - (Q/ro) * source(1))
+                ro_He2 = 0.0
+                if(SS%n_par >= 6) ro_He2 = ro_He * Vol/Vol2 - TT * (POTOK(6) / Vol2 + ro_He * v/center(2))
                 u2 = (ro * u * Vol/Vol2 - TT * ( POTOK(3) / Vol2 + ro * v * u/center(2) - source(2) )) / ro2
                 v2 = (ro * v * Vol/Vol2 - TT * ( POTOK(4) / Vol2 + ro * v * v/center(2) - source(3) )) / ro2
 
@@ -886,6 +926,7 @@ module Algoritm
                 SS%gd(3, cell, now2) = u2
                 SS%gd(4, cell, now2) = v2
                 SS%gd(5, cell, now2) = Q2
+                if(SS%n_par >= 6) SS%gd(6, cell, now2) = ro_He2
 
 			end do
 			!$omp end do
@@ -1593,8 +1634,8 @@ module Algoritm
                 x = SS%gl_Cell_Centr(1, cell, 1)
                 y = SS%gl_Cell_Centr(2, cell, 1)
                 call Inner_Conditions(SS, x, y, par)
-                SS%gd(1:5, cell, 1) = par(1:5)
-                SS%gd(1:5, cell, 2) = SS%gd(1:5, cell, 1)
+                SS%gd(:, cell, 1) = par(:)
+                SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
             end do
         end do
 
@@ -1605,8 +1646,8 @@ module Algoritm
                 x = SS%gl_Cell_Centr(1, cell, 1)
                 y = SS%gl_Cell_Centr(2, cell, 1)
                 call Inner_Conditions(SS, x, y, par)
-                SS%gd(1:5, cell, 1) = par(1:5)
-                SS%gd(1:5, cell, 2) = SS%gd(1:5, cell, 1)
+                SS%gd(:, cell, 1) = par(:)
+                SS%gd(:, cell, 2) = SS%gd(:, cell, 1)
             end do
         end do
 
@@ -1810,7 +1851,7 @@ module Algoritm
         integer(4) :: N, i, num, j
         real(8) :: center(2)
         real(8) :: parH(5, SS%n_Hidrogen)
-        real(8) :: par(5)
+        real(8) :: par(SS%n_par)
         real(8) :: source(4)
         logical :: gd
 

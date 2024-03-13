@@ -454,7 +454,7 @@ module Monte_Karlo
 		
 		real(8) :: time ! ќценочное врем€ до вылета частицы из €чейки
 		
-		real(8) :: cp, vx, vy, vz, ro, PAR(5), Tp  ! ѕараметры плазмы в €чейке
+		real(8) :: cp, vx, vy, vz, ro, PAR(SS%n_par), Tp  ! ѕараметры плазмы в €чейке
 		real(8) :: uz, nu_ex, kappa, ksi, t_ex, t2, mu_ex, mu2, r_ex(3), r, mu, u, V(3), mu3, r_exit(3)
 		real(8) :: uz_M, uz_E, k1, k2, k3, u1, u2, u3, skalar
 		real(8) :: Ur, Uthe, Uphi, Vr, Vthe, Vphi, phi
@@ -466,7 +466,7 @@ module Monte_Karlo
 		
 		real(8) :: Wr(par_n_zone + 1), Wthe(par_n_zone + 1), Wphi(par_n_zone + 1), mu_(par_n_zone + 1)
 		
-		integer(4) :: step
+		integer(4) :: step, al
 	
 		step = 0
 		
@@ -521,7 +521,7 @@ module Monte_Karlo
 				kappa = 0.0
 				kappa_pui = 0.0
 				drob = 3
-				area2 = SS%gl_all_Cell_zone(cell) ! «она рождени€
+				area2 = SS%gl_all_Cell_zone(cell) ! «она рождени€ (зон€ текущей €чейки)
 
 				! if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
 				! 	if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
@@ -562,7 +562,6 @@ module Monte_Karlo
 					end if
 
 
-				
 					p = PAR(2)
 					vx = PAR(3)
 					vy = PAR(4) * cos(phi)
@@ -570,6 +569,14 @@ module Monte_Karlo
 					ro = PAR(1)
 					cp = sqrt(p/ro)
 					Tp = p/(2.0 * ro)
+
+					al = 1
+					if(area2 <= 2) al = 2
+					if(SS%n_par >= 6) then 
+						call Sootnosheniya(PAR(1), PAR(2), PAR(6), ro_pui, T_pui, al, &
+							rho_Th = ro, p_Th = p, T_Th = Tp)
+						cp = sqrt(2.0 * Tp)
+					end if
 
 					if(SS%culc_pui == .True. .and. area2 <= 2) then
 						p = 4.0 * (ro - ro_pui) * (p - ro_pui * T_pui) /&
@@ -1208,7 +1215,7 @@ module Monte_Karlo
 		else
 			inquire(file="2_MK_Mu_statistic.txt", exist=exists)
 			if (exists == .False.) then
-				pause "net faila!!!  cvbdfgertmkopl"
+				pause "net faila!!!  ebtdgvsgtbhnytrybyevhrbtd"
 				STOP "net faila!!!"
 			end if
 			open(2, file = "2_MK_Mu_statistic.txt", status = 'old')
