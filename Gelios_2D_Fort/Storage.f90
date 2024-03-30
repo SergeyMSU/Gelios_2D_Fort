@@ -13,7 +13,7 @@ module STORAGE
     integer(4), parameter :: par_n_claster = 1  ! Число компьютеров (для MPI)
     integer(4), parameter :: par_n_parallel = 20! 20  ! Для распараллеливания цикла (т.е. каждый поток будет в среднем обрабатывать такое число итераций
     integer(4), parameter :: par_stek = 1000  ! Глубина стека (заранее выделяется память под него)
-    integer(4), parameter :: par_n_sort = 4!6  !  4 Количество сортов атомов
+    integer(4), parameter :: par_n_sort = 4!4!6  !  4 Количество сортов атомов
 
     logical, parameter :: MK_is_NaN = .False.    ! Нужны ли проверки на nan
 	logical, parameter :: MK_Mu_stat = .True.    ! Нужно ли накапливать веса для статистики и весовых каэффициентов
@@ -22,14 +22,14 @@ module STORAGE
 	logical, parameter :: MK_statistik_file = .True.    ! Какой файл со статистикой использовать?  true - это первый файл
 
 	logical, parameter :: par_Hydro = .True.    ! Нужен ли водород? Или чисто газовую-динамику считаем?
-	logical, parameter :: par_TVD_linear_HP = .True.    ! Нужно ли сносить на контакт линейно только с одной стороны
+	logical, parameter :: par_TVD_linear_HP = .True.! .False. !.True.    ! Нужно ли сносить на контакт линейно только с одной стороны
 	logical, parameter :: par_move_setka = .True.    ! Нужно ли сносить на контакт линейно только с одной стороны
     real(8), parameter :: par_Rmax = 220.0 !300.0! 220.0  !  Радиус сферы, с которой запускаем частицы
 
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
+	integer(4), parameter :: MK_k_multiply = 12 * 5! 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
     ! 9 сейчас с пикапами
     ! 12 (14) - это 1 час с пикапами
     ! 18 - это 1 час без пикапов
@@ -88,8 +88,8 @@ module STORAGE
         real(8) :: par_rho_He_E = 0.155327_8       
 
         ! Для электронного удара
-        real(8) :: nu_e_impact = 3.86624! 0.15465_8       
-        real(8) :: lambda_e = 12.09_8       
+        real(8) :: nu_e_impact = 0.214207_8! 3.86624! 0.15465_8       
+        real(8) :: lambda_e = 12.1458_8       
 
         !! -------------------------------------------------------------
 
@@ -242,7 +242,7 @@ module STORAGE
         !! ФИЗИКА
         integer(4) :: n_Hidrogen = par_n_sort  ! Число сортов атомов водорода
         integer(4) :: n_atom_source = 7  ! Число источников атомов
-        integer(4) :: n_par = 6  !! Число физических параметров в задаче   5 - если нет гелия
+        integer(4) :: n_par = 5! 6  !! Число физических параметров в задаче   5 - если нет гелия
         ! 5 газодинамических
         ! 4 * n_Hidrogen - Водород
 
@@ -257,6 +257,7 @@ module STORAGE
 
         real(8), allocatable :: atom_source(:, :)  ! (n_atom_source, : число ячеек)
         ! (k_u, k_v, k_T, In, Iu, Iv, IT)
+        ! (1     2    3    4   5  6    7)
 
         LOGICAL :: pogl_ = .True.  ! Считаем ли поглощение
         real(8) :: pogl_v_min = -15.0
@@ -318,7 +319,7 @@ module STORAGE
         integer(4), allocatable :: gl_Cell_C(:,:)   ! Набор C-ечеек размерности 3 (на этом луче, в этой плоскости)
 
         integer(4), allocatable :: gl_all_Cell(:,:)   ! Весь набор ячеек (4, :) - первая координата массива - это набор узлов ячейки
-        real(8), allocatable :: gl_Cell_center(:,:)   ! Весь набор ячеек (2, :) - первая координата массива - это набор узлов ячейки
+        real(8), allocatable :: gl_Cell_center(:,:)   ! (2, :) 
 
         logical, allocatable :: gl_all_triangle(:)
         ! .True. - если ячейка является треугольником и .False. в противном случае
@@ -342,7 +343,7 @@ module STORAGE
         ! 4 * n_Hidrogen - Водород
 
         real(8), allocatable :: gd(:, :)  ! (n_par, :)
-        ! (rho p u v Q)
+        ! (rho p u v Q He)
         real(8), allocatable :: hydrogen(:, :, :)  ! (5, n_Hidrogen, :)
         ! rho p u v T
 

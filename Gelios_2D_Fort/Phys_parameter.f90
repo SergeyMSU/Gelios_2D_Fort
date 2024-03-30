@@ -15,11 +15,11 @@ module Phys_parameter
 
         r = sqrt(x**2 + y**2)
 
-        if(size(par) < 6) then
-            print*, "Error 18 Inner_Conditions size(par) nm5453fdbbdfcsd"
-            print*, size(par)
-            STOP
-        end if
+        ! if(size(par) < 6) then
+        !     print*, "Error 18 Inner_Conditions size(par) nm5453fdbbdfcsd"
+        !     print*, size(par)
+        !     STOP
+        ! end if
 
         ! par(1) = 1.0
         ! par(3) = SS%par_Velosity_inf
@@ -85,11 +85,11 @@ module Phys_parameter
         TYPE (Setka), intent(in) :: SS
         real(8), intent(out) :: par(:)
 
-        if(size(par) < 6) then
-            print*, "Error 18 Phys_input_flow size(par) vtbhtydrnbevwacwverb"
-            print*, size(par)
-            STOP
-        end if
+        ! if(size(par) < 6) then
+        !     print*, "Error 18 Phys_input_flow size(par) vtbhtydrnbfwfweffewevwacwverb"
+        !     print*, size(par)
+        !     STOP
+        ! end if
 
         par(1) = 1.0_8 * SS%par_rho_LISM
         par(3) = SS%par_Velosity_inf
@@ -344,7 +344,7 @@ module Phys_parameter
                     do i = 1, SS%n_par
                         par1_(i) = linear(d2, par3(i), d1, par1(i), d3, par2(i), 0.0_8)
                     end do
-                else if(par_TVD_linear_HP) then
+                else if(par_TVD_linear_HP) then ! .and. SS%gl_Gran_type(gran) /= 3) then  !! ПОМЕНЯЛ ТУТ TODO 
                     if(SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s1) /= SS%gl_all_Cell_zone(s3)) then
                         do i = 1, SS%n_par 
                             par1_(i) = linear1(d1, par1(i), d3, par2(i), 0.0_8)
@@ -372,7 +372,7 @@ module Phys_parameter
                     do i = 1, SS%n_par 
                         par2_(i) = linear(d2, par4(i), d1, par2(i), d3, par1(i), 0.0_8)
                     end do
-                else if(par_TVD_linear_HP) then
+                else if(par_TVD_linear_HP) then ! .and. SS%gl_Gran_type(gran) /= 3) then  !! ПОМЕНЯЛ ТУТ TODO 
                     if (SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s2) .and. SS%gl_all_Cell_zone(s2) /= SS%gl_all_Cell_zone(s4)) then
                         do i = 1, SS%n_par
                             par2_(i) = linear1(d1, par2(i), d3, par1(i), 0.0_8)
@@ -524,19 +524,31 @@ module Phys_parameter
         integer(4), intent(in) :: cell, step
         logical, intent(in), optional :: use_koeff_     ! Оспользовать ли умножение источников на коэффециенты, посчитанные Монте-Карло
         logical :: use_koeff
-        integer(4) :: i
+        integer(4) :: i, al, area2
         real(8) :: U_M_H(SS%n_Hidrogen), UU_H(SS%n_Hidrogen), sigma(SS%n_Hidrogen), nu(SS%n_Hidrogen)
-        real(8) ro, p, u, v, ro_H, p_H, u_H, v_H
+        real(8) ro, p, u, v, ro_H, p_H, u_H, v_H, T
 
         use_koeff = .False.
         if(PRESENT(use_koeff_))  use_koeff = use_koeff_
         
-        sourse = 0.0
+        sourse = 0.0_8
 
         ro = SS%gd(1, cell, step)
         p = SS%gd(2, cell, step)
         u = SS%gd(3, cell, step)
         v = SS%gd(4, cell, step)
+
+        al = 1
+        area2 = SS%gl_all_Cell_zone(cell)
+        if(area2 <= 2) al = 2
+
+        !if(area2 == 4) use_koeff = .True.
+
+        if(SS%n_par >= 6) then   !! Если есть водород
+            call Sootnosheniya(SS%gd(1, cell, step), SS%gd(2, cell, step), SS%gd(6, cell, step), 0.0_8,  0.0_8, al, &
+                rho_Th = ro, p_Th = p, T_Th = T)
+            p = p * 2.0
+        end if
 
         if(ro <= 0.0000001) then
             ro = 0.0000001
@@ -567,6 +579,12 @@ module Phys_parameter
             (4.0 / par_pi) * (p / ro + 2.0 * p_H / ro_H) )
             sigma(i) = (1.0 - SS%par_a_2 * log(U_M_H(i)))**2
             nu(i) = ro * ro_H * U_M_H(i) * sigma(i)
+
+            ! print*, "nu(i) = ", nu(i)
+            ! print*, "ro_H = ", ro_H, p_H, u_H, v_H
+            ! print*, "U_M_H(i)", U_M_H(i), UU_H(i), sigma(i)
+            ! print*, "p", p, ro, u, v
+            ! print*, "      "
         end do
         
         do i = 1, SS%n_Hidrogen
@@ -575,15 +593,15 @@ module Phys_parameter
             u_H = SS%hydrogen(3, i, cell, step)
             v_H = SS%hydrogen(4, i, cell, step)
 
-            if(ro_H <= 0.0000001) then
-                ro_H = 0.0000001
+            if(ro_H <= 0.000000001) then
+                ro_H = 0.000000001
             end if
 
-            if(p_H <= 0.0000001) then
-                p_H = 0.0000001
+            if(p_H <= 0.000000001) then
+                p_H = 0.000000001
             end if
 
-            sourse(1) = 0.0
+            sourse(1) = 0.0_8
             sourse(2) =  sourse(2) + nu(i) * (u_H - u)
             sourse(3) =  sourse(3) + nu(i) * (v_H - v)
             sourse(4) = sourse(4) + nu(i) * ( (u_H**2 + v_H**2 - &
@@ -592,6 +610,7 @@ module Phys_parameter
         
         if (use_koeff == .False.) then
             sourse =  sourse * (SS%par_n_H_LISM/SS%par_Kn)
+            sourse(1) = SS%atom_source(4, cell)
         else
             sourse(1) = SS%atom_source(4, cell)! * SS%par_n_H_LISM           !! ТУТ НАДО ЛИ ДОМНОЖАТЬ НА КОНЦЕНТРАЦИЮ ВОДОРОДА?
             sourse(2) = sourse(2) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(1, cell)
@@ -604,6 +623,19 @@ module Phys_parameter
             ! end if
             sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
         end if
+
+        if(area2 == 4) sourse(3) = SS%atom_source(6, cell)
+
+        if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
+			if(SS%gl_Cell_number(2, cell) <= 3) sourse(3) = SS%atom_source(6, cell)
+		end if
+
+
+        ! if(SS%gl_Cell_Centr(1, cell, 1) > 110 .and. SS%gl_Cell_Centr(1, cell, 1) < 140) then
+
+        !     print*, sourse
+        !     pause
+        ! end if
         
 	end subroutine Calc_sourse_MF
 

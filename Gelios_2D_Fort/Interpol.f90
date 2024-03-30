@@ -872,7 +872,7 @@ module Interpol
         integer(4) :: i, yzel, j, yz1, yz2, yz3, yz4
 
         if(present(PAR_atom_source)) then
-            if(size(PAR_atom_source) /= 4) STOP "ERROR Int 851 y2w0S3KFz4v7npnDl9rgziYnZNfNSc"
+            if(size(PAR_atom_source) /= 7) STOP "ERROR Int 851 y2w0S3KFz4v7npnDl9rgziYnZNfNSc"
         end if
 
         call Int_Find_Cell(SS, x, y, num, outer)  ! Находим ячейку, которой принадлежит точка
@@ -895,7 +895,7 @@ module Interpol
             end if
 
             if(present(PAR_atom_source)) then
-                PAR_atom_source = SS%atom_source(1:4, yzel_min)
+                PAR_atom_source = SS%atom_source(1:7, yzel_min)
             end if
 
             if(present(PAR_hydrogen)) then

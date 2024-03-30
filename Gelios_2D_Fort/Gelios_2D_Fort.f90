@@ -14,7 +14,9 @@ include "Surfaces.f90"
 include "Interpol.f90"
 include "PUI.f90"
 include "M-K.f90"
+include "Printer.f90"
 include "2D_algoritm.f90"
+
 
 
 	
@@ -28,6 +30,7 @@ program Gelios_2D_Fort
     USE Monte_Karlo
     USE Algoritm
 	USE My_func
+    USE Printer
 
     implicit none
 
@@ -105,14 +108,15 @@ program Gelios_2D_Fort
 
 
 
-    call Gas_dynamic_algoritm2(gl_S1, 3)
-    ! call MK_algoritm(gl_S1, 3)
+    ! call Gas_dynamic_algoritm2(gl_S1, 5)
+    ! call Perenormir_parameter()
+    call MK_algoritm(gl_S1, 5)
     ! call Perestroika_algoritm(gl_S1)
     ! call Print_PUI_algoritm(gl_S1)
     ! call MK_test_chastot(gl_S1)
 
-    !print*, MK_nu_el_impact(gl_S1, 76.5697_8)
-    !pause
+    ! print*, MK_nu_el_impact(gl_S1, 76.9231_8)
+    ! pause
 
     !call Print_Cell(gl_S1)
 

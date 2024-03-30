@@ -983,6 +983,7 @@ module GEOMETRY
 
         if (i <= SS%par_n_IB) then  ! NEW
             r =  2.0 * SS%par_R0 + (SS%par_R_inner - 2.0 * SS%par_R0) * (DBLE(i - 2)/(SS%par_n_IB - 2))**SS%par_kk1
+            !r =  1.1 * SS%par_R0 + (SS%par_R_inner - 1.1 * SS%par_R0) * (DBLE(i - 2)/(SS%par_n_IB - 2))**SS%par_kk1
 		else if (i <= SS%par_n_TS) then  
 			r =  SS%par_R_inner + (R_TS - SS%par_R_inner) * sgushenie_3( (DBLE(i - SS%par_n_IB)/(SS%par_n_TS - SS%par_n_IB)) , SS%par_kk12)
 		else if (i <= SS%par_n_HP) then  
@@ -2086,46 +2087,6 @@ module GEOMETRY
 
     end subroutine Print_hydrogen
 
-    subroutine Print_GD_1D(SS)
-        ! ѕечатаем центры всех €чеек
-        TYPE (Setka), intent(in) :: SS
-        integer :: i, j, node, al
-        real(8) :: Mach, c(2), ro_He
-
-        open(1, file = SS%name // '_Print_GD_1D.txt')
-        write(1,*) "TITLE = 'HP'  VARIABLES = X, Rho, p, u, v, Q, Mach, Rho_He"
-
-        do i = size(SS%gl_Cell_B(:, 1)), 1, -1
-            j = SS%gl_Cell_B(i, 1)
-            Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
-			c = SS%gl_Cell_Centr(1, j, 1)
-
-            ro_He = 0.0
-            if(SS%n_par >= 6) ro_He = SS%gd(6, j, 1)
-            al = 1
-            if(SS%gl_all_Cell_zone(j) <= 2) al = 2
-            call Sootnosheniya(SS%gd(1, j, 1), SS%gd(2, j, 1), ro_He, 0.0_8, 0.0_8, al)
-
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach, ro_He
-        end do
-
-        do i = 1, size(SS%gl_Cell_A(:, 1))
-            j = SS%gl_Cell_A(i, 1)
-            Mach = norm2(SS%gd(3:4, j, 1))/sqrt(SS%par_ggg * SS%gd(2, j, 1)/SS%gd(1, j, 1))
-
-            ro_He = 0.0
-            if(SS%n_par >= 6) ro_He = SS%gd(6, j, 1)
-            al = 1
-            if(SS%gl_all_Cell_zone(j) <= 2) al = 2
-            call Sootnosheniya(SS%gd(1, j, 1), SS%gd(2, j, 1), ro_He, 0.0_8, 0.0_8, al)
-
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%gd(1:4, j, 1), SS%gd(5, j, 1)/SS%gd(1, j, 1), Mach, ro_He
-        end do
-
-        close(1)
-
-    end subroutine Print_GD_1D
-
     subroutine Print_PUI_1D(SS)
         ! ѕечатаем центры всех €чеек
         TYPE (Setka), intent(in) :: SS
@@ -2171,39 +2132,6 @@ module GEOMETRY
         close(1)
 
     end subroutine Print_PUI_1D
-
-    subroutine Print_hydrogen_1D(SS)
-        ! ѕечатаем центры всех €чеек
-        TYPE (Setka), intent(in) :: SS
-        integer :: i, j, node
-        character(len=1) :: name
-
-
-        open(1, file = SS%name // '_Print_hydrogen_1D.txt')
-        write(1,*) "TITLE = 'HP'  VARIABLES = X" 
-
-        do i = 1, SS%n_Hidrogen
-            write(unit=name,fmt='(i1.1)') i
-            write(1,*) ",Rho" // name // ", p" // name // ", u" // name // ", v" // name // ", T" //name
-        end do
-
-        write(1,*)", k1, k2, k3, In, Iu, Iv, IT"
-
-        do i = size(SS%gl_Cell_B(:, 1)), 1, -1
-            j = SS%gl_Cell_B(i, 1)
-            
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, :, j, 1), SS%atom_source(:, j)
-        end do
-
-        do i = 1, size(SS%gl_Cell_A(:, 1))
-            j = SS%gl_Cell_A(i, 1)
-
-            write(1,*) SS%gl_Cell_Centr(1, j, 1), SS%hydrogen(1:5, :, j, 1),  SS%atom_source(:, j)
-        end do
-
-        close(1)
-
-    end subroutine Print_hydrogen_1D
 
     subroutine Print_Cell(SS)
         ! ѕечатаем все €чейки (есть дублирование), кажда€ €чейка печатаетс€ отдельно
@@ -3104,6 +3032,10 @@ module GEOMETRY
                 do i = 1, n2
                     SS%atom_all_source(:, i, :) = local_atom_all_source(:, i, :)
                 end do
+            else if(par_n_sort == n2) then
+                SS%atom_all_source = local_atom_all_source
+            else
+                print*, "ERROR 0989hg4rihcqigbuvrycilqhw4l"
             end if
 
             if(par_n_sort < n2) then

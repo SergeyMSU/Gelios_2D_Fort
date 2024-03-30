@@ -50,7 +50,21 @@ module Monte_Karlo
         cell = 1
 
 
+
+
         call Get_sensor_sdvig(SS, 0)
+
+
+		!! НОРМИРОВКА ВЕСОВ (НЕ ПРАВИЛЬНО) так нельзя делать
+		! do k = 1, SS%n_Hidrogen
+		! 	do j = 1, par_m_zone + 1
+		! 		do i = 2, par_n_zone + 1
+		! 			if(SS%MK_Mu(i, j, k) < SS%MK_Mu(i - 1, j, k)) then
+		! 				SS%MK_Mu(i, j, k) = SS%MK_Mu(i - 1, j, k)
+		! 			end if
+		! 		end do
+		! 	end do
+		! end do
 
 		!$omp parallel
 		!$omp do private(potok, num, mu_, Wt_, Wp_, Wr_, X_, bb, i, Vx, Vy, &
@@ -386,14 +400,14 @@ module Monte_Karlo
 			SS%atom_source(2, i) = sum(SS%atom_all_source(3, :, i))/source(3)
 			SS%atom_source(3, i) = sum(SS%atom_all_source(4, :, i))/source(4)
 
-			if(SS%atom_source(1, i) > 5.0 .or. dabs(source(2)) < 0.0000001) SS%atom_source(1, i) = 1.0
-			if(SS%atom_source(1, i) < 0.2) SS%atom_source(1, i) = 1.0
+			if((SS%atom_source(1, i)) > 5.0) SS%atom_source(1, i) = 1.0
+			if((SS%atom_source(1, i)) < 0.2) SS%atom_source(1, i) = 1.0
 
-			if(SS%atom_source(2, i) > 5.0 .or. dabs(source(3)) < 0.0000001) SS%atom_source(2, i) = 1.0
-			if(SS%atom_source(2, i) < 0.2) SS%atom_source(2, i) = 1.0
+			if((SS%atom_source(2, i)) > 5.0) SS%atom_source(2, i) = 1.0
+			if((SS%atom_source(2, i)) < 0.2) SS%atom_source(2, i) = 1.0
 
-			if(SS%atom_source(3, i) > 5.0 .or. dabs(source(4)) < 0.0000001) SS%atom_source(3, i) = 1.0
-			if(SS%atom_source(3, i) < 0.2) SS%atom_source(3, i) = 1.0
+			if((SS%atom_source(3, i)) > 5.0 ) SS%atom_source(3, i) = 1.0
+			if((SS%atom_source(3, i)) < 0.2) SS%atom_source(3, i) = 1.0
 
 			! print*, sum(SS%atom_all_source(2, :, i)), source(2)
 			! print*, sum(SS%atom_all_source(3, :, i)), source(3)
@@ -523,9 +537,9 @@ module Monte_Karlo
 				drob = 3
 				area2 = SS%gl_all_Cell_zone(cell) ! Зона рождения (зоня текущей ячейки)
 
-				! if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
-				! 	if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
-				! end if
+				if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
+					if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
+				end if
 
 				do ijk = 1, drob
 					ddt = ijk * 1.0/drob - 0.5/drob
@@ -569,6 +583,7 @@ module Monte_Karlo
 					ro = PAR(1)
 					cp = sqrt(p/ro)
 					Tp = p/(2.0 * ro)
+					
 
 					al = 1
 					if(area2 <= 2) al = 2
@@ -602,7 +617,7 @@ module Monte_Karlo
 						STOP
                 	end if
 				
-					if(ro <= 0.0 .or. ro > 1000.0) then
+					if(ro <= 0.0 .or. ro > 100000.0) then
 						print*, PAR
 						print*, "___"
 						print*, cell
@@ -1018,11 +1033,18 @@ module Monte_Karlo
 
 		! Следующие нужно интегрировать вдоль пути
 		drob = 3
+
+		if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
+			if(SS%gl_Cell_number(1, cell) <= 3) drob = 10
+			if(SS%gl_Cell_number(2, cell) <= 5) drob = 7
+			if(SS%gl_Cell_number(2, cell) <= 2) drob = 10
+		end if
+
 		! rr = norm2(XX(2:3))
-		! if(rr < 6.0) then
+		! if(rr < 10.0) then
 		! 	drob = 15
 		! else if(rr < 30.0) then
-		! 	drob = 5
+		! 	drob = 7
 		! end if
 
 		do ik = 1, drob

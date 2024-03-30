@@ -10,6 +10,7 @@ module Algoritm
     USE cgod
     USE Monte_Karlo
     USE PUI
+    USE Printer
     implicit none 
 
     contains
@@ -117,19 +118,30 @@ module Algoritm
         print*, "A"
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "DDD35")   ! ДЛЯ ВОДОРОДА   DD020    K0010
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ДЛЯ ВОДОРОДА   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА   DD020    K0010
+
+        !if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "D0013")   ! ДЛЯ ВОДОРОДА   DD020    K0010
+        call Set_param_model(gl_S3)
+        gl_S3%n_par = 5  !! НАДО ПОМЕНЯТЬ В ХРАНИЛИЩЕ ТОЖЕ
+        if(par_Hydro) call Print_hydrogen_1D(gl_S3, 222)
+        !return
+
         print*, "B"
         if(par_Hydro) call Int_Init(gl_I1, gl_S3)
         print*, "C"
 
+        !! TODO
+        !call Culc_Source(gl_S3) 
+        !call Print_hydrogen_1D(gl_S3)
+        !return
         
         print*, "D"
         if(par_Hydro) call Int_Print_Cell(gl_I1)
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
-        ! call Read_setka_bin(SS, "CC012")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
-        call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        call Read_setka_bin(SS, "C0013")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
         print*, "G"
@@ -154,21 +166,23 @@ module Algoritm
         ! SS%par_Max_e = 6.21523
 
         ! Параметры Модели, которые сейчас строим
-        SS%par_n_H_LISM = 3.0_8!3.5_8
-        SS%par_Velosity_inf = -2.54385_8! -2.54278_8
-        SS%par_Kn = 45.6044! 50.3858 !68.0243! 50.3858
-        SS%par_nu_ph = 12.8153! 12.0969 
-        SS%par_E_ph = 0.0725533! 0.10878
-        SS%par_R0 = 0.187846! 0.198956
-        SS%par_chi = 43.1202!  41.0391! 3.0!! 41.0391
-        SS%par_Max_e = 10.0_8! 5.91662
-        SS%par_a_2 = 0.102576! 0.130735_8! 0.11857_8! 0.130735_8
-        SS%par_poglosh = 0.618589! 0.389274 
-        SS%par_rho_LISM = 1.60063     
-        SS%par_p_LISM = 1.15     
-        SS%par_rho_He_Lism = 0.6_8         !! Какая часть от общей плотности - это гелий
-        SS%par_rho_He_E = 0.155327_8      
-        SS%culc_pui = .False.
+        call Set_param_model(SS)
+        SS%n_par = 5  !! НАДО ПОМЕНЯТЬ В ХРАНИЛИЩЕ ТОЖЕ
+        ! SS%par_n_H_LISM = 3.0_8!3.5_8
+        ! SS%par_Velosity_inf = -2.54385_8! -2.54278_8
+        ! SS%par_Kn = 45.6044! 50.3858 !68.0243! 50.3858
+        ! SS%par_nu_ph = 12.8153! 12.0969 
+        ! SS%par_E_ph = 0.0725533! 0.10878
+        ! SS%par_R0 = 0.187846! 0.198956
+        ! SS%par_chi = 43.1202!  41.0391! 3.0!! 41.0391
+        ! SS%par_Max_e = 10.0_8! 5.91662
+        ! SS%par_a_2 = 0.102576! 0.130735_8! 0.11857_8! 0.130735_8
+        ! SS%par_poglosh = 0.618589! 0.389274 
+        ! SS%par_rho_LISM = 1.60063     
+        ! SS%par_p_LISM = 1.15     
+        ! SS%par_rho_He_Lism = 0.6_8         !! Какая часть от общей плотности - это гелий
+        ! SS%par_rho_He_E = 0.155327_8      
+        ! SS%culc_pui = .False.
 
 
         !call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
@@ -192,6 +206,8 @@ module Algoritm
         !         SS%gd(:, i, 2) = SS%gd(:, i, 1)
         !     end if
         ! end do
+
+
 
         call Print_GD(SS)
         call Geo_Print_Surface(SS)
@@ -244,20 +260,23 @@ module Algoritm
 
             if(par_Hydro) call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
 
-            if(mod(i, 100) == 0) call Geo_Print_Surface(SS, 0)
+            if(mod(i, 50) == 0) call Geo_Print_Surface(SS, 0)
+            if(mod(i, 50) == 0) call Print_GD_1D(SS)
         end do
 
 
         write(unit=nameGD,fmt='(i2.2)') startGD + step
 
         call Print_GD(SS)
-        call Geo_Print_Surface(SS, startGD + step)
+        !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
-        ! call Save_setka_bin(SS, "CC036")
-        call Save_setka_bin(SS, "X00" // nameGD)
+        call Geo_Print_Surface(SS, 14)
+        call Save_setka_bin(SS, "C0014")
+        call Print_GD_1D(SS, 14)
+        ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
-        call Print_GD_1D(SS)
+        
         ! call Print_TVD_Sosed(SS)
 
         ! call Print_hydrogen(SS)
@@ -270,7 +289,7 @@ module Algoritm
         ! Пересетройка основной сетки
         TYPE (Setka), intent(in out) :: SS
 
-        call Read_setka_bin(SS, "CC029")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "Z0016")      ! ОСНОВНАЯ СЕТКА
         print*, "A1"
         call SUR_init(gl_surf1, SS)
 		print*, "A2"
@@ -279,17 +298,17 @@ module Algoritm
         !! Задаём параметры мини-сетки
         gl_S3%par_m_A = 20! 30      ! Количество лучей A в плоскости
         gl_S3%par_m_BC = 10! 18      ! Количество лучей B/C в плоскости
-        gl_S3%par_m_O = 14! 17      ! Количество лучей O в плоскости
+        gl_S3%par_m_O = 12! 17      ! Количество лучей O в плоскости
         gl_S3%par_m_K = 8! 7      ! Количество лучей K в плоскости
-        gl_S3%par_n_TS =  33! 26                    ! Количество точек до TS (TS включается)
-        gl_S3%par_n_HP =  63! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
-        gl_S3%par_n_BS =  99! 60! 5                 ! Количество точек BS (BS включается)
-        gl_S3%par_n_END = 120! 101! 72! 6                ! Количество точек до конца сетки (конец включается)
-        gl_S3%par_n_IA =  20! 12                   ! Количество точек, которые входят во внутреннюю область
-        gl_S3%par_n_IB =  22! 14                   ! Количество точек, которые входят во внутреннюю область (с зазором)
+        gl_S3%par_n_TS =  50! 26                    ! Количество точек до TS (TS включается)
+        gl_S3%par_n_HP =  80! 40                 ! Количество точек HP (HP включается)  всё от 0 считается
+        gl_S3%par_n_BS =  116! 60! 5                 ! Количество точек BS (BS включается)
+        gl_S3%par_n_END = 137! 101! 72! 6                ! Количество точек до конца сетки (конец включается)
+        gl_S3%par_n_IA =  30! 12  20                 ! Количество точек, которые входят во внутреннюю область
+        gl_S3%par_n_IB =  32! 14  22                 ! Количество точек, которые входят во внутреннюю область (с зазором)
         gl_S3%par_kk2 = 1.5_8! 2.08
-        gl_S3%par_R_LEFT = -300.0_8 !-240.0_8
-        gl_S3%par_R_END = 400.0  
+        gl_S3%par_R_LEFT = -160.0_8 !-240.0_8   -300
+        gl_S3%par_R_END = 300.0  
         call Init_Setka(gl_S3)
 		print*, "A4"
         call Build_Setka_start(gl_S3)
@@ -304,7 +323,7 @@ module Algoritm
         call Print_Grans(gl_S3)
         call Print_GD_1D(gl_S3)
 
-        call Save_setka_bin(gl_S3, "CC030")
+        call Save_setka_bin(gl_S3, "Z0026")
 
     end subroutine Perestroika_algoritm
 
@@ -322,12 +341,12 @@ module Algoritm
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        ! call Read_setka_bin(gl_S4, "B0060")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "H0009")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        ! call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
         ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
-        ! call Read_setka_bin(SS, "AA001")      ! ОСНОВНАЯ СЕТКА
-        call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "G0005")      ! ОСНОВНАЯ СЕТКА
+        ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
         !call Geo_Print_Surface(SS)
@@ -360,21 +379,23 @@ module Algoritm
         gl_S3%par_R_END = 300.0 !!400.0  
 
         !! Физические параметры модели
-        gl_S3%par_n_H_LISM = 3.0_8!3.5_8
-        gl_S3%par_Velosity_inf = -2.54385_8! -2.54278_8
-        gl_S3%par_Kn = 45.6044! 50.3858 !68.0243! 50.3858
-        gl_S3%par_nu_ph = 12.8153! 12.0969 
-        gl_S3%par_E_ph = 0.0725533! 0.10878
-        gl_S3%par_R0 = 0.187846! 0.198956
-        gl_S3%par_chi = 43.1202!  41.0391! 3.0!! 41.0391
-        gl_S3%par_Max_e = 10.0_8! 5.91662
-        gl_S3%par_a_2 = 0.102576! 0.130735_8! 0.11857_8! 0.130735_8
-        gl_S3%par_poglosh = 0.618589! 0.389274 
-        gl_S3%par_rho_LISM = 1.60063     
-        gl_S3%par_p_LISM = 1.15     
-        gl_S3%par_rho_He_Lism = 0.6_8         !! Какая часть от общей плотности - это гелий
-        gl_S3%par_rho_He_E = 0.155327_8   
-        gl_S3%culc_pui = .False.  !! 
+        call Set_param_model(gl_S3)
+        gl_S3%n_par = 5 !6
+        ! gl_S3%par_n_H_LISM = 3.0_8!3.5_8
+        ! gl_S3%par_Velosity_inf = -2.54385_8! -2.54278_8
+        ! gl_S3%par_Kn = 45.6044! 50.3858 !68.0243! 50.3858
+        ! gl_S3%par_nu_ph = 12.8153! 12.0969 
+        ! gl_S3%par_E_ph = 0.0725533! 0.10878
+        ! gl_S3%par_R0 = 0.187846! 0.198956
+        ! gl_S3%par_chi = 43.1202!  41.0391! 3.0!! 41.0391
+        ! gl_S3%par_Max_e = 10.0_8! 5.91662
+        ! gl_S3%par_a_2 = 0.102576! 0.130735_8! 0.11857_8! 0.130735_8
+        ! gl_S3%par_poglosh = 0.618589! 0.389274 
+        ! gl_S3%par_rho_LISM = 1.60063     
+        ! gl_S3%par_p_LISM = 1.15     
+        ! gl_S3%par_rho_He_Lism = 0.6_8         !! Какая часть от общей плотности - это гелий
+        ! gl_S3%par_rho_He_E = 0.155327_8   
+        ! gl_S3%culc_pui = .False.  !! 
 
         call Init_Setka(gl_S3)
 		print*, "A4"
@@ -437,7 +458,7 @@ module Algoritm
         call M_K_start(gl_S3, gl_S2)
 
         call Print_hydrogen(gl_S3)
-        call Print_hydrogen_1D(gl_S3)
+        call Print_hydrogen_1D(gl_S3, 10)
         call Calc_Pogloshenie(gl_S3)
 
         if(gl_S3%culc_pui == .True.) call Print_GD_PUI(gl_S3)
@@ -455,7 +476,8 @@ module Algoritm
 
         write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "XV0" // nameMK)
+        call Save_setka_bin(gl_S3, "H0010")
+        ! call Save_setka_bin(gl_S3, "XV0" // nameMK)
 
         if(gl_S3%culc_pui == .True.) then
             call Print_PUI_1D(gl_S3)
@@ -469,6 +491,95 @@ module Algoritm
         print*, "END"
 
     end subroutine MK_algoritm
+
+    subroutine Perenormir_parameter()
+        USE STORAGE
+        integer(4) :: n, i
+        real(8) :: new_chi
+
+        call Read_setka_bin(gl_S1, "V0019")
+        new_chi = 10.0_8
+
+        n = size(gl_S1%gl_all_Cell(1,:))
+        do i = 1, n
+            if(gl_S1%gl_all_Cell_zone(i) > 2) CYCLE
+
+            gl_S1%gd(3, i, 1) = gl_S1%gd(3, i, 1)/gl_S1%par_chi * new_chi
+            gl_S1%gd(4, i, 1) = gl_S1%gd(4, i, 1)/gl_S1%par_chi * new_chi
+            gl_S1%gd(1, i, 1) = gl_S1%gd(1, i, 1)*gl_S1%par_chi**2 / new_chi**2
+
+            gl_S1%gd(:, i, 2) = gl_S1%gd(:, i, 1)
+        end do
+
+        call Print_GD_1D(gl_S1, 19)
+        ! call Save_setka_bin(gl_S1, "S0001")
+
+    end subroutine Perenormir_parameter
+
+    subroutine Set_param_model(SS)
+        TYPE (Setka), intent(in out) :: SS
+        integer(4) :: mod
+
+        mod = 2!2
+
+        if(mod == 1) then  !! Модель Малама - 2006  с гелием и т.д.
+            SS%par_n_H_LISM = 3.0_8!3.5_8
+            SS%par_Velosity_inf = -2.54385_8! -2.54278_8
+            SS%par_Kn = 45.6044! 50.3858 !68.0243! 50.3858
+            SS%par_nu_ph = 12.8153! 12.0969 
+            SS%par_E_ph = 0.0725533! 0.10878
+            SS%par_R0 = 0.187846! 0.198956
+            SS%par_chi = 43.1202!  41.0391! 3.0!! 41.0391
+            SS%par_Max_e = 10.0_8! 5.91662
+            SS%par_a_2 = 0.102576! 0.130735_8! 0.11857_8! 0.130735_8
+            SS%par_poglosh = 0.618589! 0.389274 
+            SS%par_rho_LISM = 1.60063     
+            SS%par_p_LISM = 1.15     
+            SS%par_rho_He_Lism = 0.6_8         !! Какая часть от общей плотности - это гелий
+            SS%par_rho_He_E = 0.155327_8   
+            SS%culc_pui = .False.  !! 
+        end if
+
+        if(mod == 2) then  !! Модель стандарт
+            SS%par_n_H_LISM = 2.5_8!3.5_8
+            SS%par_Velosity_inf = -2.54278_8
+            SS%par_Kn = 50.3721_8 
+            SS%par_nu_ph = 12.1002_8 
+            SS%par_E_ph = 0.10878_8
+            SS%par_R0 = 0.198902_8
+            SS%par_chi = 41.0391_8! 10.0_8! 30.0_8! 41.0391_8
+            SS%par_Max_e = 5.91662
+            SS%par_a_2 = 0.130735 ! 0.130735_8! 0.11857_8! 0.130735_8
+            SS%par_poglosh = 0.38938
+            SS%par_rho_LISM = 1.0_8     
+            SS%par_p_LISM = 1.0_8     
+            SS%par_rho_He_Lism = 0.0_8         !! Какая часть от общей плотности - это гелий
+            SS%par_rho_He_E = 0.0_8   
+            SS%culc_pui = .False.  !! 
+        end if
+
+        if(mod == 3) then  !! Измоденов-Малама 2003
+            SS%par_n_H_LISM = 3.0_8!3.5_8
+            SS%par_Velosity_inf = -2.54913_8
+            SS%par_Kn = 52.4063_8 
+            SS%par_nu_ph = 11.1703_8 
+            SS%par_E_ph = 0.0728547_8
+            SS%nu_e_impact = 0.214207! 3.57011_8! 0.15465_8     0.214207    
+            SS%lambda_e = 12.1458_8 
+            SS%par_R0 = 0.215955_8
+            SS%par_chi = 42.0606! 41.713_8
+            SS%par_Max_e = 10.0_8
+            SS%par_a_2 = 0.102554 ! 0.130735_8! 0.11857_8! 0.130735_8
+            SS%par_poglosh = 0.539188_8
+            SS%par_rho_LISM = 1.0_8     
+            SS%par_p_LISM = 1.0_8     
+            SS%par_rho_He_Lism = 0.0_8         !! Какая часть от общей плотности - это гелий
+            SS%par_rho_He_E = 0.0_8   
+            SS%culc_pui = .False.  !! 
+        end if
+
+
+    end subroutine Set_param_model
 
     subroutine MK_test_chastot(SS)
         ! Тестируем различные частоты по перезарядке на протонах, пикапах, электронный удар
@@ -681,7 +792,7 @@ module Algoritm
             time = 1000000.0
             ALL_TIME = ALL_TIME + TT
 
-            if(area == 2 .and. par_move_setka == .True.) then
+            if(area == 2 .and. par_move_setka == .True.) then 
                 call Calc_move_velosity(SS, now)
                 call Move_all(SS, now, TT)
                 call Culc_Cell_Centr(SS, now2)
@@ -837,7 +948,7 @@ module Algoritm
                     end if
 
 
-                    loc_time = 0.9 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    loc_time = 0.6 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! 0.9 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     POTOK(5) = POTOK(5) + POTOK2(9) * Sqv
                     POTOK(1) = POTOK(1) + POTOK2(1) * Sqv
@@ -857,9 +968,18 @@ module Algoritm
                 Vol2 = SS%gl_Cell_square(cell, now2)
 
                 if(par_Hydro == .True.) call Calc_sourse_MF(SS, cell, source, now, use_koeff_ = .True.)
+                !source = SS%atom_source(4:7, cell)   !! Берём чистые источники Монте-Карло
+
                 if(par_Hydro == .False.) source = 0.0  !! 
 
                 !if(center(1) < -40) source = 0.0  !! УБРАТЬ
+
+                ! if(SS%gl_Cell_Centr(1, cell, 1) > 100 .and. SS%gl_Cell_Centr(1, cell, 1) < 140 .and. SS%gl_Cell_Centr(2, cell, 1) < 10) then
+                !     print*, source
+                !     ! print*, par1
+                !     print*, cell
+                !     pause
+                ! end if
 
                 if(ieee_is_nan(source(2)) .or. ieee_is_nan(source(1)) .or. ieee_is_nan(source(4))) then
                     print*, "error source nan 186 tyujhwgeftywfwf"
@@ -886,8 +1006,14 @@ module Algoritm
                 Q = par1(5)
                 if(SS%n_par >= 6) ro_He = par1(6)
 
-                ! if(SS%gl_Cell_type(cell) == 'A' .and. SS%gl_Cell_number(2, cell) == 1) then !! УБРАТЬ
+                ! if(center(1) > 151) then !! УБРАТЬ
+                !     source = 0.0
+                ! end if
+
+                ! if(center(1) > 95.0) then !! УБРАТЬ
+                !     !source(1) = 0.0
                 !     source(3) = 0.0
+                !     !source(3) = 0.0
                 ! end if
 
                 ! Законы сохранения в ячейке
@@ -1852,7 +1978,7 @@ module Algoritm
         real(8) :: center(2)
         real(8) :: parH(5, SS%n_Hidrogen)
         real(8) :: par(SS%n_par)
-        real(8) :: source(4)
+        real(8) :: source(7)
         logical :: gd
 
         gd = .True.
@@ -1869,8 +1995,8 @@ module Algoritm
             center = SS%gl_Cell_Centr(:, i, 1)
             call Int_Get_Parameter(XX, center(1), center(2), num, PAR_hydrogen = parH, PAR_gd = par, PAR_atom_source = source)
             do j = 1, 4
-                if(parH(1, j) <= 0.0) parH(1, j) = 0.0000001
-                if(parH(2, j) <= 0.0) parH(2, j) = 0.0000001
+                if(parH(1, j) <= 0.0) parH(1, j) = 0.000000001
+                if(parH(2, j) <= 0.0) parH(2, j) = 0.000000001
             end do
 
             if(parH(1, 4) > 3.0) then
@@ -1890,8 +2016,13 @@ module Algoritm
                 SS%gd(:, i, 2) = par
             end if
 
+            do j = 1, 3                                            !! Добавил нормировку коэффициентов
+                if( source(j) > 7.0) source(j) = 1.0_8
+                if( source(j) < 0.01) source(j) = 1.0_8
+            end do
+
             !if(center(1) > 110) source = 0.0  !! УБРАТЬ
-            SS%atom_source(1:4, i) = source
+            SS%atom_source(1:7, i) = source
         end do
     end subroutine Algoritm_Reinterpol
 

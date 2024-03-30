@@ -272,7 +272,7 @@ module My_func
         end if
 
         if(PRESENT(p_Th)) then
-            p_Th = (p - rho_Pui * T_Pui) * (-4.0 * rho + (4.0 * al * MF_meDmp) * rho_He + 4.0 * (1.0 + MF_meDmp) * rho_Pui)/&
+            p_Th = (p - rho_Pui * T_Pui) * (-4.0 * rho + (4.0 + al * MF_meDmp) * rho_He + 4.0 * (1.0 + MF_meDmp) * rho_Pui)/&
             (-8.0 * rho + (7.0 - al + (-1.0 + al) * MF_meDmp) * rho_He + 4.0 * (1.0 + MF_meDmp) * rho_Pui)
         end if
 
