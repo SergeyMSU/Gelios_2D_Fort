@@ -120,7 +120,7 @@ module Algoritm
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿   DD020    K0010
 
         !if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "D0013")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "ZZ014")   ! ƒÀﬂ ¬ŒƒŒ–Œƒ¿   DD020    K0010
         call Set_param_model(gl_S3)
         gl_S3%n_par = 5  !! Õ¿ƒŒ œŒÃ≈Õﬂ“‹ ¬ ’–¿Õ»À»Ÿ≈ “Œ∆≈
         if(par_Hydro) call Print_hydrogen_1D(gl_S3, 222)
@@ -140,7 +140,7 @@ module Algoritm
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿  CC021       V0004 - ‰Ó ÔÂÂÒÚÓÈÍË     V0005
-        call Read_setka_bin(SS, "C0013")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿  CC021       V0004 - ‰Ó ÔÂÂÒÚÓÈÍË     V0005
+        call Read_setka_bin(SS, "Z0013")      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿  CC021       V0004 - ‰Ó ÔÂÂÒÚÓÈÍË     V0005
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! Œ—ÕŒ¬Õ¿ﬂ —≈“ ¿  CC021       V0004 - ‰Ó ÔÂÂÒÚÓÈÍË     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
@@ -240,7 +240,7 @@ module Algoritm
         call Print_GD(SS)
 
         print*, "H"
-        i_max = 700!700!200!350   100 - 7 ÏËÌÛÚ
+        i_max = 500!700!200!350   100 - 7 ÏËÌÛÚ
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -260,8 +260,8 @@ module Algoritm
 
             if(par_Hydro) call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
 
-            if(mod(i, 50) == 0) call Geo_Print_Surface(SS, 0)
-            if(mod(i, 50) == 0) call Print_GD_1D(SS)
+            if(mod(i, 20) == 0) call Geo_Print_Surface(SS, 0)
+            if(mod(i, 20) == 0) call Print_GD_1D(SS)
         end do
 
 
@@ -270,9 +270,9 @@ module Algoritm
         call Print_GD(SS)
         !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
-        call Geo_Print_Surface(SS, 14)
-        call Save_setka_bin(SS, "C0014")
-        call Print_GD_1D(SS, 14)
+        call Geo_Print_Surface(SS, 15)
+        call Save_setka_bin(SS, "Z0015")
+        call Print_GD_1D(SS, 15)
         ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
@@ -2016,12 +2016,19 @@ module Algoritm
                 SS%gd(:, i, 2) = par
             end if
 
-            do j = 1, 3                                            !! ƒÓ·‡‚ËÎ ÌÓÏËÓ‚ÍÛ ÍÓ˝ÙÙËˆËÂÌÚÓ‚
-                if( source(j) > 7.0) source(j) = 1.0_8
-                if( source(j) < 0.01) source(j) = 1.0_8
-            end do
+            ! do j = 1, 3                                            !! ƒÓ·‡‚ËÎ ÌÓÏËÓ‚ÍÛ ÍÓ˝ÙÙËˆËÂÌÚÓ‚
+            !     if( source(j) > 7.0) source(j) = 1.0_8
+            !     if( source(j) < 0.01) source(j) = 1.0_8
+            ! end do
 
             !if(center(1) > 110) source = 0.0  !! ”¡–¿“‹
+            if(ieee_is_nan(source(1))) source(1) = 1.0
+            if(ieee_is_nan(source(2))) source(2) = 1.0
+            if(ieee_is_nan(source(3))) source(3) = 1.0
+            if(ieee_is_nan(source(4))) source(4) = 0.0
+            if(ieee_is_nan(source(5))) source(5) = 0.0
+            if(ieee_is_nan(source(6))) source(6) = 0.0
+            if(ieee_is_nan(source(7))) source(7) = 0.0
             SS%atom_source(1:7, i) = source
         end do
     end subroutine Algoritm_Reinterpol

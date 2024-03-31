@@ -401,12 +401,15 @@ module Monte_Karlo
 			SS%atom_source(3, i) = sum(SS%atom_all_source(4, :, i))/source(4)
 
 			if((SS%atom_source(1, i)) > 5.0) SS%atom_source(1, i) = 1.0
+			if(dabs(source(2)) < 0.000000001) SS%atom_source(1, i) = 0.01
 			if((SS%atom_source(1, i)) < 0.2) SS%atom_source(1, i) = 1.0
 
 			if((SS%atom_source(2, i)) > 5.0) SS%atom_source(2, i) = 1.0
+			if(dabs(source(3)) < 0.000000001) SS%atom_source(2, i) = 0.01
 			if((SS%atom_source(2, i)) < 0.2) SS%atom_source(2, i) = 1.0
 
-			if((SS%atom_source(3, i)) > 5.0 ) SS%atom_source(3, i) = 1.0
+			if((SS%atom_source(3, i)) > 5.0) SS%atom_source(3, i) = 1.0
+			if(dabs(source(4)) < 0.000000001) SS%atom_source(3, i) = 0.01
 			if((SS%atom_source(3, i)) < 0.2) SS%atom_source(3, i) = 1.0
 
 			! print*, sum(SS%atom_all_source(2, :, i)), source(2)
@@ -1048,7 +1051,7 @@ module Monte_Karlo
 		! end if
 
 		do ik = 1, drob
-			time = t_ex/drob - t_ex/(2.0 * drob)
+			time = ik * t_ex/drob - t_ex/(2.0 * drob)
 			r = XX + time * VV
 			alpha = polar_angle(r(2), r(3))
 			v = VV(2) * cos(alpha) + VV(3) * sin(alpha)
@@ -1063,7 +1066,7 @@ module Monte_Karlo
 		end do
 
 		do ik = 1, drob
-			time = t_ex + t2/drob - t2/(2.0 * drob)
+			time = t_ex + ik * t2/drob - t2/(2.0 * drob)
 			r = XX + time * VV
 			alpha = polar_angle(r(2), r(3))
 			v = VV(2) * cos(alpha) + VV(3) * sin(alpha)

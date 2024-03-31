@@ -624,11 +624,11 @@ module Phys_parameter
             sourse(3) = sourse(3) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(2, cell)
         end if
 
-        if(area2 == 4) sourse(3) = SS%atom_source(6, cell)
+        ! if(area2 == 4) sourse(3) = SS%atom_source(6, cell)
 
-        if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
-			if(SS%gl_Cell_number(2, cell) <= 3) sourse(3) = SS%atom_source(6, cell)
-		end if
+        ! if(SS%gl_Cell_type(cell) == "A" .and. area2 == 3) then
+		! 	if(SS%gl_Cell_number(2, cell) <= 3) sourse(3) = SS%atom_source(6, cell)
+		! end if
 
 
         ! if(SS%gl_Cell_Centr(1, cell, 1) > 110 .and. SS%gl_Cell_Centr(1, cell, 1) < 140) then
