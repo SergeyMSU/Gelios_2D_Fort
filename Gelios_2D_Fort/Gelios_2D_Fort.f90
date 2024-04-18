@@ -108,9 +108,9 @@ program Gelios_2D_Fort
 
 
 
-    ! call Gas_dynamic_algoritm2(gl_S1, 5)
+    call Gas_dynamic_algoritm2(gl_S1, 5)
     ! call Perenormir_parameter()
-    call MK_algoritm(gl_S1, 5)
+    ! call MK_algoritm(gl_S1, 5)
     ! call Perestroika_algoritm(gl_S1)
     ! call Print_PUI_algoritm(gl_S1)
     ! call MK_test_chastot(gl_S1)

@@ -95,6 +95,26 @@ module My_func
     end function linear1
 
     !@cuf attributes(host, device) & 
+    !real(8) pure function  snos_istoch(r1, t1, r2, t2, r)
+    real(8) function  snos_istoch(r1, t1, r2, t2, r)
+        ! Снос в источнике пропорчионально степенной функции
+        implicit none
+        real(8), intent(in) :: r1, t1, r2, t2, r
+        real(8) :: al
+
+        al = log(t2/t1) / log(r1/r2)
+        snos_istoch = (r1/r)**al * t1
+        if(snos_istoch <= 0.0) then
+            print*, "ERROR fwvrewvewvrsvgrvr", snos_istoch, al, t1, t2, r1, r2, r
+            STOP
+        end if
+        return
+        
+    end function snos_istoch
+
+
+
+    !@cuf attributes(host, device) & 
     real(8) pure function polar_angle(x, y)
         real(8), intent(in) :: x, y
 

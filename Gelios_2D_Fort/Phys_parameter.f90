@@ -111,7 +111,7 @@ module Phys_parameter
 
         real(8) :: c1(2), c2(2), c3(2), c4(2), c5(2)
         real(8) :: r1, r2, r3, r4, r5
-        real(8) :: phi1, phi2, phi3, phi4, phi5, Vr, Vphi, d1, d2, d3
+        real(8) :: phi1, phi2, phi3, phi4, phi5, Vr, Vphi, d1, d2, d3, Vr2, Vphi2
         real(8) :: par1(SS%n_par), par2(SS%n_par), par3(SS%n_par), par4(SS%n_par)
         integer(4) :: s1, s2, s3, s4, s5, i
         logical :: istoch1, istoch2
@@ -246,12 +246,25 @@ module Phys_parameter
         phi5 = polar_angle(c5(1), c5(2))
 
         if(istoch1 == .True. .and. istoch2 == .False.) then
+            par3 = SS%gd(:, s3, now)
+            c3 = SS%gl_Cell_Centr(:, s3, now)
+            r3 = norm2(c3)
+            phi3 = polar_angle(c3(1), c3(2))
             call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+            call polyar_skorost(phi3, par3(3), par3(4), Vr2, Vphi2)
+            !!Vr = linear1(r1, Vr, r3, Vr2, r5)
+            !Vphi = linear1(r1, Vphi, r3, Vphi2, r5)
             call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
-            par1(1) = par1(1) * r1**2 / r5**2
-            par1(5) = par1(5) * r1**2 / r5**2
-            if(SS%n_par >= 6) par1(6) = par1(6) * r1**2 / r5**2
-            par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+
+            par1(1) = snos_istoch(r1, par1(1), r3, par3(1), r5)
+            par1(5) = snos_istoch(r1, par1(5), r3, par3(5), r5)
+            par1(2) = snos_istoch(r1, par1(2), r3, par3(2), r5)
+            if(SS%n_par >= 6) par1(6) = snos_istoch(r1, par1(6), r3, par3(6), r5)
+
+            ! par1(1) = par1(1) * r1**2 / r5**2
+            ! par1(5) = par1(5) * r1**2 / r5**2
+            ! if(SS%n_par >= 6) par1(6) = par1(6) * r1**2 / r5**2
+            ! par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
 
             ! Для второго нужно сделать снос только с одной стороны
             if(s4 > 0) then
@@ -280,12 +293,25 @@ module Phys_parameter
 
             return
         else if(istoch1 == .False. .and. istoch2 == .True.) then
+            par4 = SS%gd(:, s4, now)
+            c4 = SS%gl_Cell_Centr(:, s4, now)
+            r4 = norm2(c4)
+            phi4 = polar_angle(c4(1), c4(2))
             call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
+            call polyar_skorost(phi4, par4(3), par4(4), Vr2, Vphi2)
+            !!Vr = linear1(r1, Vr, r4, Vr2, r5)
+            !Vphi = linear1(r1, Vphi, r4, Vphi2, r5)
             call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
-            par2(1) = par2(1) * r2**2 / r5**2
-            par2(5) = par2(5) * r2**2 / r5**2
-            if(SS%n_par >= 6) par2(6) = par2(6) * r2**2 / r5**2
-            par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+
+            par2(1) = snos_istoch(r2, par2(1), r4, par4(1), r5)
+            par2(5) = snos_istoch(r2, par2(5), r4, par4(5), r5)
+            par2(2) = snos_istoch(r2, par2(2), r4, par4(2), r5)
+            if(SS%n_par >= 6) par2(6) = snos_istoch(r2, par2(6), r4, par4(6), r5)
+
+            ! par2(1) = par2(1) * r2**2 / r5**2
+            ! par2(5) = par2(5) * r2**2 / r5**2
+            ! if(SS%n_par >= 6) par2(6) = par2(6) * r2**2 / r5**2
+            ! par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
 
             ! Для второго нужно сделать снос только с одной стороны
             if(s3 > 0) then
@@ -316,19 +342,88 @@ module Phys_parameter
             return
 
         else if(istoch1 == .True. .and. istoch2 == .True.) then
-            call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
-            call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
-            par1(1) = par1(1) * r1**2 / r5**2
-            par1(5) = par1(5) * r1**2 / r5**2
-            if(SS%n_par >= 6) par1(6) = par1(6) * r1**2 / r5**2
-            par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+            if (s1 > 0 .and. s2 > 0 .and. s3 > 0 .and. s4 > 0 .and. SS%gl_all_Cell_zone(s3) == SS%gl_all_Cell_zone(s4) &
+                        .and. SS%gl_Cell_number(1,s1) /= SS%gl_Cell_number(1,s2)) then
+                par3 = SS%gd(:, s3, now)
+                par4 = SS%gd(:, s4, now)
+                c3 = SS%gl_Cell_Centr(:, s3, now)
+                c4 = SS%gl_Cell_Centr(:, s4, now)
+                r3 = norm2(c3)
+                r4 = norm2(c4)
 
-            call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
-            call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
-            par2(1) = par2(1) * r2**2 / r5**2
-            par2(5) = par2(5) * r2**2 / r5**2
-            if(SS%n_par >= 6) par2(6) = par2(6) * r2**2 / r5**2
-            par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+                call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
+
+                call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
+
+                par1(1) = snos_istoch(r1, par1(1), r3, par3(1), r5)
+                par1(5) = snos_istoch(r1, par1(5), r3, par3(5), r5)
+                par1(2) = snos_istoch(r1, par1(2), r3, par3(2), r5)
+                if(SS%n_par >= 6) par1(6) = snos_istoch(r1, par1(6), r3, par3(6), r5)
+
+                par2(1) = snos_istoch(r2, par2(1), r4, par4(1), r5)
+                par2(5) = snos_istoch(r2, par2(5), r4, par4(5), r5)
+                par2(2) = snos_istoch(r2, par2(2), r4, par4(2), r5)
+                if(SS%n_par >= 6) par2(6) = snos_istoch(r2, par2(6), r4, par4(6), r5)
+
+            else if (s1 > 0 .and. s2 > 0 .and. s3 > 0 .and. s4 > 0 .and. SS%gl_all_Cell_zone(s3) == SS%gl_all_Cell_zone(s2) &
+                        .and. SS%gl_Cell_number(1,s1) /= SS%gl_Cell_number(1,s2)) then
+                par3 = SS%gd(:, s3, now)
+                c3 = SS%gl_Cell_Centr(:, s3, now)
+                r3 = norm2(c3)
+
+                call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
+
+                call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
+
+                par2(1) = snos_istoch(r2, par2(1), r1, par1(1), r5)
+                par2(5) = snos_istoch(r2, par2(5), r1, par1(5), r5)
+                par2(2) = snos_istoch(r2, par2(2), r1, par1(2), r5)
+                if(SS%n_par >= 6) par2(6) = snos_istoch(r2, par2(6), r1, par1(6), r5)
+
+                par1(1) = snos_istoch(r1, par1(1), r3, par3(1), r5)
+                par1(5) = snos_istoch(r1, par1(5), r3, par3(5), r5)
+                par1(2) = snos_istoch(r1, par1(2), r3, par3(2), r5)
+                if(SS%n_par >= 6) par1(6) = snos_istoch(r1, par1(6), r3, par3(6), r5)
+            else if (s1 > 0 .and. s2 > 0 .and. s3 > 0 .and. s4 > 0 .and. SS%gl_all_Cell_zone(s1) == SS%gl_all_Cell_zone(s4) &
+                        .and. SS%gl_Cell_number(1,s1) /= SS%gl_Cell_number(1,s2)) then
+                par4 = SS%gd(:, s4, now)
+                c4 = SS%gl_Cell_Centr(:, s4, now)
+                r4 = norm2(c4)
+
+                call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
+
+                call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
+
+                par1(1) = snos_istoch(r1, par1(1), r2, par2(1), r5)
+                par1(5) = snos_istoch(r1, par1(5), r2, par2(5), r5)
+                par1(2) = snos_istoch(r1, par1(2), r2, par2(2), r5)
+                if(SS%n_par >= 6) par1(6) = snos_istoch(r1, par1(6), r2, par2(6), r5)
+
+                par2(1) = snos_istoch(r2, par2(1), r4, par4(1), r5)
+                par2(5) = snos_istoch(r2, par2(5), r4, par4(5), r5)
+                par2(2) = snos_istoch(r2, par2(2), r4, par4(2), r5)
+                if(SS%n_par >= 6) par2(6) = snos_istoch(r2, par2(6), r4, par4(6), r5)
+            else 
+                call polyar_skorost(phi1, par1(3), par1(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par1(3), par1(4))
+                par1(1) = par1(1) * r1**2 / r5**2
+                par1(5) = par1(5) * r1**2 / r5**2
+                if(SS%n_par >= 6) par1(6) = par1(6) * r1**2 / r5**2
+                par1(2) = par1(2) * r1**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+
+                call polyar_skorost(phi2, par2(3), par2(4), Vr, Vphi)
+                call dekard_polyar_skorost(phi5, Vr, Vphi, par2(3), par2(4))
+                par2(1) = par2(1) * r2**2 / r5**2
+                par2(5) = par2(5) * r2**2 / r5**2
+                if(SS%n_par >= 6) par2(6) = par2(6) * r2**2 / r5**2
+                par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
+            end if
         else
 
             if (s1 > 0 .and. s2 > 0 .and. s3 > 0 .and. s4 > 0) then

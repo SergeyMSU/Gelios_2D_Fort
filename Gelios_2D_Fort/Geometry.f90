@@ -1319,10 +1319,12 @@ module GEOMETRY
     subroutine Geo_Set_sxem(SS)
         ! ”станавливаем схему дл€ грани
         TYPE (Setka), intent(in out) :: SS
-        integer(4) :: N, i, s1, s2, t1, t2, yz1, yz2, j, HP
+        integer(4) :: N, i, s1, s2, t1, t2, yz1, yz2, j, HP, all
         real(8) :: c(2)
 
-        SS%gl_Gran_shem = 2!!2
+        all = 2! 2
+
+        SS%gl_Gran_shem = all!!2
         ! return                        !! ”Ѕ–ј“№
 
         N = size(SS%gl_Gran_shem)
@@ -1400,9 +1402,9 @@ module GEOMETRY
             do i = SS%par_n_BS,  size(SS%gl_Cell_A(:, 1))
                 s1 = SS%gl_Cell_A(i, j)
                 s2 = SS%gl_Cell_gran(3, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 2!! 2
+                if(s2 > 0) SS%gl_Gran_shem(s2) = all!! 2
                 s2 = SS%gl_Cell_gran(4, s1)
-                if(s2 > 0) SS%gl_Gran_shem(s2) = 2!! 2
+                if(s2 > 0) SS%gl_Gran_shem(s2) = all!! 2
             end do
         end do
 

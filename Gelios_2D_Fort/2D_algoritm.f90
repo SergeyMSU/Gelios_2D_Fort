@@ -120,7 +120,7 @@ module Algoritm
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ДЛЯ ВОДОРОДА   DD020    K0010
 
         !if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "ZZ014")   ! ДЛЯ ВОДОРОДА   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "MA003")   ! ДЛЯ ВОДОРОДА   DD020    K0010
         call Set_param_model(gl_S3)
         gl_S3%n_par = 5  !! НАДО ПОМЕНЯТЬ В ХРАНИЛИЩЕ ТОЖЕ
         if(par_Hydro) call Print_hydrogen_1D(gl_S3, 222)
@@ -140,7 +140,7 @@ module Algoritm
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
-        call Read_setka_bin(SS, "Z0013")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        call Read_setka_bin(SS, "M0005")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
@@ -221,9 +221,9 @@ module Algoritm
 
         SS%gl_Gran_POTOK = -100000.0
 
-        SS%par_nat_TS = 0.04_8 !! 0.04_8
-        SS%par_nat_HP = 0.003_8  ! 0.003_8  0.04  0.06
-        SS%par_nat_BS = 0.006_8 !0.004_8
+        SS%par_nat_TS = 0.05 * 0.05 * 0.004_8 !! 0.012_8
+        SS%par_nat_HP = 0.1  * 0.003_8  ! 0.7 0.003_8  0.04  0.06
+        SS%par_nat_BS = 0.05 * 0.1  * 0.006_8 !0.004_8
 
         SS%par_koeff_HP = 0.03_8! 0.3_8    0.03_8 
 
@@ -240,7 +240,7 @@ module Algoritm
         call Print_GD(SS)
 
         print*, "H"
-        i_max = 500!700!200!350   100 - 7 минут
+        i_max = 100!700!200!350   100 - 7 минут
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -260,8 +260,8 @@ module Algoritm
 
             if(par_Hydro) call Algoritm_Reinterpol(SS, gl_I1, gd_ = .False.)
 
-            if(mod(i, 20) == 0) call Geo_Print_Surface(SS, 0)
-            if(mod(i, 20) == 0) call Print_GD_1D(SS)
+            if(mod(i, 5) == 0) call Geo_Print_Surface(SS, 0)
+            if(mod(i, 5) == 0) call Print_GD_1D(SS)
         end do
 
 
@@ -270,9 +270,9 @@ module Algoritm
         call Print_GD(SS)
         !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
-        call Geo_Print_Surface(SS, 15)
-        call Save_setka_bin(SS, "Z0015")
-        call Print_GD_1D(SS, 15)
+        call Geo_Print_Surface(SS, 6)
+        call Save_setka_bin(SS, "M0006")
+        call Print_GD_1D(SS, 6)
         ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
@@ -341,11 +341,11 @@ module Algoritm
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        call Read_setka_bin(gl_S4, "H0009")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "MA002")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
         ! call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
         ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
-        call Read_setka_bin(SS, "G0005")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "M0003")      ! ОСНОВНАЯ СЕТКА
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
@@ -458,7 +458,7 @@ module Algoritm
         call M_K_start(gl_S3, gl_S2)
 
         call Print_hydrogen(gl_S3)
-        call Print_hydrogen_1D(gl_S3, 10)
+        call Print_hydrogen_1D(gl_S3, 3)
         call Calc_Pogloshenie(gl_S3)
 
         if(gl_S3%culc_pui == .True.) call Print_GD_PUI(gl_S3)
@@ -476,7 +476,7 @@ module Algoritm
 
         write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "H0010")
+        call Save_setka_bin(gl_S3, "MA003")
         ! call Save_setka_bin(gl_S3, "XV0" // nameMK)
 
         if(gl_S3%culc_pui == .True.) then
@@ -497,8 +497,8 @@ module Algoritm
         integer(4) :: n, i
         real(8) :: new_chi
 
-        call Read_setka_bin(gl_S1, "V0019")
-        new_chi = 10.0_8
+        call Read_setka_bin(gl_S1, "S0012")
+        new_chi = 7.5_8
 
         n = size(gl_S1%gl_all_Cell(1,:))
         do i = 1, n
@@ -512,7 +512,7 @@ module Algoritm
         end do
 
         call Print_GD_1D(gl_S1, 19)
-        ! call Save_setka_bin(gl_S1, "S0001")
+        call Save_setka_bin(gl_S1, "M0001")
 
     end subroutine Perenormir_parameter
 
@@ -541,13 +541,13 @@ module Algoritm
         end if
 
         if(mod == 2) then  !! Модель стандарт
-            SS%par_n_H_LISM = 2.5_8!3.5_8
+            SS%par_n_H_LISM = 3.0_8!3.5_8
             SS%par_Velosity_inf = -2.54278_8
             SS%par_Kn = 50.3721_8 
             SS%par_nu_ph = 12.1002_8 
             SS%par_E_ph = 0.10878_8
             SS%par_R0 = 0.198902_8
-            SS%par_chi = 41.0391_8! 10.0_8! 30.0_8! 41.0391_8
+            SS%par_chi = 7.5_8 ! 41.0391_8! 10.0_8! 30.0_8! 41.0391_8
             SS%par_Max_e = 5.91662
             SS%par_a_2 = 0.130735 ! 0.130735_8! 0.11857_8! 0.130735_8
             SS%par_poglosh = 0.38938
@@ -776,7 +776,8 @@ module Algoritm
         qqq2 = 0.0
         ALL_TIME = 0.0
 
-        dist_inner = (norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(2, 1), 1)) + norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(3, 1), 1)))/2.0
+        !!dist_inner = (norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(2, 1), 1)) + norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(3, 1), 1)))/2.0
+        dist_inner = (norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(1, 1), 1)) + norm2(SS%gl_Cell_Centr(:, SS%gl_Cell_A(2, 1), 1)))/2.0
 
         do step = 1, all_step
 
@@ -948,7 +949,7 @@ module Algoritm
                     end if
 
 
-                    loc_time = 0.6 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! 0.9 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    loc_time = 0.3 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! 0.9 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     POTOK(5) = POTOK(5) + POTOK2(9) * Sqv
                     POTOK(1) = POTOK(1) + POTOK2(1) * Sqv
@@ -1755,7 +1756,7 @@ module Algoritm
 
         n1 = size(SS%gl_Cell_A(1,:))
         do i = 1, n1
-            do j = 1, 2!SS%par_n_TS - 2!!2
+            do j = 1, 1!SS%par_n_TS - 2!!2
                 cell = SS%gl_Cell_A(j, i)
                 x = SS%gl_Cell_Centr(1, cell, 1)
                 y = SS%gl_Cell_Centr(2, cell, 1)
@@ -1767,7 +1768,7 @@ module Algoritm
 
         n1 = size(SS%gl_Cell_B(1,:))
         do i = 1, n1
-            do j = 1, 2!SS%par_n_TS - 2!!2
+            do j = 1, 1!SS%par_n_TS - 2!!2
                 cell = SS%gl_Cell_B(j, i)
                 x = SS%gl_Cell_Centr(1, cell, 1)
                 y = SS%gl_Cell_Centr(2, cell, 1)
