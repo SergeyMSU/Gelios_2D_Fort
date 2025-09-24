@@ -34,41 +34,6 @@ program Gelios_2D_Fort
 
     implicit none
 
-
-    ! integer(4) :: num, mi, ni
-    ! real(8) :: M(4, 4)
-    ! real(8) :: B(4, 4)
-
-    ! M = 0.0
-    ! M(1, 1) = 1.0
-    ! M(2, 1) = 1.0
-    ! M(2, 2) = 1.0
-    ! M(3, 3) = 1.0
-    ! M(4, 4) = 1.0
-    ! M(2, 3) = 1.0
-
-    ! B = matinv4(M)
-	
-	! do mi = 1, 4
-    !     do ni = 1, 4
-    !         write(*,"(F12.2,$)") M(mi,ni)
-    !     end do
-    !     write (*,*) ''
-    ! end do
-
-    ! print*, "__________________"
-
-    ! do mi = 1, 4
-    !     do ni = 1, 4
-    !         write(*,"(F12.2,$)") B(mi,ni)
-    !     end do
-    !     write (*,*) ''
-    ! end do
-	
-	
-	! pause
-
-
     ! gl_S1%name = "00001"
     ! call Init_Setka(gl_S1)
     ! call Build_Setka_start(gl_S1)
