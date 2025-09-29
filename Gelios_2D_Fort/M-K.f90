@@ -541,7 +541,7 @@ module Monte_Karlo
 				area2 = SS%gl_all_Cell_zone(cell) ! «она рождени€ (зон€ текущей €чейки)
 
 				if(SS%gl_Cell_type(cell) == "A" .or. SS%gl_Cell_type(cell) == "B") then
-					if(SS%gl_Cell_number(2, cell) <= 2) drob = 5
+					if(SS%gl_Cell_number(2, cell) <= 2) drob = 7
 				end if
 
 				do ijk = 1, drob
@@ -657,7 +657,7 @@ module Monte_Karlo
 
 				if(MK_el_impact) then
 					nu_eim = (ro + ro_pui) * MK_nu_el_impact(SS, Tp)
-					kappa_eim = (nu_eim * time)     ! по фотоионизации
+					kappa_eim = (nu_eim * time)  
 				end if
 				
 				kappa_all = kappa + kappa_pui

@@ -23,13 +23,13 @@ module STORAGE
 
 	logical, parameter :: par_Hydro = .True.    ! Ќужен ли водород? »ли чисто газовую-динамику считаем?
 	logical, parameter :: par_TVD_linear_HP = .True.! .False. !.True.    ! Ќужно ли сносить на контакт линейно только с одной стороны
-	logical, parameter :: par_move_setka = .True.    ! Ќужно ли сносить на контакт линейно только с одной стороны
+	logical, parameter :: par_move_setka = .True.   
     real(8), parameter :: par_Rmax = 220.0 !300.0! 220.0  !  –адиус сферы, с которой запускаем частицы
 
 
     ! „исло частиц у каждого потока!
 	! „исло должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 2 * 13! 12 * 5! 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 30 минут)
+	integer(4), parameter :: MK_k_multiply = 15! 12 * 5! 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 30 минут)
     ! 9 сейчас с пикапами
     ! 12 (14) - это 1 час с пикапами
     ! 18 - это 1 час без пикапов
@@ -267,9 +267,13 @@ module STORAGE
         real(8), allocatable :: pogloshenie(:, :, :)   !  (n_Hidrogen, рабиений по скорости, €чеек)
 
 
+        ! real(8), allocatable :: f_H(:, :, :)   !  (n_Hidrogen, рабиений по скорости Vx, рабиений по скорости Vy, 
+        ! рабиений по скорости Vz, разбиений по углу)
+
+
         !! PUI 
         ! PUI - т€жЄловесный блок, поэтому пам€ть выдел€етс€ не в "Geometry", а в "PUI" только при необходимости работы с пикапами
-        LOGICAL :: culc_pui = .True.   ! —читаем ли PUI ? 
+        LOGICAL :: culc_pui = .False.   ! —читаем ли PUI ? 
         integer :: pui_nW = 60      ! 50   !TODO —ќ’–јЌя≈“—я
         real(8) :: pui_wR = 150.0    ! 150.0  !TODO —ќ’–јЌя≈“—я
         integer :: pui_size            ! —колько €чеек содержат pui

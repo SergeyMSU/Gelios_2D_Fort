@@ -120,7 +120,7 @@ module Algoritm
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ДЛЯ ВОДОРОДА   DD020    K0010
 
         !if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "MA003")   ! ДЛЯ ВОДОРОДА   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "B0060")   ! ДЛЯ ВОДОРОДА   DD020    K0010
         call Set_param_model(gl_S3)
         gl_S3%n_par = 5  !! НАДО ПОМЕНЯТЬ В ХРАНИЛИЩЕ ТОЖЕ
         if(par_Hydro) call Print_hydrogen_1D(gl_S3, 222)
@@ -140,7 +140,7 @@ module Algoritm
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
-        call Read_setka_bin(SS, "M0005")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        call Read_setka_bin(SS, "A0068")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
@@ -227,8 +227,6 @@ module Algoritm
 
         SS%par_koeff_HP = 0.03_8! 0.3_8    0.03_8 
 
-    
-
         print*, "Proverim parametry   GD"
         print*, SS%par_n_H_LISM
         print*, "Kn = ", SS%par_Kn
@@ -240,7 +238,7 @@ module Algoritm
         call Print_GD(SS)
 
         print*, "H"
-        i_max = 100!700!200!350   100 - 7 минут
+        i_max = 100 !700!200!350   100 - 7 минут
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -271,7 +269,7 @@ module Algoritm
         !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
         call Geo_Print_Surface(SS, 6)
-        call Save_setka_bin(SS, "M0006")
+        call Save_setka_bin(SS, "A0069")
         call Print_GD_1D(SS, 6)
         ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
@@ -341,11 +339,11 @@ module Algoritm
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        call Read_setka_bin(gl_S4, "MA002")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "B0060")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
         ! call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
         ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
-        call Read_setka_bin(SS, "M0003")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0068")      ! ОСНОВНАЯ СЕТКА
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
@@ -476,7 +474,7 @@ module Algoritm
 
         write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "MA003")
+        call Save_setka_bin(gl_S3, "B0061")
         ! call Save_setka_bin(gl_S3, "XV0" // nameMK)
 
         if(gl_S3%culc_pui == .True.) then
@@ -541,13 +539,13 @@ module Algoritm
         end if
 
         if(mod == 2) then  !! Модель стандарт
-            SS%par_n_H_LISM = 3.0_8!3.5_8
+            SS%par_n_H_LISM = 3.5_8!3.5_8
             SS%par_Velosity_inf = -2.54278_8
             SS%par_Kn = 50.3721_8 
             SS%par_nu_ph = 12.1002_8 
             SS%par_E_ph = 0.10878_8
             SS%par_R0 = 0.198902_8
-            SS%par_chi = 7.5_8 ! 41.0391_8! 10.0_8! 30.0_8! 41.0391_8
+            SS%par_chi = 41.0391_8! 10.0_8! 30.0_8! 41.0391_8
             SS%par_Max_e = 5.91662
             SS%par_a_2 = 0.130735 ! 0.130735_8! 0.11857_8! 0.130735_8
             SS%par_poglosh = 0.38938
@@ -1094,6 +1092,7 @@ module Algoritm
         Num2 = size(SS%gl_HP)
         Num3 = size(SS%gl_BS)
 
+        ! TS
         !$omp parallel
         !$omp do private(KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
         do i = 1, Num
@@ -1168,6 +1167,7 @@ module Algoritm
         end do
         !$omp end do
 
+        ! HP
         !$omp do private(nat_HP, KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
         do i = 1, Num2
             nat_HP = SS%par_nat_HP
@@ -1260,6 +1260,7 @@ module Algoritm
         end do
         !$omp end do
 
+        !BS
         !$omp do private(KOBL, wc, kdir, idgod, gran, normal, s1, s2, s3, qqq1, qqq2, POTOK, dsl, dsc, dsp, c1, c2, c3)
         do i = 1, Num3
             qqq1 = 0.0
