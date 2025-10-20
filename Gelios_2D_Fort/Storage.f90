@@ -9,7 +9,7 @@ module STORAGE
 
     integer(4), parameter :: par_n_zone = 6! 7  !  Количество радиусов (но есть ещё внешняя зона)
 	integer(4), parameter :: par_m_zone = 7! 6  !  Количество лучей по углу (от 0 до 180)
-    integer(4), parameter :: par_n_potok = 32! 32! 24! 32  ! Число потоков (у каждого потока свой стек)
+    integer(4), parameter :: par_n_potok = 24! 32! 24! 32  ! Число потоков (у каждого потока свой стек)
     integer(4), parameter :: par_n_claster = 1  ! Число компьютеров (для MPI)
     integer(4), parameter :: par_n_parallel = 20! 20  ! Для распараллеливания цикла (т.е. каждый поток будет в среднем обрабатывать такое число итераций
     integer(4), parameter :: par_stek = 1000  ! Глубина стека (заранее выделяется память под него)
@@ -29,7 +29,7 @@ module STORAGE
 
     ! Число частиц у каждого потока!
 	! Число должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 15! 12 * 5! 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
+	integer(4), parameter :: MK_k_multiply = 6 * 9! 12 * 5! 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счёта (с пикапами 30 минут)
     ! 9 сейчас с пикапами
     ! 12 (14) - это 1 час с пикапами
     ! 18 - это 1 час без пикапов
@@ -260,9 +260,9 @@ module STORAGE
         ! (1     2    3    4   5  6    7)
 
         LOGICAL :: pogl_ = .True.  ! Считаем ли поглощение
-        real(8) :: pogl_v_min = -15.0
-        real(8) :: pogl_v_max = 15.0
-        integer(4) :: pogl_iter = 300
+        real(8) :: pogl_v_min = -45.0
+        real(8) :: pogl_v_max = 45.0
+        integer(4) :: pogl_iter = 900
         real(8) :: pogl_ddd
         real(8), allocatable :: pogloshenie(:, :, :)   !  (n_Hidrogen, рабиений по скорости, ячеек)
 
