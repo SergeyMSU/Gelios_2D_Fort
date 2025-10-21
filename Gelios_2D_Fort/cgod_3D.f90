@@ -17,7 +17,7 @@ subroutine cgod3d(KOBL,i,j,k,kdir,idgod, &
 !     include  'cyl.fl'
       implicit real*8 (a-h,o-z)
 
-      
+      integer(4), intent(in) :: ythll   ! ythll == 3 на контакте
       dimension qqq(8),qqq1(8),qqq2(8)
 
       data x0,x1,x2,x3,x4,x5,x6,x7,x8,x9/0.,1.,2.,3.,4.,5.,6.,7.,8.,9./
@@ -160,6 +160,11 @@ subroutine cgod3d(KOBL,i,j,k,kdir,idgod, &
          dsl=dI
          dsp=dII
          dsc = u
+
+            if (ythll == 3) then
+                  w = u
+            end if
+
                if(w.le.dI ) then
                            en=enI
                            p =pI
@@ -209,6 +214,10 @@ subroutine cgod3d(KOBL,i,j,k,kdir,idgod, &
          dsl=dI
          dsp=dII
          dsc = u
+
+         if (ythll == 3) then
+                  w = u
+            end if
 
                if(w.le.dI ) then
                            en=enI
@@ -273,6 +282,10 @@ subroutine cgod3d(KOBL,i,j,k,kdir,idgod, &
          dsp=dII
          dsc = u
 
+         if (ythll == 3) then
+                  w = u
+            end if
+
 
                if(w.le.dI ) then
                            en=enI
@@ -332,6 +345,10 @@ subroutine cgod3d(KOBL,i,j,k,kdir,idgod, &
          dsl=dI
          dsp=dII
          dsc = (dI+dII)/x2
+
+         if (ythll == 3) then
+                  w = u
+            end if
 
 
                if(w.le.dI ) then
@@ -400,6 +417,10 @@ subroutine cgod3d(KOBL,i,j,k,kdir,idgod, &
 
                        eo = p / g1 + .5 * r *(uo**2+vo**2+wo**2)
                        en=al*uo+be*vo+ge*wo
+
+                       if (ythll == 3) then
+                              w = en
+                        end if
 
                        qqq(1)=  (r*(en-w))
                        qqq(2)=  (r*(en-w)*uo+al*p)

@@ -120,7 +120,7 @@ module Algoritm
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ДЛЯ ВОДОРОДА   DD020    K0010
 
         !if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "B0060")   ! ДЛЯ ВОДОРОДА   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "D0015")   ! ДЛЯ ВОДОРОДА   DD020    K0010
         call Set_param_model(gl_S3)
         gl_S3%n_par = 5  !! НАДО ПОМЕНЯТЬ В ХРАНИЛИЩЕ ТОЖЕ
         if(par_Hydro) call Print_hydrogen_1D(gl_S3, 222)
@@ -140,7 +140,7 @@ module Algoritm
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
-        call Read_setka_bin(SS, "A0068")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        call Read_setka_bin(SS, "C0014")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
@@ -225,20 +225,23 @@ module Algoritm
         SS%par_nat_HP = 0.1  * 0.003_8  ! 0.7 0.003_8  0.04  0.06
         SS%par_nat_BS = 0.05 * 0.1  * 0.006_8 !0.004_8
 
-        SS%par_koeff_HP = 0.03_8! 0.3_8    0.03_8 
+        SS%par_koeff_HP = 0.01_8! 0.3_8    0.03_8 
 
         print*, "Proverim parametry   GD"
         print*, SS%par_n_H_LISM
         print*, "Kn = ", SS%par_Kn
         print*, SS%par_a_2
         print*, SS%par_nu_ph
+        print*, "SS%MK_photoionization", MK_photoionization
+        print*, "SS%MK_el_impact", MK_el_impact
         print*, "SS%par_chi = ", SS%par_chi
         print*, "________________________"
 
         call Print_GD(SS)
 
+
         print*, "H"
-        i_max = 100 !700!200!350   100 - 7 минут
+        i_max = 100 * 15 !700!200!350   100 - 7 минут
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -268,9 +271,9 @@ module Algoritm
         call Print_GD(SS)
         !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
-        call Geo_Print_Surface(SS, 6)
-        call Save_setka_bin(SS, "A0069")
-        call Print_GD_1D(SS, 6)
+        call Geo_Print_Surface(SS, 15)
+        call Save_setka_bin(SS, "C0015")
+        call Print_GD_1D(SS, 15)
         ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
@@ -545,7 +548,7 @@ module Algoritm
             SS%par_nu_ph = 12.1002_8 
             SS%par_E_ph = 0.10878_8
             SS%par_R0 = 0.198902_8
-            SS%par_chi = 30.0_8! 10.0_8! 30.0_8! 41.0391_8
+            SS%par_chi = 41.0391_8! 10.0_8! 30.0_8! 41.0391_8
             SS%par_Max_e = 5.91662
             SS%par_a_2 = 0.130735 ! 0.130735_8! 0.11857_8! 0.130735_8
             SS%par_poglosh = 0.38938
@@ -761,7 +764,7 @@ module Algoritm
         real(8) :: qqq1(9), qqq2(9), POTOK2(9), POTOK(SS%n_par), source(4), r2, r3
         real(8) :: dsl, dsc, dsp, loc_time, ALL_TIME, lenght, wc, gran_center(2), sosed_center(2)
         logical :: tvd1, tvd2, null_un
-        integer(4) :: kdir, idgod, KOBL
+        integer(4) :: kdir, idgod, KOBL, kontact
         real(8) :: dist_inner   ! Расстояние, от которого считаем (в него входят два ряда ячеек)
 
 		all_step = all_step_
@@ -807,12 +810,13 @@ module Algoritm
             !$omp do private(null_un, KOBL, kdir, idgod, sosed_center, phi3, gran_center, Vr, Vphi, phi1, phi2, r, par1_TVD, wc, &
             !$omp r3, r2, loc_time, gr, gran, sosed, center, par1, TVD_sosed_1, TVD_sosed_2, &
             !$omp par2, ro, p, u, v, Q, normal, Sqv, Vol, Vol2, ro2, p2, u2, v2, Q2, pp, qqq1, &
-            !$omp qqq2, POTOK2, POTOK, source, dsl, dsc, dsp, lenght, tvd1, tvd2, ro_He2, ro_He)
+            !$omp qqq2, POTOK2, POTOK, source, dsl, dsc, dsp, lenght, tvd1, tvd2, ro_He2, ro_He, kontact)
             do cell = 1, Ncell
                 source = 0.0
                 center = SS%gl_Cell_Centr(:, cell, now)
                 r = norm2(center)
                 phi1 = polar_angle(center(1), center(2))
+                kontact = 1
 
                 if(area == 2) then
                     if(r < 10.0) CYCLE
@@ -886,9 +890,10 @@ module Algoritm
 
                     !if(.False.) then
                     !if(.True.) then
-                    if(SS%gl_Gran_shem(gran) == 3) then
+                    if(SS%gl_Gran_shem(gran) == 3 .or. SS%gl_Gran_type(gran) == 2) then
 
-                        if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 15) then  !! Контакт  8
+                        !if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 15) then  !! Контакт  8
+                        if(.False.) then
                             wc = 0.0
                             qqq2 = qqq1
                             wc = DOT_PRODUCT(qqq1(2:3), normal)
@@ -898,7 +903,7 @@ module Algoritm
                             call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                             normal(1), normal(2), 0.0_8, 1.0_8, &
                             wc, qqq1(1:8), qqq2(1:8), &
-                            dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                            dsl, dsp, dsc, 3, 1.66666666666666_8, &
                             POTOK2)
 
                             POTOK2(1) = 0.0
@@ -913,10 +918,13 @@ module Algoritm
                             if (idgod == 2) STOP "ERROR okrfi9uhebrtomeevjoerhbbvecwwvertbhyrvgf"
 
                         else
+                            kontact = 1
+                            if(SS%gl_Gran_type(gran) == 2)  kontact = 3
+
                             call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                             normal(1), normal(2), 0.0_8, 1.0_8, &
                             wc, qqq1(1:8), qqq2(1:8), &
-                            dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                            dsl, dsp, dsc, kontact, 1.66666666666666_8, &
                             POTOK2)
                         
 
@@ -1014,6 +1022,11 @@ module Algoritm
                 !     source(3) = 0.0
                 !     !source(3) = 0.0
                 ! end if
+
+                ! if( abs(source(1)) > 0.000000001) then
+                !     print*, "source(1) = ", source(1)
+                ! end if
+
 
                 ! Законы сохранения в ячейке
                 ro2 = ro * Vol/Vol2 - TT * (POTOK(1) / Vol2 + ro * v/center(2) - source(1))
@@ -1121,7 +1134,7 @@ module Algoritm
             call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                 normal(1), normal(2), 0.0_8, 1.0_8, &
                 wc, qqq1(1:8), qqq2(1:8), &
-                dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                dsl, dsp, dsc, 1, 1.66666666666666_8, &
                 POTOK)
 
             if (idgod == 2) then
@@ -1202,7 +1215,7 @@ module Algoritm
             call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                 normal(1), normal(2), 0.0_8, 1.0_8, &
                 wc, qqq1, qqq2, &
-                dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                dsl, dsp, dsc, 1, 1.66666666666666_8, &
                 POTOK)
 
             if (idgod == 2) then
@@ -1290,7 +1303,7 @@ module Algoritm
             call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                 normal(1), normal(2), 0.0_8, 1.0_8, &
                 wc, qqq1, qqq2, &
-                dsl, dsp, dsc, 1.0_8, 1.66666666666666_8, &
+                dsl, dsp, dsc, 1, 1.66666666666666_8, &
                 POTOK)
 
             if (idgod == 2) then
