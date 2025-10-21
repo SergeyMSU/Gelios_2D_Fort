@@ -222,10 +222,10 @@ module Algoritm
         SS%gl_Gran_POTOK = -100000.0
 
         SS%par_nat_TS = 0.05 * 0.05 * 0.004_8 !! 0.012_8
-        SS%par_nat_HP = 0.1  * 0.003_8  ! 0.7 0.003_8  0.04  0.06
+        SS%par_nat_HP = 0.1  * 0.003_8  ! 0.1  * 0.003_8    0.7 0.003_8  0.04  0.06
         SS%par_nat_BS = 0.05 * 0.1  * 0.006_8 !0.004_8
 
-        SS%par_koeff_HP = 0.03_8! 0.3_8    0.03_8 
+        SS%par_koeff_HP = 0.3_8! 0.3_8    0.03_8 
 
         print*, "Proverim parametry   GD"
         print*, SS%par_n_H_LISM
@@ -241,7 +241,7 @@ module Algoritm
 
 
         print*, "H"
-        i_max = 100 * 15 !700!200!350   100 - 7 минут
+        i_max = 100 * 3 !700!200!350   100 - 7 минут
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -955,7 +955,7 @@ module Algoritm
                     end if
 
 
-                    loc_time = 0.3 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! 0.9 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    loc_time = 0.7 * lenght/( max(dabs(dsl), dabs(dsp)) + dabs(wc) )    !! 0.9 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     POTOK(5) = POTOK(5) + POTOK2(9) * Sqv
                     POTOK(1) = POTOK(1) + POTOK2(1) * Sqv
@@ -1026,6 +1026,8 @@ module Algoritm
                 ! if( abs(source(1)) > 0.000000001) then
                 !     print*, "source(1) = ", source(1)
                 ! end if
+
+                !source(1) = 0.0
 
 
                 ! Законы сохранения в ячейке
