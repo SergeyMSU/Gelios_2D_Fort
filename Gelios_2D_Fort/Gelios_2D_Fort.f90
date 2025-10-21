@@ -73,7 +73,7 @@ program Gelios_2D_Fort
 
 
 
-    ! call Gas_dynamic_algoritm2(gl_S1, 5)
+    call Gas_dynamic_algoritm2(gl_S1, 5)
 
     ! call Perenormir_parameter()
     call MK_algoritm(gl_S1, 5)

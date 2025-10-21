@@ -339,11 +339,11 @@ module Algoritm
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        call Read_setka_bin(gl_S4, "FA011")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "HA007")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
         ! call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
         ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
-        call Read_setka_bin(SS, "F0012")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "H0007")      ! ОСНОВНАЯ СЕТКА
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
@@ -474,7 +474,7 @@ module Algoritm
 
         write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "FA012")
+        call Save_setka_bin(gl_S3, "HA008")
         ! call Save_setka_bin(gl_S3, "XV0" // nameMK)
 
         if(gl_S3%culc_pui == .True.) then
@@ -545,7 +545,7 @@ module Algoritm
             SS%par_nu_ph = 12.1002_8 
             SS%par_E_ph = 0.10878_8
             SS%par_R0 = 0.198902_8
-            SS%par_chi = 20.0_8! 10.0_8! 30.0_8! 41.0391_8
+            SS%par_chi = 30.0_8! 10.0_8! 30.0_8! 41.0391_8
             SS%par_Max_e = 5.91662
             SS%par_a_2 = 0.130735 ! 0.130735_8! 0.11857_8! 0.130735_8
             SS%par_poglosh = 0.38938
