@@ -225,7 +225,7 @@ module Algoritm
         SS%par_nat_HP = 0.1  * 0.003_8  ! 0.7 0.003_8  0.04  0.06
         SS%par_nat_BS = 0.05 * 0.1  * 0.006_8 !0.004_8
 
-        SS%par_koeff_HP = 0.01_8! 0.3_8    0.03_8 
+        SS%par_koeff_HP = 0.03_8! 0.3_8    0.03_8 
 
         print*, "Proverim parametry   GD"
         print*, SS%par_n_H_LISM
