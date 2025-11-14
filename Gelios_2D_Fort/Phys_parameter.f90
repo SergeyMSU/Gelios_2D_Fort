@@ -660,6 +660,10 @@ module Phys_parameter
             u_H = SS%hydrogen(3, i, cell, step)
             v_H = SS%hydrogen(4, i, cell, step)
 
+            if(i == 4) then   ! DELETE NEXT до того, как не пересчитаем водород, придётся умножать этот параметр
+                u_H = u_H * 1.52
+            end if
+
             if(ro_H <= 0.0000001) then
                 ro_H = 0.0000001
             end if

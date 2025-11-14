@@ -222,10 +222,10 @@ module Algoritm
         SS%gl_Gran_POTOK = -100000.0
 
         SS%par_nat_TS = 0.05 * 0.05 * 0.004_8 !! 0.012_8
-        SS%par_nat_HP = 0.1  * 0.003_8  ! 0.1  * 0.003_8    0.7 0.003_8  0.04  0.06
+        SS%par_nat_HP = 0.1  * 0.03_8  !   0.1  * 0.003_8
         SS%par_nat_BS = 0.05 * 0.1  * 0.006_8 !0.004_8
 
-        SS%par_koeff_HP = 0.3_8! 0.3_8    0.03_8 
+        SS%par_koeff_HP = 0.01_8! 0.3_8    0.03_8 
 
         print*, "Proverim parametry   GD"
         print*, SS%par_n_H_LISM
@@ -240,8 +240,8 @@ module Algoritm
         call Print_GD(SS)
 
 
-        print*, "H"
-        i_max = 100 * 3 !700!200!350   100 - 7 минут
+        print*, "Start_GD_algoritm:"
+        i_max = 700 * 2 !700!200!350   100 - 7 минут
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -272,7 +272,7 @@ module Algoritm
         !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
         call Geo_Print_Surface(SS, 15)
-        call Save_setka_bin(SS, "C0015")
+        call Save_setka_bin(SS, "AL0001")
         call Print_GD_1D(SS, 15)
         ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
@@ -543,7 +543,7 @@ module Algoritm
 
         if(mod == 2) then  !! Модель стандарт
             SS%par_n_H_LISM = 3.0_8!3.5_8
-            SS%par_Velosity_inf = -2.54278_8
+            SS%par_Velosity_inf = -3.86307_8 ! -2.54278_8
             SS%par_Kn = 50.3721_8 
             SS%par_nu_ph = 12.1002_8 
             SS%par_E_ph = 0.10878_8
