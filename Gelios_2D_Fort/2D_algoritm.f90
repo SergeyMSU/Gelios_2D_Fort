@@ -120,7 +120,7 @@ module Algoritm
         ! if(par_Hydro) call Read_setka_bin(gl_S3, "BB001")   ! ДЛЯ ВОДОРОДА   DD020    K0010
 
         !if(par_Hydro) call Read_setka_bin(gl_S3, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА   DD020    K0010
-        if(par_Hydro) call Read_setka_bin(gl_S3, "D0015")   ! ДЛЯ ВОДОРОДА   DD020    K0010
+        if(par_Hydro) call Read_setka_bin(gl_S3, "AD006")   ! ДЛЯ ВОДОРОДА   DD020    K0010
         call Set_param_model(gl_S3)
         gl_S3%n_par = 5  !! НАДО ПОМЕНЯТЬ В ХРАНИЛИЩЕ ТОЖЕ
         if(par_Hydro) call Print_hydrogen_1D(gl_S3, 222)
@@ -140,7 +140,7 @@ module Algoritm
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
-        call Read_setka_bin(SS, "C0014")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        call Read_setka_bin(SS, "AL006")   !C0014     ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
@@ -185,7 +185,9 @@ module Algoritm
         ! SS%culc_pui = .False.
 
 
-        !call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для всех ячеек сетки
+        !call Algoritm_Initial_condition(SS)  ! Зададим начальные условия для некоторых ячеек сетки
+
+
         !call Geo_get_request(SS)
         call Algoritm_Bound_condition(SS)    ! Зададим граничные условия на внутренней сфере
 
@@ -222,10 +224,13 @@ module Algoritm
         SS%gl_Gran_POTOK = -100000.0
 
         SS%par_nat_TS = 0.05 * 0.05 * 0.004_8 !! 0.012_8
-        SS%par_nat_HP = 0.1  * 0.03_8  !   0.1  * 0.003_8
+        SS%par_nat_HP = 0.1  * 0.0003_8  !   0.1  * 0.003_8
         SS%par_nat_BS = 0.05 * 0.1  * 0.006_8 !0.004_8
 
-        SS%par_koeff_HP = 0.01_8! 0.3_8    0.03_8 
+        SS%par_koeff_HP = 0.003_8! 0.3_8    0.03_8 
+        SS%par_koeff_TS = 0.003! 0.00003_8! 0.3_8    0.03_8 
+        SS%par_koeff_BS = 0.003_8! 0.3_8    0.03_8 
+
 
         print*, "Proverim parametry   GD"
         print*, SS%par_n_H_LISM
@@ -241,7 +246,7 @@ module Algoritm
 
 
         print*, "Start_GD_algoritm:"
-        i_max = 700 * 2 !700!200!350   100 - 7 минут
+        i_max = 700 * 3! 700 * 2 !700!200!350   100 - 7 минут
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -272,7 +277,7 @@ module Algoritm
         !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
         call Geo_Print_Surface(SS, 15)
-        call Save_setka_bin(SS, "AL0001")
+        call Save_setka_bin(SS, "AL007")
         call Print_GD_1D(SS, 15)
         ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
@@ -342,11 +347,11 @@ module Algoritm
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        call Read_setka_bin(gl_S4, "HA007")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "D0015")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
         ! call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
         ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
-        call Read_setka_bin(SS, "H0007")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "AL006")      ! ОСНОВНАЯ СЕТКА
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
@@ -477,7 +482,7 @@ module Algoritm
 
         write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "HA008")
+        call Save_setka_bin(gl_S3, "AD006")
         ! call Save_setka_bin(gl_S3, "XV0" // nameMK)
 
         if(gl_S3%culc_pui == .True.) then
@@ -782,7 +787,7 @@ module Algoritm
 
         do step = 1, all_step
 
-            if (mod(step, 12000) == 0) then
+            if (mod(step, 100000) == 0) then
                 print*, "Step = ", step, " dt = ", time, " All_time = ", ALL_TIME
 				!pause
             end if
@@ -888,9 +893,9 @@ module Algoritm
 
                     
 
-                    !if(.False.) then
+                    if(.False.) then
                     !if(.True.) then
-                    if(SS%gl_Gran_shem(gran) == 3 .or. SS%gl_Gran_type(gran) == 2) then
+                    !if(SS%gl_Gran_shem(gran) == 3 .or. SS%gl_Gran_type(gran) == 2) then
 
                         !if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 15) then  !! Контакт  8
                         if(.False.) then
@@ -979,7 +984,9 @@ module Algoritm
 
                 if(par_Hydro == .False.) source = 0.0  !! 
 
-                !if(center(1) < -40) source = 0.0  !! УБРАТЬ
+                !source = 0.0
+
+                !if(center(1) > 80.0) source = 0.0  !! УБРАТЬ
 
                 ! if(SS%gl_Cell_Centr(1, cell, 1) > 100 .and. SS%gl_Cell_Centr(1, cell, 1) < 140 .and. SS%gl_Cell_Centr(2, cell, 1) < 10) then
                 !     print*, source
@@ -1041,21 +1048,28 @@ module Algoritm
                     ! print*, par1, "||||||||| ", par2
                     ! print*, "_____________"
                     ! stop
-                    ro2 = 0.0003
-                end if
-                Q2 = Q * Vol/Vol2 - TT * (POTOK(5) / Vol2 + Q * v/center(2) - (Q/ro) * source(1))
-                ro_He2 = 0.0
-                if(SS%n_par >= 6) ro_He2 = ro_He * Vol/Vol2 - TT * (POTOK(6) / Vol2 + ro_He * v/center(2))
-                u2 = (ro * u * Vol/Vol2 - TT * ( POTOK(3) / Vol2 + ro * v * u/center(2) - source(2) )) / ro2
-                v2 = (ro * v * Vol/Vol2 - TT * ( POTOK(4) / Vol2 + ro * v * v/center(2) - source(3) )) / ro2
+                    ro2 = 0.03
+                    Q2 = Q / ro * ro2
+                    u2 = u
+                    v2 = v
+                    p2 = p / ro * ro2
+                else
+                    Q2 = Q * Vol/Vol2 - TT * (POTOK(5) / Vol2 + Q * v/center(2) - (Q/ro) * source(1))
+                    ro_He2 = 0.0
+                    if(SS%n_par >= 6) ro_He2 = ro_He * Vol/Vol2 - TT * (POTOK(6) / Vol2 + ro_He * v/center(2))
+                    u2 = (ro * u * Vol/Vol2 - TT * ( POTOK(3) / Vol2 + ro * v * u/center(2) - source(2) )) / ro2
+                    v2 = (ro * v * Vol/Vol2 - TT * ( POTOK(4) / Vol2 + ro * v * v/center(2) - source(3) )) / ro2
 
-                pp = v * (SS%par_ggg * p / (SS%par_ggg - 1.0) + ro * (u * u + v * v) * 0.5) / center(2)
-                p2 = ((  ( p / (SS%par_ggg - 1.0) + 0.5 * ro * (u**2 + v**2))  * Vol/Vol2   &
-                        - TT * (POTOK(2)/ Vol2 + pp - source(4)) ) - 0.5 * ro2 * (u2**2 + v2**2) ) * (SS%par_ggg - 1.0)
+                    pp = v * (SS%par_ggg * p / (SS%par_ggg - 1.0) + ro * (u * u + v * v) * 0.5) / center(2)
+                    p2 = ((  ( p / (SS%par_ggg - 1.0) + 0.5 * ro * (u**2 + v**2))  * Vol/Vol2   &
+                            - TT * (POTOK(2)/ Vol2 + pp - source(4)) ) - 0.5 * ro2 * (u2**2 + v2**2) ) * (SS%par_ggg - 1.0)
 
-                if(p2 <= 0.0) then
-                    p2 = 0.000001   !! УУУБРАТЬ   0.1
+                    if(p2 <= 0.0) then
+                        p2 = 0.000001   !! УУУБРАТЬ   0.1
+                    end if
+
                 end if
+
 
                 if(center(1) < -40 .and. center(2) < 100 .and. u2 > 0.0) then
                     u2 = -0.3         !! УУУБРАТЬ
@@ -1814,15 +1828,29 @@ module Algoritm
         real(8) :: x, y, par(SS%n_par)
 
         N = size(SS%gl_Cell_Centr(1, :, 1))
+        print*, "Algoritm_Initial_condition"
 
         do i = 1, N
             x = SS%gl_Cell_Centr(1, i, 1)
             y = SS%gl_Cell_Centr(2, i, 1)
 
-            call Phys_Innitial_Conditions(SS, x, y, par)
+            if(x > 120.0) then
+                print*, "Yes"
+                ! (rho p u v Q He)
+                SS%gd(3, i, 1) = SS%par_Velosity_inf
+                SS%gd(1, i, 1) = 1.0_8
+                SS%gd(2, i, 1) = 1.0_8
+                SS%gd(4, i, 1) = 0.0_8
+                SS%gd(5, i, 1) = 100.0_8
 
-            SS%gd(1:5, i, 1) = par(1:5)
-            SS%gd(1:5, i, 2) = SS%gd(1:5, i, 1)
+                SS%gd(1:5, i, 2) = SS%gd(1:5, i, 1)
+            end if
+
+            !call Phys_Innitial_Conditions(SS, x, y, par)
+            !SS%gd(1:5, i, 1) = par(1:5)
+            !SS%gd(1:5, i, 2) = SS%gd(1:5, i, 1)
+
+
         end do
 
     end subroutine Algoritm_Initial_condition

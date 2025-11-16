@@ -225,13 +225,21 @@ module Phys_parameter
         par1 = SS%gd(:, s1, now)
         par2 = SS%gd(:, s2, now)
 
+        ! Первый порядок      NEW DELETE
+        if(.True.) then
+            par1_ = par1
+            par2_ = par2
+            return
+        end if
+
         istoch1 = .False.
         istoch2 = .False.
         ! if(norm2(par1(3:4))/sqrt(SS%par_ggg * par1(2)/par1(1)) > 2.5 .and. SS%gl_all_Cell_zone(s1) <= 2) istoch1 = .True.
         ! if(norm2(par2(3:4))/sqrt(SS%par_ggg * par2(2)/par2(1)) > 2.5 .and. SS%gl_all_Cell_zone(s2) <= 2) istoch2 = .True.
 
-        if(SS%gl_all_Cell_zone(s1) == 1) istoch1 = .True.
-        if(SS%gl_all_Cell_zone(s2) == 1) istoch2 = .True.
+        ! NEW
+        ! if(SS%gl_all_Cell_zone(s1) == 1) istoch1 = .True.
+        ! if(SS%gl_all_Cell_zone(s2) == 1) istoch2 = .True.
 
         c1 = SS%gl_Cell_Centr(:, s1, now)
         c2 = SS%gl_Cell_Centr(:, s2, now)
@@ -425,7 +433,6 @@ module Phys_parameter
                 par2(2) = par2(2) * r2**(2.0 * SS%par_ggg) / r5**(2.0 * SS%par_ggg)
             end if
         else
-
             if (s1 > 0 .and. s2 > 0 .and. s3 > 0 .and. s4 > 0) then
                 c3 = SS%gl_Cell_Centr(:, s3, now)
                 c4 = SS%gl_Cell_Centr(:, s4, now)
@@ -660,9 +667,10 @@ module Phys_parameter
             u_H = SS%hydrogen(3, i, cell, step)
             v_H = SS%hydrogen(4, i, cell, step)
 
-            if(i == 4) then   ! DELETE NEXT до того, как не пересчитаем водород, придётся умножать этот параметр
-                u_H = u_H * 1.52
-            end if
+            ! if(i == 4) then   ! DELETE NEXT до того, как не пересчитаем водород, придётся умножать этот параметр
+            !     u_H = u_H * 1.1
+            !     v_H = v_H * 1.1
+            ! end if
 
             if(ro_H <= 0.0000001) then
                 ro_H = 0.0000001
@@ -692,6 +700,11 @@ module Phys_parameter
             u_H = SS%hydrogen(3, i, cell, step)
             v_H = SS%hydrogen(4, i, cell, step)
 
+            ! if(i == 4) then   ! DELETE NEXT до того, как не пересчитаем водород, придётся умножать этот параметр
+            !     u_H = u_H * 1.1
+            !     v_H = v_H * 1.1
+            ! end if
+
             if(ro_H <= 0.000000001) then
                 ro_H = 0.000000001
             end if
@@ -712,6 +725,8 @@ module Phys_parameter
             sourse(1) = SS%atom_source(4, cell)
         else
             sourse(1) = SS%atom_source(4, cell)! * SS%par_n_H_LISM           !! ТУТ НАДО ЛИ ДОМНОЖАТЬ НА КОНЦЕНТРАЦИЮ ВОДОРОДА?
+            
+            ! Пока отключил умножение на коэффициенты, чтобы меньше проблем было
             sourse(2) = sourse(2) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(1, cell)
             sourse(4) = sourse(4) * (SS%par_n_H_LISM/SS%par_Kn) * SS%atom_source(3, cell)
 

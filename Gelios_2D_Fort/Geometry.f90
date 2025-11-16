@@ -1332,6 +1332,10 @@ module GEOMETRY
             s1 = SS%gl_Gran_neighbour(1, i)
             s2 = SS%gl_Gran_neighbour(2, i)
 
+            ! NEW
+            SS%gl_Gran_shem(i) = 1
+            CYCLE
+
             if(s1 < 1 .or. s2 < 1) then
                 SS%gl_Gran_shem(i) = 3!!3
                 CYCLE
@@ -1642,7 +1646,11 @@ module GEOMETRY
             if(S <= 0.0) then
                 print*, "S = ", S
                 print*, "ERROR Geo_Culc_length_area 1178  ioyefdvenmlgp9yrtgb"
-                !STOP
+                print*, SS%gl_yzel(:, y1, step)
+                print*, SS%gl_yzel(:, y2, step)
+                print*, SS%gl_yzel(:, y3, step)
+                print*, SS%gl_yzel(:, y4, step)
+                STOP
             end if
 
             p2 = SS%gl_Cell_Centr(:, i, step)

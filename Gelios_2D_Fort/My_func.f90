@@ -105,8 +105,9 @@ module My_func
         al = log(t2/t1) / log(r1/r2)
         snos_istoch = (r1/r)**al * t1
         if(snos_istoch <= 0.0) then
-            print*, "ERROR fwvrewvewvrsvgrvr", snos_istoch, al, t1, t2, r1, r2, r
-            STOP
+            ! print*, "ERROR fwvrewvewvrsvgrvr", snos_istoch, al, t1, t2, r1, r2, r
+            ! STOP
+            snos_istoch = t1 + (t2 - t1) * (r - r1)/(r2 - r1)
         end if
         return
         
