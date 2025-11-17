@@ -1334,25 +1334,36 @@ module GEOMETRY
 
             ! NEW
             SS%gl_Gran_shem(i) = 1
-            CYCLE
+            
 
             if(s1 < 1 .or. s2 < 1) then
-                SS%gl_Gran_shem(i) = 3!!3
+                SS%gl_Gran_shem(i) = 1!!3
                 CYCLE
             end if
 
             t1 = SS%gl_all_Cell_zone(s1)
             t2 = SS%gl_all_Cell_zone(s2)
 
+            
+            if(t1 == 1 .or. t2 == 1) then
+                SS%gl_Gran_shem(i) = 2
+                CYCLE
+            end if
+
+            if(t1 == 4 .or. t2 == 4) then
+                SS%gl_Gran_shem(i) = 2
+                CYCLE
+            end if
+
+
+            CYCLE
+
             if(t1 /= t2) then
                 SS%gl_Gran_shem(i) = 3!!3
                 CYCLE
             end if
 
-            if(t1 == 1 .or. t2 == 1) then
-                SS%gl_Gran_shem(i) = 3
-                CYCLE
-            end if
+            
 
             c = SS%gl_Gran_Center(:, i, 1)
 

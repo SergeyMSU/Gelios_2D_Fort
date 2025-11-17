@@ -1265,9 +1265,9 @@ module Monte_Karlo
 			close(2)
 		end if
 		
-		SS%MK_Mu(:, :, 1) = SS%MK_Mu(:, :, 1) * 1.0 ! 1.5
-		SS%MK_Mu(:, :, 2) = SS%MK_Mu(:, :, 2) * 1.0
-		SS%MK_Mu(:, :, 3) = SS%MK_Mu(:, :, 3) * 1.0
+		SS%MK_Mu(:, :, 1) = SS%MK_Mu(:, :, 1) * 5.0 ! 1.5
+		SS%MK_Mu(:, :, 2) = SS%MK_Mu(:, :, 2) * 5.0
+		SS%MK_Mu(:, :, 3) = SS%MK_Mu(:, :, 3) * 2.0
 		SS%MK_Mu(:, :, 4) = SS%MK_Mu(:, :, 4) * 1.0
 
 		if(SS%n_Hidrogen > 4) then

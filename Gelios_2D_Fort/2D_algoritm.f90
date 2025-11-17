@@ -140,7 +140,7 @@ module Algoritm
         print*, "E"
 
         ! call Read_setka_bin(SS, "V0020")      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
-        call Read_setka_bin(SS, "AL006")   !C0014     ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
+        call Read_setka_bin(SS, "AL010")   !C0014     ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА  CC021       V0004 - до перестройки     V0005
         print*, "F"
         call Geo_Set_sxem(SS)
@@ -224,11 +224,11 @@ module Algoritm
         SS%gl_Gran_POTOK = -100000.0
 
         SS%par_nat_TS = 0.05 * 0.05 * 0.004_8 !! 0.012_8
-        SS%par_nat_HP = 0.1  * 0.0003_8  !   0.1  * 0.003_8
+        SS%par_nat_HP = 0.1  * 0.3_8  !   0.1  * 0.003_8
         SS%par_nat_BS = 0.05 * 0.1  * 0.006_8 !0.004_8
 
-        SS%par_koeff_HP = 0.003_8! 0.3_8    0.03_8 
-        SS%par_koeff_TS = 0.003! 0.00003_8! 0.3_8    0.03_8 
+        SS%par_koeff_HP = 0.03_8! 0.3_8    0.03_8 
+        SS%par_koeff_TS = 0.03_8! 0.00003_8! 0.3_8    0.03_8 
         SS%par_koeff_BS = 0.003_8! 0.3_8    0.03_8 
 
 
@@ -246,7 +246,7 @@ module Algoritm
 
 
         print*, "Start_GD_algoritm:"
-        i_max = 700 * 3! 700 * 2 !700!200!350   100 - 7 минут
+        i_max = 700! 700 * 2 !700!200!350   100 - 7 минут
         do i = 1, i_max
 
             !SS%par_kk2 = SS%par_kk2 + 0.2/300
@@ -276,9 +276,9 @@ module Algoritm
         call Print_GD(SS)
         !call Geo_Print_Surface(SS, startGD + step)
         ! call Save_setka_bin(SS, "V0021")
-        call Geo_Print_Surface(SS, 15)
-        call Save_setka_bin(SS, "AL007")
-        call Print_GD_1D(SS, 15)
+        call Geo_Print_Surface(SS, 1)
+        call Save_setka_bin(SS, "AL011")
+        call Print_GD_1D(SS, 1)
         ! call Save_setka_bin(SS, "X00" // nameGD)
         call Print_Grans(SS)
         ! call Print_Cell_Centr(SS)
@@ -347,11 +347,11 @@ module Algoritm
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        call Read_setka_bin(gl_S4, "D0015")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "AD006")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
         ! call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
         ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
-        call Read_setka_bin(SS, "AL006")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "AL011")      ! ОСНОВНАЯ СЕТКА
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
@@ -482,7 +482,7 @@ module Algoritm
 
         write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "AD006")
+        call Save_setka_bin(gl_S3, "AD011")
         ! call Save_setka_bin(gl_S3, "XV0" // nameMK)
 
         if(gl_S3%culc_pui == .True.) then
@@ -893,17 +893,18 @@ module Algoritm
 
                     
 
-                    if(.False.) then
+                    !if(.False.) then
                     !if(.True.) then
                     !if(SS%gl_Gran_shem(gran) == 3 .or. SS%gl_Gran_type(gran) == 2) then
+                    if(SS%gl_Gran_type(gran) == 2 .or. SS%gl_Gran_type(gran) == 3) then
 
                         !if(SS%gl_Gran_type(gran) == 2 .and. gran_center(2) < 15) then  !! Контакт  8
-                        if(.False.) then
-                            wc = 0.0
-                            qqq2 = qqq1
-                            wc = DOT_PRODUCT(qqq1(2:3), normal)
-                            qqq2(2:3) = qqq2(2:3) - 2.0 * wc * normal
-                            wc = 0.0
+                        if(.True.) then
+                            !wc = 0.0
+                            !qqq2 = qqq1
+                            !wc = DOT_PRODUCT(qqq1(2:3), normal)
+                            !qqq2(2:3) = qqq2(2:3) - 2.0 * wc * normal
+                            !wc = 0.0
 
                             call cgod3d(KOBL, 0, 0, 0, kdir, idgod, &
                             normal(1), normal(2), 0.0_8, 1.0_8, &
@@ -911,13 +912,13 @@ module Algoritm
                             dsl, dsp, dsc, 3, 1.66666666666666_8, &
                             POTOK2)
 
-                            POTOK2(1) = 0.0
-                            POTOK2(4) = 0.0
-                            POTOK2(5) = 0.0
-                            POTOK2(6) = 0.0
-                            POTOK2(7) = 0.0
-                            POTOK2(8) = 0.0
-                            POTOK2(9) = 0.0
+                            !POTOK2(1) = 0.0
+                            !POTOK2(4) = 0.0
+                            !POTOK2(5) = 0.0
+                            !POTOK2(6) = 0.0
+                            !POTOK2(7) = 0.0
+                            !POTOK2(8) = 0.0
+                            !POTOK2(9) = 0.0
 
 
                             if (idgod == 2) STOP "ERROR okrfi9uhebrtomeevjoerhbbvecwwvertbhyrvgf"
@@ -1375,6 +1376,9 @@ module Algoritm
 
         integer(4) :: step2, N1, N2, j, i, node, del, ii, yz
         real(8) :: the, R_TS, R_HP, R_BS, coord(2), norma, vel(2), the2, coord2(2)
+        real(8) :: R_HP_x_max
+
+        R_HP_x_max = 0.0_8
 
         step2 = mod(step, 2) + 1 
 
@@ -1402,6 +1406,10 @@ module Algoritm
             del = SS%gl_Point_num(node)
             if(del > 1) vel = vel/del
             R_HP = norm2(coord * (1.0 + DOT_PRODUCT(vel * TT, coord/norma)/norma))
+
+            if(coord(2) > 15.0) then
+                R_HP_x_max = max(R_HP_x_max, coord(1))
+            end if
             !R_HP = norm2(SS%gl_yzel(:, node, step))
 
             node = SS%gl_RAY_A(SS%par_n_BS, j)
@@ -1446,6 +1454,10 @@ module Algoritm
             else
                 norma = norm2(coord2)
                 R_HP = norma
+            end if
+
+            if(coord2(1) < R_HP_x_max) then
+                R_HP = R_HP + 0.00005
             end if
 
             node = SS%gl_RAY_A(SS%par_n_BS, 2)
