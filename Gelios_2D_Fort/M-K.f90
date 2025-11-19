@@ -69,7 +69,8 @@ module Monte_Karlo
 		!$omp parallel
 		!$omp do private(potok, num, mu_, Wt_, Wp_, Wr_, X_, bb, i, Vx, Vy, &
 		!$omp Vz, cell, sin_, x, phi, y, z, ksi, r_peregel, no, to_i, to_j, ksi1, &
-		!$omp ksi2, ksi3, ksi4, ksi5, ll, rr, Vphi, Vr, inzone)
+		!$omp ksi2, ksi3, ksi4, ksi5, ll, rr, Vphi, Vr, inzone) &
+		!$omp schedule(dynamic)
         do iter = 1, par_n_potok * par_n_parallel
 
             potok = (omp_get_thread_num() + 1) 
