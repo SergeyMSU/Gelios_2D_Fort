@@ -29,7 +29,7 @@ module STORAGE
 
     ! „исло частиц у каждого потока!
 	! „исло должно быть кратно par_n_parallel
-	integer(4), parameter :: MK_k_multiply = 20! 12 * 5! 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 30 минут)
+	integer(4), parameter :: MK_k_multiply = 5! 12 * 5! 12 * 2!11 * 8!12 * 10! 12 * 7!14 * 8!6 * 3! * 6 * 9! * 6 * 8!6 * 6 * 2  !   ! 6 = 20 минут счЄта (с пикапами 30 минут)
     ! 9 сейчас с пикапами
     ! 12 (14) - это 1 час с пикапами
     ! 18 - это 1 час без пикапов
@@ -260,9 +260,9 @@ module STORAGE
         ! (1     2    3    4   5  6    7)
 
         LOGICAL :: pogl_ = .True.  ! —читаем ли поглощение
-        real(8) :: pogl_v_min = -45.0
-        real(8) :: pogl_v_max = 45.0
-        integer(4) :: pogl_iter = 900
+        real(8) :: pogl_v_min = -45.0! -15.0 ! -45.0
+        real(8) :: pogl_v_max = 45.0! 15.0 ! 45.0
+        integer(4) :: pogl_iter = 900 ! 300! 900
         real(8) :: pogl_ddd
         real(8), allocatable :: pogloshenie(:, :, :)   !  (n_Hidrogen, рабиений по скорости, €чеек)
 

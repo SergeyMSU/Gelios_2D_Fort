@@ -347,11 +347,16 @@ module Algoritm
 
         ! Сетка водорода нужно только в случае использования ПИКАПОВ   culc_pui == True
         ! call Read_setka_bin(gl_S4, "DDD34")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
-        call Read_setka_bin(gl_S4, "AD006")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
+        call Read_setka_bin(gl_S4, "B0080")   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
         ! call Read_setka_bin(gl_S4, "XV0"//nameMK)   ! ДЛЯ ВОДОРОДА (Предыдущий расчёт)
 
+        call Set_param_model(gl_S4)
+        call Calc_Pogloshenie_moment(gl_S4)
+        call Calc_Pogloshenie(gl_S4)
+        return
+
         ! call Read_setka_bin(SS, "CC035")      ! ОСНОВНАЯ СЕТКА
-        call Read_setka_bin(SS, "AL011")      ! ОСНОВНАЯ СЕТКА
+        call Read_setka_bin(SS, "A0073")      ! ОСНОВНАЯ СЕТКА
         ! call Read_setka_bin(SS, "X00"//nameGD)      ! ОСНОВНАЯ СЕТКА
 
         ! call Print_GD(SS)
@@ -466,6 +471,8 @@ module Algoritm
         call Print_hydrogen(gl_S3)
         call Print_hydrogen_1D(gl_S3, 3)
         call Calc_Pogloshenie(gl_S3)
+        call Calc_Pogloshenie_moment(gl_S3)
+
 
         if(gl_S3%culc_pui == .True.) call Print_GD_PUI(gl_S3)
 
@@ -482,7 +489,7 @@ module Algoritm
 
         write(unit=nameMK,fmt='(i2.2)') startMK + step
         ! call Save_setka_bin(gl_S3, "DDD35")
-        call Save_setka_bin(gl_S3, "AD011")
+        call Save_setka_bin(gl_S3, "B0080")
         ! call Save_setka_bin(gl_S3, "XV0" // nameMK)
 
         if(gl_S3%culc_pui == .True.) then
@@ -547,8 +554,8 @@ module Algoritm
         end if
 
         if(mod == 2) then  !! Модель стандарт
-            SS%par_n_H_LISM = 3.0_8!3.5_8
-            SS%par_Velosity_inf = -3.86307_8 ! -2.54278_8
+            SS%par_n_H_LISM = 3.5_8! 3.0_8!3.5_8
+            SS%par_Velosity_inf = -2.54278_8! -3.86307_8 ! -2.54278_8
             SS%par_Kn = 50.3721_8 
             SS%par_nu_ph = 12.1002_8 
             SS%par_E_ph = 0.10878_8

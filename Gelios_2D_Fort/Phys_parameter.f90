@@ -754,7 +754,6 @@ module Phys_parameter
 	end subroutine Calc_sourse_MF
 
     subroutine Calc_Pogloshenie(SS)
-        ! Печатаем поверхности, которые выделяем
         TYPE (Setka), intent(in) :: SS
         integer(4) :: i, j, i_luch, sort, cell
         real(8) :: alf, dl, r(2), u
@@ -798,6 +797,84 @@ module Phys_parameter
             close(1)
         end do
     end subroutine Calc_Pogloshenie
+
+
+    subroutine Calc_Pogloshenie_moment(SS)
+        TYPE (Setka), intent(in) :: SS
+
+        logical :: inzone
+        real(8) :: x, dl, u
+        integer :: cell, i
+        real(8) :: pogl(SS%pogl_iter)
+        real(8) :: pogl4(SS%pogl_iter)
+        real(8) :: uH3, vH3, nH3, TH3, cH3, ff
+        real(8) :: uH4, vH4, nH4, TH4, cH4, ff4
+
+        pogl = 0.0_8
+        pogl4 = 0.0_8
+        cell = 1
+        dl = 0.01
+
+        open(1, file = "Pogloshenie_fluid.txt")
+        write(1,*) "TITLE = 'HP'  VARIABLES = 'u', 'f3', 'f4'"
+        
+        do x = 1.0, 200.0, dl
+            call Geo_Find_Cell(SS, x, 0.00001_8, cell, inzone)
+
+            if (inzone == .False.) EXIT
+            if (cell < 1) EXIT
+
+            ! nH3 = SS%M_K_Moment(1, 3, cell, 1)
+            ! uH3 = SS%M_K_Moment(2, 3, cell, 1)
+            ! vH3 = SS%M_K_Moment(3, 3, cell, 1)
+            ! TH3 = SS%M_K_Moment(4, 3, cell, 1)
+
+            nH3 = SS%hydrogen(1, 3, cell, 1)
+            uH3 = SS%hydrogen(3, 3, cell, 1)
+            vH3 = SS%hydrogen(4, 3, cell, 1)
+            TH3 = SS%hydrogen(5, 3, cell, 1)
+
+            nH4 = SS%hydrogen(1, 4, cell, 1)
+            uH4 = SS%hydrogen(3, 4, cell, 1)
+            vH4 = SS%hydrogen(4, 4, cell, 1)
+            TH4 = SS%hydrogen(5, 4, cell, 1)
+
+            if(isnan(nH3) == .True.) then
+                nH3 = 0.0_8
+                uH3 = 1.0_8
+                vH3 = 1.0_8
+                TH3 = 1.0_8
+            end if
+            if(isnan(nH4) == .True.) then
+                nH4 = 0.0_8
+                uH4 = 1.0_8
+                vH4 = 1.0_8
+                TH4 = 1.0_8
+            end if
+            if(nH3 < 0.00001_8) TH3 = 1.0_8
+            if(nH4 < 0.00001_8) TH4 = 1.0_8
+
+            cH3 = sqrt(TH3)
+            cH4 = sqrt(TH4)
+
+            do i = 1, SS%pogl_iter
+                u = SS%pogl_v_min + (i + 0.5) * SS%pogl_ddd
+                ff = nH3 * exp(-(u - uH3)**2 / (cH3)**2) / (par_sqrtpi * cH3)
+                ff4 = nH4 * exp(-(u - uH4)**2 / (cH4)**2) / (par_sqrtpi * cH4)
+                pogl(i) = pogl(i) + dl * ff/SS%pogl_ddd * SS%par_n_H_LISM * SS%par_poglosh
+                pogl4(i) = pogl4(i) + dl * ff4/SS%pogl_ddd * SS%par_n_H_LISM * SS%par_poglosh
+            end do
+
+        end do
+
+
+        do i = 1, SS%pogl_iter
+            u = SS%pogl_v_min + (i + 0.5) * SS%pogl_ddd;
+            write(1,*) u * 10.3804, exp(-pogl(i)), exp(-pogl4(i))
+            !! Здесь скорость переведена в км/с
+        end do
+
+    end subroutine Calc_Pogloshenie_moment
 
     real(8) pure function GET_HP_nat(phi)
         implicit none
